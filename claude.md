@@ -35,12 +35,19 @@
 - **UI Components:** Heroicons
 - **State Management:** React hooks (useState, useEffect)
 - **Build Tool:** Create React App (react-scripts)
+- **API Client:** Centralized axios module (`src/api.js`)
+- **Deployment:** Netlify (static hosting)
 
 ### Development
 - **Package Management:** pip (Python), npm (Node.js)
 - **Local AI:** Ollama (runs models locally)
-- **API Communication:** Axios
+- **API Communication:** Axios (centralized in `frontend/src/api.js`)
 - **Development Servers:** Uvicorn (port 8000), Webpack Dev Server (port 3000)
+
+### Deployment
+- **Frontend Hosting:** Netlify (static site)
+- **Backend Tunnel:** Cloudflare Tunnel (exposes local backend to internet)
+- **Architecture:** Hybrid - cloud frontend + local backend with Ollama
 
 ## Architecture
 
@@ -51,6 +58,8 @@ neighborhood-ai/
 ├── agent.py                    # RAG agent with LLM integration
 ├── models.py                   # Pydantic data models
 ├── vector_store.py             # Qdrant vector database interface
+├── start-tunnel.sh             # Cloudflare tunnel startup script
+├── DEPLOYMENT.md               # Cloud deployment guide
 ├── collectors/                 # Data collection modules
 │   ├── youtube_collector.py    # YouTube video/playlist transcripts
 │   ├── website_collector.py    # Web scraping
@@ -58,9 +67,11 @@ neighborhood-ai/
 │   └── source_discovery.py     # AI-powered source finding
 ├── frontend/
 │   ├── public/                 # Static assets
+│   ├── netlify.toml            # Netlify deployment config
 │   ├── src/
 │   │   ├── App.js              # Main React app with routing
 │   │   ├── App.css             # Global styles
+│   │   ├── api.js              # Centralized axios API client
 │   │   ├── index.css           # Tailwind imports
 │   │   └── components/
 │   │       ├── LandingPage.js      # Marketing/landing page + project showcase
@@ -527,10 +538,68 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 ---
 
 **Last Updated:** January 4, 2026
-**Version:** 1.0.2
+**Version:** 1.0.3
 **Status:** Active development
 
+## Deployment
+
+### Production URLs
+- **Frontend:** https://neighborhood-ai.netlify.app
+- **Backend API:** Via Cloudflare Tunnel (dynamic URL)
+
+### Hybrid Architecture
+The app uses a hybrid cloud/local architecture:
+1. **Frontend** hosted on Netlify (static React build)
+2. **Backend** runs locally on your Mac with Ollama
+3. **Cloudflare Tunnel** exposes local backend to internet securely
+
+### Starting the Tunnel
+```bash
+# Start the Cloudflare tunnel
+./start-tunnel.sh
+
+# The URL will be displayed, e.g.:
+# https://random-words.trycloudflare.com
+
+# Update Netlify env var with the new URL:
+# REACT_APP_API_URL = https://your-tunnel-url.trycloudflare.com
+```
+
+### Monitoring the Tunnel
+```bash
+# Check if running
+pgrep -fl cloudflared
+
+# View logs
+tail -f /tmp/tunnel.log
+
+# Get current URL
+cat /tmp/tunnel.log | grep trycloudflare
+
+# Stop tunnel
+pkill cloudflared
+```
+
+### Netlify Configuration
+Environment variables needed in Netlify:
+- `REACT_APP_API_URL` - Your Cloudflare tunnel URL
+
+Build settings:
+- Base directory: `frontend`
+- Build command: `npm run build`
+- Publish directory: `frontend/build`
+
 ## Session History
+
+### January 4, 2026 - Session 4
+- Deployed frontend to Netlify (https://neighborhood-ai.netlify.app)
+- Set up Cloudflare Tunnel for backend access
+- Created centralized API module (`frontend/src/api.js`) with configurable base URL
+- Added `netlify.toml` with build config and SPA redirects
+- Fixed ESLint warnings for CI build (removed unused imports/variables)
+- Updated CORS to allow Netlify domain
+- Created `start-tunnel.sh` for easy tunnel startup
+- Created `DEPLOYMENT.md` with comprehensive deployment guide
 
 ### January 4, 2026 - Session 3
 - Redesigned landing page with more informative content
