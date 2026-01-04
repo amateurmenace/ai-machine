@@ -66,17 +66,19 @@ neighborhood-ai/
 │   │       ├── LandingPage.js      # Marketing/landing page + project showcase
 │   │       ├── ProjectList.js      # Project management console
 │   │       ├── SetupWizard.js      # 4-step project creation
-│   │       ├── Dashboard.js        # Project overview with quick links
-│   │       ├── DataManager.js      # Data source management
+│   │       ├── Dashboard.js        # Project overview + config editor
+│   │       ├── DataManager.js      # Data source management + PDF upload
 │   │       ├── ChatInterface.js    # AI chat interface
 │   │       ├── Settings.js         # AI model & personality config
 │   │       ├── AdminConsole.js     # Health monitoring & API keys
-│   │       └── HelpPage.js         # Setup guides & troubleshooting
+│   │       ├── HelpPage.js         # Setup guides & troubleshooting
+│   │       └── Guide.js            # Comprehensive wiki-style documentation
 │   └── package.json            # Frontend dependencies
 ├── data/                       # Project data storage
 │   └── {project_id}/
 │       ├── config.json         # Project configuration
-│       └── qdrant/             # Vector database files
+│       ├── qdrant/             # Vector database files
+│       └── uploads/            # Uploaded PDF files
 ├── requirements.txt            # Python dependencies
 └── .env                        # Configuration (API keys)
 ```
@@ -157,6 +159,7 @@ The interface uses a developer/coding aesthetic:
 | `youtube_video` | Single YouTube video | ✅ Working |
 | `website` | Web pages with crawling | ✅ Working |
 | `pdf_url` | PDF documents from URLs | ✅ Working |
+| `pdf_upload` | Direct PDF file upload | ✅ Working |
 | `rss_feed` | RSS/Atom feeds | 🚧 Planned |
 | `reddit` | Reddit communities | 🚧 Planned |
 
@@ -207,14 +210,23 @@ POST /api/projects/{id}/generate-api-key      # Generate project API key
 DELETE /api/projects/{id}/revoke-api-key      # Revoke API key
 ```
 
+### Documents & Config
+```
+GET  /api/projects/{id}/documents             # List vector store documents
+GET  /api/projects/{id}/config                # Get raw config JSON
+PUT  /api/projects/{id}/config                # Update raw config JSON
+POST /api/projects/{id}/upload-pdf            # Upload PDF file directly
+```
+
 ### Frontend Routes
 ```
 /                                   # Landing page with project showcase
+/guide                              # Comprehensive wiki-style guide
 /console                            # Project list
 /console/new                        # Setup wizard
 /console/projects/:id               # Project dashboard
 /console/projects/:id/chat          # Chat interface
-/console/projects/:id/data          # Data management
+/console/projects/:id/data          # Data management + PDF upload
 /console/projects/:id/settings      # AI model configuration
 /console/projects/:id/admin         # Admin console (health, API keys)
 /console/projects/:id/help          # Help & documentation
@@ -324,7 +336,7 @@ open http://localhost:3000
 - Terminal-style header with branding
 - Animated background effects
 - Energy comparison visualization
-- Navigation to console
+- Navigation to console and guide
 - Projects showcase with embedded chat (shows online/offline status)
 - Chat modal for trying out community AIs
 
@@ -333,17 +345,21 @@ open http://localhost:3000
 - 4-step setup wizard with terminal aesthetics
 - Project list with folder view
 - Individual project dashboards with quick action cards
+- Raw config.json editor (Code button)
 - Admin console with health monitoring
 - Help page with setup guides
+- Comprehensive wiki-style Guide
 
 **Data Collection:**
 - YouTube playlist transcript extraction
 - Single YouTube video support
 - Website scraping with BeautifulSoup
-- PDF text extraction
+- PDF text extraction (URL and direct upload)
 - AI-powered source discovery
 - Source preview and selection
 - Custom source addition
+- Collection method tracking (how data was gathered)
+- Document viewer (browse ingested chunks)
 
 **AI Integration:**
 - Local models via Ollama
@@ -367,6 +383,7 @@ open http://localhost:3000
 - Chat interface with role indicators
 - Data source management with status badges
 - Source ingestion progress tracking
+- Word count and chunk count per source
 - Loading animations and feedback
 - Consistent back navigation on all pages
 - Settings page for AI configuration
@@ -374,9 +391,23 @@ open http://localhost:3000
 **Admin & Health:**
 - System health monitoring (Ollama status, project count)
 - Project health checks (AI provider, vector store, data sources)
+- Actionable issue messages in health response
 - API key generation for external access
 - Ingestion job monitoring
 - Server management instructions
+
+**Documentation:**
+- Comprehensive Guide page (/guide) covering:
+  - System requirements (hardware recommendations)
+  - Installation instructions (Mac/Windows/Linux)
+  - Ollama setup and model selection
+  - Starting the application (3-terminal workflow)
+  - Creating first project walkthrough
+  - Data source types and collection methods
+  - Cloud AI providers setup
+  - Deployment options (Docker, nginx, cloud hosting)
+  - Troubleshooting common issues
+  - FAQ
 
 ### 🚧 Known Limitations
 
@@ -390,7 +421,6 @@ open http://localhost:3000
 **Planned Features:**
 - RSS feed collector
 - Reddit collector
-- PDF file upload (not just URLs)
 - Scheduled re-ingestion
 - Conversation persistence
 - User authentication

@@ -214,12 +214,18 @@ brooklineAI.ask("What are the rules for block parties?");
             </div>
 
             <nav className="flex items-center space-x-4">
-              <a href="#why" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">why</a>
-              <a href="#how" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">how</a>
-              <a href="#values" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">values</a>
+              <a href="#why" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">why</a>
+              <a href="#how" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">how</a>
+              <a href="#values" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">values</a>
               {projects.length > 0 && (
-                <a href="#projects" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">projects</a>
+                <a href="#projects" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">projects</a>
               )}
+              <button
+                onClick={() => navigate('/guide')}
+                className="text-purple-400 hover:text-purple-300 px-3 py-2 font-mono text-sm transition-colors border border-purple-500/30 rounded hover:bg-purple-500/10"
+              >
+                guide
+              </button>
               <button
                 onClick={handleNavigateToConsole}
                 className="bg-green-500 text-gray-900 px-4 py-2 rounded font-mono text-sm font-semibold hover:bg-green-400 transition-colors flex items-center space-x-1"

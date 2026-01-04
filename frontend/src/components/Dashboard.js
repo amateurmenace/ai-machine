@@ -17,7 +17,10 @@ import {
   PaintBrushIcon,
   CloudArrowUpIcon,
   QuestionMarkCircleIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  CodeBracketIcon,
+  BookOpenIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 function Dashboard() {
@@ -25,6 +28,10 @@ function Dashboard() {
   const [project, setProject] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showConfigEditor, setShowConfigEditor] = useState(false);
+  const [configContent, setConfigContent] = useState('');
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configError, setConfigError] = useState(null);
 
   useEffect(() => {
     loadProjectData();
@@ -43,6 +50,31 @@ function Dashboard() {
       console.error('Error loading project:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openConfigEditor = async () => {
+    try {
+      const response = await axios.get(`/api/projects/${projectId}/config`);
+      setConfigContent(response.data.config);
+      setShowConfigEditor(true);
+      setConfigError(null);
+    } catch (error) {
+      console.error('Error loading config:', error);
+    }
+  };
+
+  const saveConfig = async () => {
+    setSavingConfig(true);
+    setConfigError(null);
+    try {
+      await axios.put(`/api/projects/${projectId}/config`, { config: configContent });
+      setShowConfigEditor(false);
+      loadProjectData();
+    } catch (error) {
+      setConfigError(error.response?.data?.detail || 'Failed to save configuration');
+    } finally {
+      setSavingConfig(false);
     }
   };
 
@@ -182,7 +214,73 @@ function Dashboard() {
             Setup guides, troubleshooting, and documentation
           </p>
         </Link>
+
+        <button
+          onClick={openConfigEditor}
+          className="bg-gray-900 p-6 rounded-lg border border-gray-700 hover:border-orange-500/50 transition-all group text-left"
+        >
+          <CodeBracketIcon className="h-10 w-10 text-orange-400 mb-4 group-hover:scale-110 transition-transform" />
+          <h3 className="text-lg font-semibold text-white font-mono mb-2">./code</h3>
+          <p className="text-sm text-gray-500">
+            Edit raw config.json directly
+          </p>
+        </button>
       </div>
+
+      {/* Config Editor Modal */}
+      {showConfigEditor && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 rounded-t-lg">
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <span className="text-gray-400 text-sm font-mono ml-4">config.json</span>
+              </div>
+              <button
+                onClick={() => setShowConfigEditor(false)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-hidden p-4">
+              <textarea
+                value={configContent}
+                onChange={(e) => setConfigContent(e.target.value)}
+                className="w-full h-full min-h-[400px] bg-gray-950 text-green-400 font-mono text-sm p-4 rounded border border-gray-700 focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                spellCheck={false}
+              />
+            </div>
+
+            {configError && (
+              <div className="px-4 pb-2">
+                <p className="text-sm text-red-400 font-mono">{configError}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 px-4 py-3 bg-gray-800 border-t border-gray-700 rounded-b-lg">
+              <button
+                onClick={() => setShowConfigEditor(false)}
+                className="px-4 py-2 text-gray-400 hover:text-white font-mono text-sm"
+              >
+                cancel
+              </button>
+              <button
+                onClick={saveConfig}
+                disabled={savingConfig}
+                className="px-4 py-2 bg-orange-500 text-gray-900 rounded font-mono font-semibold hover:bg-orange-400 disabled:opacity-50"
+              >
+                {savingConfig ? 'saving...' : 'save config'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Next Steps Guide */}
       <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-8">

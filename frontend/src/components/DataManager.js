@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -12,7 +12,12 @@ import {
   GlobeAmericasIcon,
   DocumentTextIcon,
   LinkIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  CloudArrowUpIcon,
+  EyeIcon,
+  XMarkIcon,
+  DocumentDuplicateIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 
 function DataManager() {
@@ -22,6 +27,12 @@ function DataManager() {
   const [jobs, setJobs] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAddSource, setShowAddSource] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [viewingDocuments, setViewingDocuments] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Add source form
   const [newSource, setNewSource] = useState({
@@ -105,6 +116,63 @@ function DataManager() {
     }
   };
 
+  const handlePdfUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`/api/projects/${projectId}/upload-pdf`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      setJobs(prev => ({
+        ...prev,
+        [response.data.source_id]: { job_id: response.data.job_id, status: 'pending', progress: 0, source_id: response.data.source_id }
+      }));
+
+      await loadProject();
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      alert(error.response?.data?.detail || 'Failed to upload PDF');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const viewSourceDocuments = async (source) => {
+    setViewingDocuments(source);
+    setDocumentsLoading(true);
+    setDocuments([]);
+
+    try {
+      const response = await axios.get(`/api/projects/${projectId}/documents?source_id=${source.id}&limit=50`);
+      setDocuments(response.data.documents || []);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
+  const getCollectionMethodLabel = (source) => {
+    const method = source.metadata?.collection_method;
+    const methodLabels = {
+      'youtube_transcript_api': 'Auto-transcription via YouTube API',
+      'web_scraper': 'Web page scraping',
+      'pdf_url_download': 'PDF download & text extraction',
+      'pdf_upload': 'Direct PDF upload',
+      'unknown': 'Data collection'
+    };
+    return methodLabels[method] || methodLabels['unknown'];
+  };
+
   const getSourceIcon = (type) => {
     switch (type) {
       case 'youtube_playlist':
@@ -113,6 +181,7 @@ function DataManager() {
       case 'website':
         return <GlobeAmericasIcon className="h-5 w-5" />;
       case 'pdf_url':
+      case 'pdf_upload':
         return <DocumentTextIcon className="h-5 w-5" />;
       default:
         return <LinkIcon className="h-5 w-5" />;
@@ -125,6 +194,7 @@ function DataManager() {
       'youtube_video': 'youtube/video',
       'website': 'website',
       'pdf_url': 'pdf',
+      'pdf_upload': 'pdf/upload',
       'rss_feed': 'rss',
       'reddit': 'reddit'
     };
@@ -187,13 +257,30 @@ function DataManager() {
             {sources.length} source{sources.length !== 1 ? 's' : ''} configured
           </p>
         </div>
-        <button
-          onClick={() => setShowAddSource(!showAddSource)}
-          className="inline-flex items-center px-4 py-2 bg-green-500 text-gray-900 rounded-lg font-mono font-semibold hover:bg-green-400 transition-colors"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          + add
-        </button>
+        <div className="flex space-x-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handlePdfUpload}
+            accept=".pdf"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/50 rounded-lg font-mono hover:bg-purple-500/30 transition-colors disabled:opacity-50"
+          >
+            <CloudArrowUpIcon className="h-5 w-5 mr-2" />
+            {uploading ? 'uploading...' : 'upload PDF'}
+          </button>
+          <button
+            onClick={() => setShowAddSource(!showAddSource)}
+            className="inline-flex items-center px-4 py-2 bg-green-500 text-gray-900 rounded-lg font-mono font-semibold hover:bg-green-400 transition-colors"
+          >
+            <PlusIcon className="h-5 w-5 mr-2" />
+            + add
+          </button>
+        </div>
       </div>
 
       {/* Add Source Form */}
@@ -329,10 +416,27 @@ function DataManager() {
                       )}
                       {getJobStatus(source.id)}
                     </div>
+
+                    {/* Collection method info */}
+                    {source.metadata?.collection_method && (
+                      <div className="flex items-center mt-2 text-xs text-gray-600">
+                        <InformationCircleIcon className="h-3 w-3 mr-1" />
+                        {getCollectionMethodLabel(source)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex space-x-2 ml-4">
+                  {source.document_count > 0 && (
+                    <button
+                      onClick={() => viewSourceDocuments(source)}
+                      className="p-2 text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors"
+                      title="View documents"
+                    >
+                      <EyeIcon className="h-5 w-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleSyncSource(source.id)}
                     disabled={jobs[source.id]?.status === 'running' || jobs[source.id]?.status === 'pending'}
@@ -352,6 +456,106 @@ function DataManager() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Document Viewer Modal */}
+      {viewingDocuments && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700 rounded-t-lg">
+              <div className="flex items-center space-x-3">
+                <DocumentDuplicateIcon className="h-5 w-5 text-purple-400" />
+                <div>
+                  <h3 className="text-white font-mono">{viewingDocuments.name}</h3>
+                  <p className="text-xs text-gray-500 font-mono">
+                    {documents.length} document chunks • {viewingDocuments.word_count?.toLocaleString() || 0} total words
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setViewingDocuments(null); setSelectedDoc(null); }}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex">
+              {/* Document List */}
+              <div className="w-1/3 border-r border-gray-700 overflow-y-auto">
+                {documentsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <ArrowPathIcon className="h-6 w-6 text-gray-500 animate-spin" />
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="p-4 text-gray-500 text-sm font-mono text-center">
+                    No documents found
+                  </div>
+                ) : (
+                  documents.map((doc, idx) => (
+                    <button
+                      key={doc.id}
+                      onClick={() => setSelectedDoc(doc)}
+                      className={`w-full text-left p-3 border-b border-gray-800 hover:bg-gray-800 transition-colors ${
+                        selectedDoc?.id === doc.id ? 'bg-gray-800 border-l-2 border-l-purple-500' : ''
+                      }`}
+                    >
+                      <div className="flex items-start space-x-2">
+                        <span className="text-xs text-gray-600 font-mono">{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-400 font-mono truncate">{doc.title || 'Untitled'}</p>
+                          <p className="text-xs text-gray-600 line-clamp-2 mt-1">{doc.text}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Document Content */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {selectedDoc ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="font-mono text-white">{selectedDoc.title || 'Untitled'}</h4>
+                      {selectedDoc.url && (
+                        <a href={selectedDoc.url} target="_blank" rel="noopener noreferrer"
+                           className="text-xs text-cyan-400 hover:underline font-mono block truncate">
+                          {selectedDoc.url}
+                        </a>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-xs font-mono">
+                        <span className="px-2 py-1 bg-gray-800 text-gray-400 rounded">
+                          {selectedDoc.source_type}
+                        </span>
+                        {selectedDoc.metadata?.collection_method && (
+                          <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded">
+                            {selectedDoc.metadata.collection_method}
+                          </span>
+                        )}
+                        {selectedDoc.metadata?.timestamp !== undefined && (
+                          <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded">
+                            @{Math.floor(selectedDoc.metadata.timestamp / 60)}:{String(Math.floor(selectedDoc.metadata.timestamp % 60)).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap font-mono leading-relaxed">
+                        {selectedDoc.full_text || selectedDoc.text}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500 text-sm font-mono">
+                    Select a document to view its content
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

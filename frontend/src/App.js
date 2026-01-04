@@ -10,6 +10,7 @@ import ProjectList from './components/ProjectList';
 import Settings from './components/Settings';
 import AdminConsole from './components/AdminConsole';
 import HelpPage from './components/HelpPage';
+import Guide from './components/Guide';
 
 function ConsoleHeader() {
   return (
@@ -31,6 +32,9 @@ function ConsoleHeader() {
           <nav className="flex items-center space-x-2">
             <Link to="/console" className="text-gray-400 hover:text-green-400 px-3 py-2 rounded font-mono text-sm transition-colors">
               ~/projects
+            </Link>
+            <Link to="/guide" className="text-purple-400 hover:text-purple-300 px-3 py-2 rounded font-mono text-sm transition-colors border border-purple-500/30 hover:bg-purple-500/10">
+              guide
             </Link>
             <Link to="/console/new" className="bg-green-500 text-gray-900 px-4 py-2 rounded font-mono text-sm font-semibold hover:bg-green-400 transition-colors flex items-center space-x-1">
               <span>+ new</span>
@@ -69,7 +73,10 @@ function App() {
       <Routes>
         {/* Landing page */}
         <Route path="/" element={<LandingPage />} />
-        
+
+        {/* Guide page (standalone) */}
+        <Route path="/guide" element={<Guide />} />
+
         {/* Console routes */}
         <Route path="/console" element={<ConsoleLayout><ProjectList /></ConsoleLayout>} />
         <Route path="/console/new" element={<ConsoleLayout><SetupWizard /></ConsoleLayout>} />

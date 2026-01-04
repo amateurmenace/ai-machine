@@ -114,20 +114,29 @@ function HelpPage() {
 
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <h3 className="text-white font-mono mb-3">Step 2: Start Ollama Server</h3>
-            <p className="text-gray-400 mb-2">Open a terminal and run:</p>
+            <p className="text-gray-400 mb-2">Open Terminal (Mac) or Command Prompt (Windows) and run:</p>
             <pre className="bg-gray-900 p-3 rounded overflow-x-auto">
-              <code className="text-green-400">$ ollama serve</code>
+              <code className="text-green-400">ollama serve</code>
             </pre>
             <p className="text-gray-500 text-xs mt-2">Keep this terminal open while using Neighborhood AI.</p>
           </div>
 
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <h3 className="text-white font-mono mb-3">Step 3: Download a Model</h3>
-            <p className="text-gray-400 mb-2">In a new terminal, pull the recommended model:</p>
+            <p className="text-gray-400 mb-2">In a new terminal window, pull the recommended model:</p>
             <pre className="bg-gray-900 p-3 rounded overflow-x-auto">
-              <code className="text-green-400">$ ollama pull llama3.1:8b</code>
+              <code className="text-green-400">ollama pull llama3.1:8b</code>
             </pre>
             <p className="text-gray-500 text-xs mt-2">This downloads ~4.5GB. Wait for it to complete.</p>
+          </div>
+
+          <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <h3 className="text-white font-mono mb-3">Step 4: Run the Model</h3>
+            <p className="text-gray-400 mb-2">If the model is already downloaded, start it with:</p>
+            <pre className="bg-gray-900 p-3 rounded overflow-x-auto">
+              <code className="text-green-400">ollama run llama3.1:8b</code>
+            </pre>
+            <p className="text-gray-500 text-xs mt-2">This loads the model into memory. You can then use the /bye command to exit.</p>
           </div>
 
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -293,7 +302,7 @@ function HelpPage() {
               Make sure Ollama is started. Open a terminal and run:
             </p>
             <pre className="bg-gray-900 p-2 rounded">
-              <code className="text-green-400">$ ollama serve</code>
+              <code className="text-green-400">ollama serve</code>
             </pre>
           </div>
 
@@ -303,7 +312,7 @@ function HelpPage() {
               Download the model first. For example:
             </p>
             <pre className="bg-gray-900 p-2 rounded">
-              <code className="text-green-400">$ ollama pull llama3.1:8b</code>
+              <code className="text-green-400">ollama pull llama3.1:8b</code>
             </pre>
           </div>
 
@@ -333,6 +342,25 @@ function HelpPage() {
           </div>
         </div>
       </Section>
+
+      {/* Full Guide Link */}
+      <div className="bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-lg border border-purple-500/30 p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-mono text-white mb-2">Need more help?</h3>
+            <p className="text-gray-400 text-sm">
+              Check out our comprehensive guide with installation instructions, troubleshooting, and FAQs.
+            </p>
+          </div>
+          <Link
+            to="/guide"
+            className="flex-shrink-0 ml-4 px-6 py-3 bg-purple-500 text-white rounded-lg font-mono font-semibold hover:bg-purple-400 transition-colors flex items-center space-x-2"
+          >
+            <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+            <span>Open Full Guide</span>
+          </Link>
+        </div>
+      </div>
 
       {/* Quick Links */}
       <div className="grid md:grid-cols-3 gap-4">

@@ -188,14 +188,17 @@ function AdminConsole() {
               <span className="text-gray-400 text-sm font-mono">ollama</span>
               <StatusBadge
                 status={systemHealth?.ollama_status === 'running' ? 'healthy' : 'offline'}
-                label={systemHealth?.ollama_status}
+                label={systemHealth?.ollama_status || 'checking...'}
               />
             </div>
+            {systemHealth?.ollama_status === 'running' && (
+              <p className="text-xs text-gray-500">{systemHealth?.ollama_models || 0} models available</p>
+            )}
             {systemHealth?.ollama_status !== 'running' && (
               <div className="mt-3 p-3 bg-yellow-500/10 rounded border border-yellow-500/30">
                 <p className="text-xs text-yellow-400 font-mono mb-2">Ollama not detected. To start:</p>
                 <code className="block text-xs bg-gray-900 p-2 rounded text-gray-300">
-                  $ ollama serve
+                  ollama serve
                 </code>
               </div>
             )}
