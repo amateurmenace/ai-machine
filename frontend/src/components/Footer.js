@@ -109,38 +109,38 @@ function Footer({ variant = 'default' }) {
 
         {/* Attribution and Logos */}
         <div className={`border-t ${variant === 'light' ? 'border-gray-200' : 'border-gray-800'} pt-8`}>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-6">
             <div className="text-center md:text-left">
-              <p className={`${variant === 'light' ? 'text-gray-700' : 'text-gray-300'} text-sm mb-2`}>
-                A <a href="https://community.weirdmachine.org" className="text-orange-500 hover:text-orange-400" target="_blank" rel="noopener noreferrer">Community AI Project</a> from{' '}
-                <a href="https://brooklineinteractive.org" className="text-blue-500 hover:text-blue-400" target="_blank" rel="noopener noreferrer">Brookline Interactive Group</a>
+              <p className={`${variant === 'light' ? 'text-gray-700' : 'text-gray-300'} text-lg mb-3`}>
+                A <a href="https://community.weirdmachine.org" className="text-orange-500 hover:text-orange-400 font-semibold" target="_blank" rel="noopener noreferrer">Community AI Project</a> from{' '}
+                <a href="https://brooklineinteractive.org" className="text-blue-500 hover:text-blue-400 font-semibold" target="_blank" rel="noopener noreferrer">Brookline Interactive Group</a>
               </p>
-              <p className={`${textClass} text-xs`}>
-                Designed and developed by <a href="https://weirdmachine.org" className={`${headingClass} ${linkClass}`} target="_blank" rel="noopener noreferrer">Stephen Walter</a> + AI
+              <p className={`${variant === 'light' ? 'text-gray-600' : 'text-gray-400'} text-base`}>
+                Designed and developed by <a href="https://weirdmachine.org" className={`${headingClass} ${linkClass} font-semibold`} target="_blank" rel="noopener noreferrer">Stephen Walter</a> + AI
               </p>
             </div>
 
             {/* Logos */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-8">
               <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src="/weirdmachine.png"
                   alt="Weird Machine"
-                  className="h-8 w-auto opacity-70 hover:opacity-100 transition-opacity"
+                  className="h-14 w-auto opacity-80 hover:opacity-100 transition-opacity"
                 />
               </a>
               <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer" className="block">
                 <img
                   src="/big-logo.png"
                   alt="Brookline Interactive Group"
-                  className="h-12 w-auto opacity-70 hover:opacity-100 transition-opacity"
+                  className="h-16 w-auto opacity-80 hover:opacity-100 transition-opacity"
                 />
               </a>
             </div>
           </div>
 
-          {/* License and Copyright */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4 border-t border-gray-800/50">
+          {/* License */}
+          <div className="flex items-center justify-center pt-4 border-t border-gray-800/50">
             <a
               href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
               target="_blank"
@@ -152,10 +152,6 @@ function Footer({ variant = 'default' }) {
               </svg>
               <span className="font-mono text-xs">CC BY-NC-SA 4.0</span>
             </a>
-            <span className={`${textClass} hidden md:inline`}>|</span>
-            <p className={`${textClass} text-xs font-mono`}>
-              Made for communities by civic technologists
-            </p>
           </div>
         </div>
       </div>

@@ -14,7 +14,7 @@
 - **Privacy First:** All data processed locally, zero surveillance
 - **Community Owned:** Run by libraries, community centers, local government
 - **Free to Operate:** $0/month after initial setup
-- **Open Source:** MIT license, fork and improve
+- **Open Source:** CC BY-NC-SA 4.0 license, fork and improve
 - **Civic Minded:** Cites sources, admits limitations, encourages participation
 
 ## Technical Stack
@@ -72,7 +72,9 @@ neighborhood-ai/
 │   │       ├── Settings.js         # AI model & personality config
 │   │       ├── AdminConsole.js     # Health monitoring & API keys
 │   │       ├── HelpPage.js         # Setup guides & troubleshooting
-│   │       └── Guide.js            # Comprehensive wiki-style documentation
+│   │       ├── Guide.js            # Comprehensive wiki-style documentation
+│   │       ├── AboutUs.js          # About page with mission and team
+│   │       └── Footer.js           # Site-wide footer component
 │   └── package.json            # Frontend dependencies
 ├── data/                       # Project data storage
 │   └── {project_id}/
@@ -230,6 +232,7 @@ POST /api/projects/{id}/upload-pdf            # Upload PDF file directly
 /console/projects/:id/settings      # AI model configuration
 /console/projects/:id/admin         # Admin console (health, API keys)
 /console/projects/:id/help          # Help & documentation
+/about                              # About Us page
 ```
 
 ## Configuration
@@ -334,11 +337,15 @@ open http://localhost:3000
 
 **Landing Page:**
 - Terminal-style header with branding
-- Animated background effects
+- Animated background effects with urban planning aesthetic
 - Energy comparison visualization
 - Navigation to console and guide
 - Projects showcase with embedded chat (shows online/offline status)
 - Chat modal for trying out community AIs
+- Community Constitution feature section
+- Discovery Wizard feature explanation
+- Local AI customization benefits (fine-tuning, community values)
+- Modern, bold design with informative content
 
 **Project Management:**
 - Create multiple AI projects (supports duplicate locations with auto-numbered IDs)
@@ -396,6 +403,10 @@ open http://localhost:3000
 - Real-time ingestion progress on dashboard
 - Guide button on landing page
 - Sync all sources button with animated loading
+- Bold, modern landing page with informative content
+- Visible blueprint/urban planning background patterns
+- About Us page with mission, team, and licensing
+- Footer component with organization logos and CC license
 
 **Admin & Health:**
 - System health monitoring (Ollama status, project count)
@@ -431,9 +442,7 @@ open http://localhost:3000
 - RSS feed collector
 - Reddit collector
 - Scheduled re-ingestion
-- Community Constitutions (AI ethics/constraints)
-- About Us page
-- Footer with logos on all pages
+- Community Constitutions workshop interface (values/ethics input)
 - Architectural diagram on landing page
 - Conversation persistence
 - User authentication
@@ -445,8 +454,7 @@ open http://localhost:3000
 ### Phase 1: Core Improvements (Next)
 - **Streaming responses**: Show AI answers character-by-character
 - **Conversation persistence**: Save chat history to localStorage or database
-- **Footer component**: Add consistent footer with logos across all pages
-- **About Us page**: Mission, team, and community information
+- **Community Constitution workshop**: UI for collecting community values and ethics
 
 ### Phase 2: Advanced Features
 - **Community Constitutions**: Configurable ethical guidelines for AI behavior
@@ -503,7 +511,7 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 
 ## License & Attribution
 
-**License:** MIT License
+**License:** Creative Commons BY-NC-SA 4.0
 
 **Credits:**
 - Project: A Community AI Project from Brookline Interactive Group
@@ -519,10 +527,19 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 ---
 
 **Last Updated:** January 4, 2026
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Status:** Active development
 
 ## Session History
+
+### January 4, 2026 - Session 3
+- Redesigned landing page with more informative content
+- Added Community Constitution feature section with code example
+- Added Discovery Wizard feature explanation
+- Emphasized local AI benefits (fine-tuning, community customization)
+- Updated Footer: removed extra text, increased logo sizes
+- Created About Us page with mission, team, and licensing info
+- Changed license from MIT to CC BY-NC-SA 4.0 throughout
 
 ### January 4, 2026 - Session 2
 - Fixed chat 500 error (Qdrant API changed from `search()` to `query_points()`)

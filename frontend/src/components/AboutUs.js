@@ -259,10 +259,21 @@ function AboutUs() {
               <div className="flex items-start space-x-4">
                 <CodeBracketIcon className="h-8 w-8 text-purple-400 flex-shrink-0" />
                 <div>
-                  <h3 className="text-lg font-bold text-white mb-3">MIT License</h3>
+                  <h3 className="text-lg font-bold text-white mb-3">Creative Commons BY-NC-SA 4.0</h3>
                   <p className="text-gray-300 mb-4">
-                    Neighborhood AI is open source software released under the MIT License.
-                    You're free to use, modify, and distribute it for any purpose.
+                    Neighborhood AI is open source software released under the
+                    <a
+                      href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 mx-1"
+                    >
+                      Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+                    </a>.
+                  </p>
+                  <p className="text-gray-300 mb-4">
+                    You're free to use, adapt, and share this work for non-commercial purposes,
+                    as long as you give appropriate credit and distribute any derivatives under the same license.
                   </p>
                   <p className="text-gray-300 mb-4">
                     We welcome contributions from the community. Whether it's bug fixes,
