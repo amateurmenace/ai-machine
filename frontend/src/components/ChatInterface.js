@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { PaperAirplaneIcon, LinkIcon, CommandLineIcon, SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 function ChatInterface() {
@@ -21,7 +21,7 @@ function ChatInterface() {
 
   const loadProject = async () => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}`);
+      const response = await api.get(`/api/projects/${projectId}`);
       setProject(response.data);
 
       // Add welcome message
@@ -57,7 +57,7 @@ function ChatInterface() {
         content: msg.content
       }));
 
-      const response = await axios.post('/api/chat', {
+      const response = await api.post('/api/chat', {
         project_id: projectId,
         message: userMessage,
         conversation_history: conversationHistory

@@ -123,18 +123,18 @@ class VectorStore:
         """Search for relevant documents"""
         # Generate query embedding
         query_vector = self.encoder.encode(query).tolist()
-        
-        # Search
-        results = self.client.search(
+
+        # Search using the query method (qdrant-client 1.16+)
+        results = self.client.query_points(
             collection_name=self.collection_name,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
             query_filter=filter_dict
         )
-        
+
         # Format results
         formatted_results = []
-        for result in results:
+        for result in results.points:
             formatted_results.append({
                 'id': result.id,
                 'score': result.score,
@@ -146,7 +146,7 @@ class VectorStore:
                 'date': result.payload.get('date', ''),
                 'metadata': result.payload
             })
-        
+
         return formatted_results
     
     def get_stats(self) -> Dict:

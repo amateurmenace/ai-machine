@@ -11,6 +11,8 @@ import Settings from './components/Settings';
 import AdminConsole from './components/AdminConsole';
 import HelpPage from './components/HelpPage';
 import Guide from './components/Guide';
+import AboutUs from './components/AboutUs';
+import Footer from './components/Footer';
 
 function ConsoleHeader() {
   return (
@@ -51,18 +53,12 @@ function ConsoleHeader() {
 
 function ConsoleLayout({ children }) {
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
       <ConsoleHeader />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
         {children}
       </main>
-      <footer className="bg-gray-900 border-t border-gray-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-gray-500 text-sm font-mono">
-            <span className="text-green-500">#</span> community_ai <span className="text-gray-600">|</span> made for neighborhoods
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
@@ -76,6 +72,9 @@ function App() {
 
         {/* Guide page (standalone) */}
         <Route path="/guide" element={<Guide />} />
+
+        {/* About Us page (standalone) */}
+        <Route path="/about" element={<AboutUs />} />
 
         {/* Console routes */}
         <Route path="/console" element={<ConsoleLayout><ProjectList /></ConsoleLayout>} />

@@ -21,6 +21,7 @@ import {
   PlayIcon,
   RocketLaunchIcon
 } from '@heroicons/react/24/outline';
+import Footer from './Footer';
 
 function Guide() {
   const navigate = useNavigate();
@@ -849,7 +850,7 @@ docker-compose down`}
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-950 flex flex-col">
       {/* Header */}
       <header className="bg-gray-900 border-b border-green-500/30 shadow-lg sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -876,9 +877,9 @@ docker-compose down`}
         </div>
       </header>
 
-      <div className="flex max-w-7xl mx-auto">
+      <div className="flex max-w-7xl mx-auto flex-1">
         {/* Sidebar Navigation */}
-        <aside className="w-64 min-h-screen bg-gray-900 border-r border-gray-800 p-4 sticky top-16 hidden lg:block">
+        <aside className="w-64 bg-gray-900 border-r border-gray-800 p-4 sticky top-16 hidden lg:block self-start">
           <nav className="space-y-1">
             {sections.map((section) => {
               const Icon = section.icon;
@@ -954,6 +955,8 @@ docker-compose down`}
           </div>
         </main>
       </div>
+
+      <Footer />
     </div>
   );
 }

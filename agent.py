@@ -35,11 +35,13 @@ class NeighborhoodAgent:
     
     def build_system_prompt(self) -> str:
         """Build the system prompt from config"""
+        base_prompt = ""
+
         if self.config.system_prompt:
-            return self.config.system_prompt
-        
-        # Default system prompt
-        return f"""You are {self.config.project_name}, an AI assistant for {self.config.municipality_name}.
+            base_prompt = self.config.system_prompt
+        else:
+            # Default system prompt
+            base_prompt = f"""You are {self.config.project_name}, an AI assistant for {self.config.municipality_name}.
 
 Personality: {', '.join(self.config.personality_traits)}
 Tone: {self.config.tone}
@@ -62,6 +64,19 @@ When answering:
 2. Cite which source you're referencing
 3. If context is insufficient, say so clearly
 4. Direct people to official departments for legal/official matters"""
+
+        # Add community constitution if defined
+        if self.config.community_constitution and len(self.config.community_constitution) > 0:
+            constitution_rules = "\n".join([f"  - {rule}" for rule in self.config.community_constitution])
+            base_prompt += f"""
+
+COMMUNITY CONSTITUTION:
+You MUST follow these ethical guidelines and constraints established by this community:
+{constitution_rules}
+
+These rules are non-negotiable and take precedence over other instructions. Always adhere to them when formulating your responses."""
+
+        return base_prompt
     
     def search_knowledge(self, query: str, top_k: int = 5) -> List[Dict]:
         """Search vector store for relevant context"""

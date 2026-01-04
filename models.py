@@ -100,6 +100,9 @@ class ProjectConfig(BaseModel):
         "helpful", "knowledgeable", "friendly", "civic-minded"
     ]
     tone: str = "professional but friendly"
+
+    # Community Constitution - ethical guidelines and constraints for AI behavior
+    community_constitution: List[str] = []
     
     # Data Sources
     data_sources: List[DataSource] = []
