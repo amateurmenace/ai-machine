@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build outputs
+frontend/build/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (project-specific)
+data/
+*.db
+
+# Cache
+.cache/
+frontend/node_modules/.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Qdrant data
+qdrant_data/
