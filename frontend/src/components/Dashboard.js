@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
 import {
-  ChartBarIcon,
   DocumentTextIcon,
   ChatBubbleLeftRightIcon,
   CogIcon,
@@ -11,15 +10,12 @@ import {
   CommandLineIcon,
   ServerIcon,
   CpuChipIcon,
-  CheckCircleIcon,
   RocketLaunchIcon,
   BeakerIcon,
   PaintBrushIcon,
-  CloudArrowUpIcon,
   QuestionMarkCircleIcon,
   ArrowLeftIcon,
   CodeBracketIcon,
-  BookOpenIcon,
   XMarkIcon,
   ExclamationTriangleIcon,
   PlayIcon

@@ -24,7 +24,6 @@ import {
 
 function DataManager() {
   const { projectId } = useParams();
-  const [project, setProject] = useState(null);
   const [sources, setSources] = useState([]);
   const [jobs, setJobs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -50,12 +49,12 @@ function DataManager() {
     loadProject();
     const interval = setInterval(updateJobStatuses, 2000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const loadProject = async () => {
     try {
       const response = await api.get(`/api/projects/${projectId}`);
-      setProject(response.data);
       setSources(response.data.data_sources || []);
     } catch (error) {
       console.error('Error loading project:', error);
