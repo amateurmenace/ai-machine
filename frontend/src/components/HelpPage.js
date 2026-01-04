@@ -12,7 +12,6 @@ import {
   KeyIcon,
   CommandLineIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
   LightBulbIcon,
   ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';

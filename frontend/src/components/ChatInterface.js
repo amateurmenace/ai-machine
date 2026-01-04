@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api';
-import { PaperAirplaneIcon, LinkIcon, CommandLineIcon, SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, LinkIcon, SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 function ChatInterface() {
   const { projectId } = useParams();
@@ -13,6 +13,7 @@ function ChatInterface() {
 
   useEffect(() => {
     loadProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   useEffect(() => {

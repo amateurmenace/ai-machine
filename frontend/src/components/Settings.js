@@ -15,7 +15,6 @@ import {
 
 function Settings() {
   const { projectId } = useParams();
-  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -38,17 +37,18 @@ function Settings() {
 
   useEffect(() => {
     loadProject();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   useEffect(() => {
     loadModels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiProvider]);
 
   const loadProject = async () => {
     try {
       const response = await api.get(`/api/projects/${projectId}`);
       const data = response.data;
-      setProject(data);
       setAiProvider(data.ai_provider || 'ollama');
       setApiKey(data.api_key || '');
       setTemperature(data.temperature || 0.7);

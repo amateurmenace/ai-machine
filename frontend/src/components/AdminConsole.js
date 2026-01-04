@@ -5,7 +5,6 @@ import {
   ArrowLeftIcon,
   ServerIcon,
   CpuChipIcon,
-  CircleStackIcon,
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,

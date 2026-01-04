@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   BookOpenIcon,
-  ServerIcon,
   CpuChipIcon,
   DocumentTextIcon,
   CloudIcon,
@@ -16,7 +15,6 @@ import {
   ComputerDesktopIcon,
   GlobeAltIcon,
   CommandLineIcon,
-  CogIcon,
   ChevronRightIcon,
   PlayIcon,
   RocketLaunchIcon
@@ -24,7 +22,6 @@ import {
 import Footer from './Footer';
 
 function Guide() {
-  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
 
   const sections = [
