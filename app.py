@@ -34,7 +34,10 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this for production
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://neighborhood-ai.netlify.app",  # Production Netlify
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
