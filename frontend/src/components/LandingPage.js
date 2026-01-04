@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  SparklesIcon, 
-  GlobeAltIcon, 
+import axios from 'axios';
+import {
+  SparklesIcon,
+  GlobeAltIcon,
   CodeBracketIcon,
   HeartIcon,
   BoltIcon,
@@ -11,13 +12,24 @@ import {
   CloudIcon,
   ArrowRightIcon,
   CheckCircleIcon,
-  ServerIcon
+  ServerIcon,
+  ChatBubbleLeftRightIcon,
+  PaperAirplaneIcon,
+  XMarkIcon,
+  ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
 
 function LandingPage() {
   const navigate = useNavigate();
   const [energyCount, setEnergyCount] = useState(0);
   const [localEnergyCount, setLocalEnergyCount] = useState(0);
+  const [projects, setProjects] = useState([]);
+  const [projectsHealth, setProjectsHealth] = useState({});
+  const [activeChat, setActiveChat] = useState(null);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
 
   // Animated energy counter
   useEffect(() => {
@@ -35,6 +47,92 @@ function LandingPage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Load projects and check their health
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const response = await axios.get('/api/projects');
+        setProjects(response.data);
+
+        // Check health for each project
+        const healthStatuses = {};
+        for (const project of response.data) {
+          try {
+            const healthRes = await axios.get(`/api/projects/${project.project_id}/health`);
+            healthStatuses[project.project_id] = healthRes.data;
+          } catch (err) {
+            healthStatuses[project.project_id] = { ready: false, issues: ['Unable to check health'] };
+          }
+        }
+        setProjectsHealth(healthStatuses);
+      } catch (err) {
+        console.error('Error loading projects:', err);
+      }
+    };
+
+    loadProjects();
+  }, []);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const openChat = (project) => {
+    const health = projectsHealth[project.project_id];
+    if (!health?.ready) return; // Don't open if not ready
+
+    setActiveChat(project);
+    setChatMessages([{
+      role: 'assistant',
+      content: `Hi! I'm ${project.project_name}. Ask me anything about ${project.municipality_name}!`
+    }]);
+  };
+
+  const closeChat = () => {
+    setActiveChat(null);
+    setChatMessages([]);
+    setChatInput('');
+  };
+
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading || !activeChat) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatLoading(true);
+
+    try {
+      const response = await axios.post('/api/chat', {
+        project_id: activeChat.project_id,
+        message: userMessage,
+        conversation_history: chatMessages.slice(-5).map(m => ({ role: m.role, content: m.content }))
+      });
+
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: response.data.answer,
+        sources: response.data.sources
+      }]);
+    } catch (err) {
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        isError: true
+      }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleChatKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  };
 
   const codeSnippet = `// Your community's AI assistant
 const brooklineAI = {
@@ -105,7 +203,7 @@ brooklineAI.ask("What are the rules for block parties?");
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <span className="text-green-400 font-mono text-lg">$</span>
+                <span className="text-green-400 font-mono text-lg animate-pulse">&gt;</span>
                 <h1 className="text-2xl md:text-3xl font-bold text-white font-mono tracking-tight">
                   neighborhood<span className="text-green-400">_</span>ai
                 </h1>
@@ -119,6 +217,9 @@ brooklineAI.ask("What are the rules for block parties?");
               <a href="#why" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">why</a>
               <a href="#how" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">how</a>
               <a href="#values" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">values</a>
+              {projects.length > 0 && (
+                <a href="#projects" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors">projects</a>
+              )}
               <button
                 onClick={handleNavigateToConsole}
                 className="bg-green-500 text-gray-900 px-4 py-2 rounded font-mono text-sm font-semibold hover:bg-green-400 transition-colors flex items-center space-x-1"
@@ -503,6 +604,198 @@ brooklineAI.ask("What are the rules for block parties?");
           </div>
         </div>
       </div>
+
+      {/* Projects Showcase */}
+      {projects.length > 0 && (
+        <div id="projects" className="relative bg-gray-50 py-20 border-y border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold mb-4 text-gray-900">
+                Community AIs <span className="text-green-600">in Action</span>
+              </h2>
+              <p className="text-xl text-gray-600">
+                Try chatting with these neighborhood AI assistants
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {projects.map((project) => {
+                const health = projectsHealth[project.project_id];
+                const isReady = health?.ready;
+
+                return (
+                  <div
+                    key={project.project_id}
+                    className={`relative rounded-xl overflow-hidden border-2 transition-all duration-300 ${
+                      isReady
+                        ? 'bg-white border-green-300 hover:border-green-400 hover:shadow-lg cursor-pointer'
+                        : 'bg-gray-100 border-gray-300 opacity-60'
+                    }`}
+                    onClick={() => isReady && openChat(project)}
+                  >
+                    {/* Project Card Header */}
+                    <div className={`p-6 ${isReady ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-400'}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xl font-bold text-white">{project.project_name}</h3>
+                          <p className="text-green-100 text-sm">{project.municipality_name}</p>
+                        </div>
+                        <div className={`p-2 rounded-lg ${isReady ? 'bg-white/20' : 'bg-gray-500/30'}`}>
+                          <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Project Card Body */}
+                    <div className="p-6">
+                      <div className="flex items-center space-x-2 mb-4">
+                        <span className={`w-2 h-2 rounded-full ${isReady ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                        <span className={`text-sm font-mono ${isReady ? 'text-green-600' : 'text-gray-500'}`}>
+                          {isReady ? 'online' : 'offline'}
+                        </span>
+                      </div>
+
+                      {!isReady && health?.issues && (
+                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-start space-x-2">
+                            <ExclamationCircleIcon className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                            <div className="text-xs text-yellow-700">
+                              {health.issues.slice(0, 2).map((issue, i) => (
+                                <p key={i}>{issue}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-600 space-y-1">
+                        <p><span className="text-gray-400">Model:</span> {project.model_name}</p>
+                        <p><span className="text-gray-400">Sources:</span> {project.data_sources?.length || 0}</p>
+                      </div>
+
+                      {isReady && (
+                        <button className="mt-4 w-full py-2 bg-green-500 text-white rounded-lg font-semibold text-sm hover:bg-green-600 transition-colors flex items-center justify-center space-x-2">
+                          <ChatBubbleLeftRightIcon className="h-4 w-4" />
+                          <span>Start Chat</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-12 text-center">
+              <button
+                onClick={() => navigate('/console/new')}
+                className="inline-flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300"
+              >
+                <span>Create Your Own</span>
+                <ArrowRightIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chat Modal */}
+      {activeChat && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col border-2 border-green-500/50 shadow-2xl">
+            {/* Chat Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-500/20 rounded-lg">
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">{activeChat.project_name}</h3>
+                  <p className="text-xs text-gray-400">{activeChat.municipality_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeChat}
+                className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Chat Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px]">
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-green-500/20 border border-green-500/30 text-green-100'
+                        : msg.isError
+                          ? 'bg-red-500/10 border border-red-500/30 text-red-300'
+                          : 'bg-gray-800 border border-gray-700 text-gray-200'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {msg.sources && msg.sources.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-700">
+                        <p className="text-xs text-gray-500 mb-1">Sources:</p>
+                        {msg.sources.slice(0, 2).map((s, i) => (
+                          <a
+                            key={i}
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block text-xs text-cyan-400 hover:text-cyan-300 truncate"
+                          >
+                            {s.title}
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {chatLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-gray-700">
+              <div className="flex space-x-3">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyPress={handleChatKeyPress}
+                  placeholder="Ask a question..."
+                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                <button
+                  onClick={sendChatMessage}
+                  disabled={!chatInput.trim() || chatLoading}
+                  className="px-4 py-3 bg-green-500 text-gray-900 rounded-lg font-semibold hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                >
+                  <PaperAirplaneIcon className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Final CTA */}
       <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 py-20">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   PlusIcon,
@@ -11,7 +11,8 @@ import {
   PlayIcon,
   GlobeAmericasIcon,
   DocumentTextIcon,
-  LinkIcon
+  LinkIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 
 function DataManager() {
@@ -167,6 +168,15 @@ function DataManager() {
 
   return (
     <div>
+      {/* Back Button */}
+      <Link
+        to={`/console/projects/${projectId}`}
+        className="inline-flex items-center text-gray-400 hover:text-green-400 font-mono text-sm mb-6 group"
+      >
+        <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-green-400">$</span> cd ../dashboard
+      </Link>
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
@@ -303,7 +313,17 @@ function DataManager() {
 
                     <p className="text-xs text-gray-600 font-mono truncate">{source.url}</p>
 
-                    <div className="flex items-center space-x-4 mt-3 text-xs text-gray-500 font-mono">
+                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-500 font-mono">
+                      {source.word_count > 0 && (
+                        <span className="text-cyan-400">
+                          {source.word_count.toLocaleString()} words
+                        </span>
+                      )}
+                      {source.document_count > 0 && (
+                        <span className="text-gray-400">
+                          {source.document_count} chunks
+                        </span>
+                      )}
                       {source.last_synced && (
                         <span>synced: {new Date(source.last_synced).toLocaleString()}</span>
                       )}

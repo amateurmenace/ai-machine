@@ -359,13 +359,18 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
         if documents:
             def vector_progress(current, total):
                 job.progress = 50 + (current / total) * 50  # Second half of progress
-            
+
             vector_store.add_documents_batch(documents, progress_callback=vector_progress)
-        
-        # Update source sync time
+
+        # Calculate word count
+        total_words = sum(len(doc['text'].split()) for doc in documents)
+
+        # Update source with stats
         source.last_synced = datetime.now()
+        source.word_count = total_words
+        source.document_count = len(documents)
         save_project(project)
-        
+
         job.status = "completed"
         job.completed_at = datetime.now()
         job.total_items = len(documents)
@@ -488,6 +493,184 @@ async def generate_personality(
         return {"personality": personality}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/generate-api-key")
+async def generate_api_key(project_id: str):
+    """Generate a new API key for project access"""
+    import secrets
+
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Generate a secure API key
+    api_key = f"nai_{secrets.token_urlsafe(32)}"
+    project.project_api_key = api_key
+    project.api_enabled = True
+    save_project(project)
+
+    return {
+        "api_key": api_key,
+        "message": "API key generated successfully. Store it securely - it won't be shown again."
+    }
+
+
+@app.post("/api/projects/{project_id}/revoke-api-key")
+async def revoke_api_key(project_id: str):
+    """Revoke the project API key"""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project.project_api_key = None
+    project.api_enabled = False
+    save_project(project)
+
+    return {"message": "API key revoked successfully"}
+
+
+@app.get("/api/health")
+async def health_check():
+    """System health check"""
+    health = {
+        "status": "healthy",
+        "service": "Neighborhood AI API",
+        "version": "1.0.0",
+        "checks": {}
+    }
+
+    # Check Ollama
+    try:
+        import ollama
+        models = ollama.list()
+        health["checks"]["ollama"] = {
+            "status": "running",
+            "models_available": len(models.get('models', []))
+        }
+    except Exception as e:
+        health["checks"]["ollama"] = {
+            "status": "not_running",
+            "error": str(e)
+        }
+
+    # Check project count
+    try:
+        project_count = len(os.listdir("./data")) if os.path.exists("./data") else 0
+        health["checks"]["projects"] = {
+            "status": "ok",
+            "count": project_count
+        }
+    except Exception as e:
+        health["checks"]["projects"] = {
+            "status": "error",
+            "error": str(e)
+        }
+
+    # Overall status
+    ollama_ok = health["checks"].get("ollama", {}).get("status") == "running"
+    if not ollama_ok:
+        health["status"] = "degraded"
+
+    return health
+
+
+@app.get("/api/projects/{project_id}/health")
+async def project_health(project_id: str):
+    """Get health status for a specific project"""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    health = {
+        "project_id": project_id,
+        "project_name": project.project_name,
+        "status": "healthy",
+        "checks": {}
+    }
+
+    # Check AI provider
+    if project.ai_provider == "ollama":
+        try:
+            import ollama
+            models = ollama.list()
+            model_names = [m['name'] for m in models.get('models', [])]
+            model_available = any(project.model_name in name for name in model_names)
+            health["checks"]["ai_provider"] = {
+                "status": "ok" if model_available else "model_missing",
+                "provider": "ollama",
+                "model": project.model_name,
+                "model_available": model_available
+            }
+        except Exception as e:
+            health["checks"]["ai_provider"] = {
+                "status": "not_running",
+                "provider": "ollama",
+                "error": str(e)
+            }
+            health["status"] = "degraded"
+    else:
+        has_key = bool(project.api_key)
+        health["checks"]["ai_provider"] = {
+            "status": "ok" if has_key else "missing_api_key",
+            "provider": project.ai_provider,
+            "model": project.model_name,
+            "api_key_configured": has_key
+        }
+        if not has_key:
+            health["status"] = "degraded"
+
+    # Check vector store
+    try:
+        from vector_store import VectorStore
+        vs = VectorStore(
+            path=f"./data/{project_id}/qdrant",
+            collection_name=project_id
+        )
+        stats = vs.get_stats()
+        health["checks"]["vector_store"] = {
+            "status": "ok",
+            "documents": stats.get('total_documents', 0)
+        }
+    except Exception as e:
+        health["checks"]["vector_store"] = {
+            "status": "error",
+            "error": str(e)
+        }
+
+    # Check data sources
+    total_sources = len(project.data_sources)
+    synced_sources = len([s for s in project.data_sources if s.last_synced])
+    health["checks"]["data_sources"] = {
+        "status": "ok" if synced_sources > 0 else "no_data",
+        "total": total_sources,
+        "synced": synced_sources
+    }
+
+    if synced_sources == 0:
+        health["status"] = "needs_data"
+
+    return health
+
+
+@app.get("/api/admin/jobs")
+async def list_jobs():
+    """List all ingestion jobs"""
+    return {
+        "jobs": [
+            {
+                "job_id": job.job_id,
+                "project_id": job.project_id,
+                "source_id": job.source_id,
+                "status": job.status,
+                "progress": job.progress,
+                "started_at": job.started_at.isoformat() if job.started_at else None,
+                "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+                "error": job.error
+            }
+            for job in ingestion_jobs.values()
+        ]
+    }
 
 
 if __name__ == "__main__":

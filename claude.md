@@ -63,12 +63,15 @@ neighborhood-ai/
 │   │   ├── App.css             # Global styles
 │   │   ├── index.css           # Tailwind imports
 │   │   └── components/
-│   │       ├── LandingPage.js      # Marketing/landing page
+│   │       ├── LandingPage.js      # Marketing/landing page + project showcase
 │   │       ├── ProjectList.js      # Project management console
 │   │       ├── SetupWizard.js      # 4-step project creation
-│   │       ├── Dashboard.js        # Project overview
+│   │       ├── Dashboard.js        # Project overview with quick links
 │   │       ├── DataManager.js      # Data source management
-│   │       └── ChatInterface.js    # AI chat interface
+│   │       ├── ChatInterface.js    # AI chat interface
+│   │       ├── Settings.js         # AI model & personality config
+│   │       ├── AdminConsole.js     # Health monitoring & API keys
+│   │       └── HelpPage.js         # Setup guides & troubleshooting
 │   └── package.json            # Frontend dependencies
 ├── data/                       # Project data storage
 │   └── {project_id}/
@@ -195,14 +198,26 @@ GET  /api/jobs/{job_id}       # Get ingestion job status
 GET  /api/models/{provider}   # List available models
 ```
 
+### Health & Admin
+```
+GET  /api/health                              # System health (Ollama, projects)
+GET  /api/projects/{id}/health                # Project health check
+GET  /api/admin/jobs                          # List all ingestion jobs
+POST /api/projects/{id}/generate-api-key      # Generate project API key
+DELETE /api/projects/{id}/revoke-api-key      # Revoke API key
+```
+
 ### Frontend Routes
 ```
-/                               # Landing page
-/console                        # Project list
-/console/new                    # Setup wizard
-/console/projects/:id           # Project dashboard
-/console/projects/:id/chat      # Chat interface
-/console/projects/:id/data      # Data management
+/                                   # Landing page with project showcase
+/console                            # Project list
+/console/new                        # Setup wizard
+/console/projects/:id               # Project dashboard
+/console/projects/:id/chat          # Chat interface
+/console/projects/:id/data          # Data management
+/console/projects/:id/settings      # AI model configuration
+/console/projects/:id/admin         # Admin console (health, API keys)
+/console/projects/:id/help          # Help & documentation
 ```
 
 ## Configuration
@@ -310,12 +325,16 @@ open http://localhost:3000
 - Animated background effects
 - Energy comparison visualization
 - Navigation to console
+- Projects showcase with embedded chat (shows online/offline status)
+- Chat modal for trying out community AIs
 
 **Project Management:**
 - Create multiple AI projects
 - 4-step setup wizard with terminal aesthetics
 - Project list with folder view
-- Individual project dashboards
+- Individual project dashboards with quick action cards
+- Admin console with health monitoring
+- Help page with setup guides
 
 **Data Collection:**
 - YouTube playlist transcript extraction
@@ -334,6 +353,7 @@ open http://localhost:3000
 - Show thinking toggle
 - Extended thinking for Claude (beta)
 - Personality auto-generation
+- Better error handling with actionable messages
 
 **RAG Pipeline:**
 - Sentence transformer embeddings
@@ -348,6 +368,15 @@ open http://localhost:3000
 - Data source management with status badges
 - Source ingestion progress tracking
 - Loading animations and feedback
+- Consistent back navigation on all pages
+- Settings page for AI configuration
+
+**Admin & Health:**
+- System health monitoring (Ollama status, project count)
+- Project health checks (AI provider, vector store, data sources)
+- API key generation for external access
+- Ingestion job monitoring
+- Server management instructions
 
 ### 🚧 Known Limitations
 

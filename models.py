@@ -53,22 +53,28 @@ class DataSource(BaseModel):
     description: Optional[str] = None
     enabled: bool = True
     last_synced: Optional[datetime] = None
+    word_count: int = 0
+    document_count: int = 0
     metadata: Dict[str, Any] = {}
 
 
 class ProjectConfig(BaseModel):
     """Main configuration for a neighborhood AI project"""
-    
+
     # Project Identity
     project_id: str
     municipality_name: str  # e.g., "Brookline, MA"
     project_name: str  # e.g., "Brookline AI"
     tagline: Optional[str] = "Your local AI assistant"
-    
+
     # AI Configuration
     ai_provider: AIProvider = AIProvider.OLLAMA
     model_name: str = "llama3.1:8b"
     api_key: Optional[str] = None  # For OpenAI/Anthropic
+
+    # Project API Access
+    project_api_key: Optional[str] = None  # API key for external access to this project
+    api_enabled: bool = False  # Whether API access is enabled
     
     # Model Parameters
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)

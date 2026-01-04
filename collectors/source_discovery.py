@@ -172,42 +172,64 @@ Return ONLY the JSON array, no other text."""
     
     def suggest_personality(self, municipality: str, sources: List[Dict]) -> str:
         """Use AI to suggest personality traits based on the community"""
-        
+
         sources_summary = "\n".join([
             f"- {s['name']} ({s['type']}): {s.get('description', '')}"
             for s in sources[:10]
-        ])
-        
-        prompt = f"""Based on the following data sources for {municipality}, suggest a personality and tone for a local AI assistant.
+        ]) if sources else "No sources provided yet"
 
-Data Sources:
+        prompt = f"""Generate a system prompt for a local AI assistant for {municipality}.
+
+Data Sources Available:
 {sources_summary}
 
-Consider:
-1. The community's character (urban/suburban/rural, size, demographics)
-2. The types of content available
-3. The likely user needs
+IMPORTANT: Return ONLY the system prompt text itself. Do NOT include any introduction like "Here's a system prompt..." or explanatory text. Start directly with "You are {municipality} AI..." or similar.
 
-Provide a system prompt (2-3 paragraphs) that defines:
-- Personality traits
-- Tone and communication style
-- Key capabilities to emphasize
-- How to handle uncertainty
+The system prompt should follow this structure:
 
-Make it warm, helpful, and appropriate for a civic assistant."""
+You are [Name] AI, the virtual assistant for [Location].
+
+PERSONALITY TRAITS:
+- [Trait 1]
+- [Trait 2]
+- [Trait 3]
+- [More traits...]
+
+TONE:
+- [Tone description 1]
+- [Tone description 2]
+- [More tone guidelines...]
+
+CAPABILITIES YOU HIGHLIGHT:
+- [Capability 1]
+- [Capability 2]
+- [More capabilities...]
+
+LIMITATIONS YOU ACKNOWLEDGE:
+- You're an AI assistant, not an official representative
+- For legal/official matters, you direct people to proper departments
+- You can't make decisions on behalf of residents
+- You encourage people to verify critical information
+
+SPECIAL FEATURES:
+- [Feature 1 based on available data sources]
+- [Feature 2]
+- [More features...]
+
+Make it warm, community-focused, and appropriate for a civic assistant. Return ONLY the system prompt, nothing else."""
 
         try:
             if self.provider == "openai":
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=[
-                        {"role": "system", "content": "You are an expert in conversational AI design and civic technology."},
+                        {"role": "system", "content": "You generate system prompts for AI assistants. Return ONLY the system prompt text, no explanations or introductions."},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.8
+                    temperature=0.7
                 )
-                return response.choices[0].message.content
-                
+                result = response.choices[0].message.content
+
             elif self.provider == "anthropic":
                 response = self.client.messages.create(
                     model=self.model,
@@ -216,11 +238,72 @@ Make it warm, helpful, and appropriate for a civic assistant."""
                         {"role": "user", "content": prompt}
                     ]
                 )
-                return response.content[0].text
-                
+                result = response.content[0].text
+            else:
+                return self._default_personality(municipality)
+
+            # Clean up the result - remove any intro text
+            result = result.strip()
+
+            # Remove common intro patterns
+            intro_patterns = [
+                "Here's a system prompt",
+                "Here is a system prompt",
+                "Below is a system prompt",
+                "I've created a system prompt",
+                "The following is a system prompt",
+                "System prompt for",
+            ]
+
+            for pattern in intro_patterns:
+                if result.lower().startswith(pattern.lower()):
+                    # Find the first newline after the intro and skip to there
+                    lines = result.split('\n')
+                    for i, line in enumerate(lines):
+                        if line.strip().lower().startswith('you are'):
+                            result = '\n'.join(lines[i:])
+                            break
+                    break
+
+            return result.strip()
+
         except Exception as e:
             print(f"Error generating personality: {e}")
-            return f"You are a helpful AI assistant for {municipality}, focused on providing accurate information about local services, news, and community resources."
+            return self._default_personality(municipality)
+
+    def _default_personality(self, municipality: str) -> str:
+        """Return a default personality prompt"""
+        return f"""You are {municipality} AI, the virtual assistant for {municipality}.
+
+PERSONALITY TRAITS:
+- Warm and approachable, like a helpful neighbor
+- Knowledgeable about local government, services, and community
+- Patient and clear when explaining procedures
+- Always accurate - you admit when you don't know something
+- You encourage civic participation and community involvement
+
+TONE:
+- Professional but friendly (not overly formal)
+- Use "we" when talking about the community ("our town", "our community")
+- Enthusiastic about local events and initiatives
+- Respectful of all community members
+
+CAPABILITIES YOU HIGHLIGHT:
+- Information from town meetings and local news
+- Practical help: schedules, permits, local services
+- Community events and opportunities to get involved
+- Local business information and support
+
+LIMITATIONS YOU ACKNOWLEDGE:
+- You're an AI assistant, not an official town representative
+- For legal/official matters, you direct people to proper departments
+- You can't make decisions or file things on behalf of residents
+- You encourage people to verify critical information
+
+SPECIAL FEATURES:
+- You can reference information from ingested data sources
+- You provide accurate, sourced answers about local topics
+- You know the context of local decisions and can explain them"""
 
 
 # Example usage

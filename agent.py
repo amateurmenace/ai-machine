@@ -120,20 +120,45 @@ Please provide a helpful answer based on the context above. If you reference spe
         # Get response from LLM
         try:
             if self.client_type == "ollama":
-                response = self.client.chat(
-                    model=self.config.model_name,
-                    messages=[
-                        {"role": "system", "content": self.build_system_prompt()},
-                        *messages
-                    ],
-                    options={
-                        "temperature": self.config.temperature,
-                        "num_ctx": self.config.context_window
-                    }
-                )
-                answer = response['message']['content']
-                
+                try:
+                    response = self.client.chat(
+                        model=self.config.model_name,
+                        messages=[
+                            {"role": "system", "content": self.build_system_prompt()},
+                            *messages
+                        ],
+                        options={
+                            "temperature": self.config.temperature,
+                            "num_ctx": self.config.context_window
+                        }
+                    )
+                    answer = response['message']['content']
+                except Exception as ollama_error:
+                    error_msg = str(ollama_error).lower()
+                    if "connection" in error_msg or "refused" in error_msg:
+                        return {
+                            'answer': "Ollama is not running. Please start Ollama with `ollama serve` in your terminal, then try again.",
+                            'sources': [],
+                            'error': 'ollama_not_running',
+                            'error_detail': str(ollama_error)
+                        }
+                    elif "not found" in error_msg or "pull" in error_msg:
+                        return {
+                            'answer': f"The model '{self.config.model_name}' is not installed. Run `ollama pull {self.config.model_name}` to install it.",
+                            'sources': [],
+                            'error': 'model_not_found',
+                            'error_detail': str(ollama_error)
+                        }
+                    else:
+                        raise ollama_error
+
             elif self.client_type == "openai":
+                if not self.config.api_key and not os.getenv("OPENAI_API_KEY"):
+                    return {
+                        'answer': "OpenAI API key is not configured. Please add your API key in Settings.",
+                        'sources': [],
+                        'error': 'missing_api_key'
+                    }
                 response = self.client.chat.completions.create(
                     model=self.config.model_name,
                     messages=[
@@ -144,8 +169,14 @@ Please provide a helpful answer based on the context above. If you reference spe
                     max_tokens=self.config.max_tokens
                 )
                 answer = response.choices[0].message.content
-                
+
             elif self.client_type == "anthropic":
+                if not self.config.api_key and not os.getenv("ANTHROPIC_API_KEY"):
+                    return {
+                        'answer': "Anthropic API key is not configured. Please add your API key in Settings.",
+                        'sources': [],
+                        'error': 'missing_api_key'
+                    }
                 # Anthropic doesn't use system message in messages array
                 response = self.client.messages.create(
                     model=self.config.model_name,
@@ -155,7 +186,7 @@ Please provide a helpful answer based on the context above. If you reference spe
                     messages=messages
                 )
                 answer = response.content[0].text
-            
+
             # Format sources for response
             sources = []
             if self.config.enable_citations and search_results:
@@ -168,16 +199,27 @@ Please provide a helpful answer based on the context above. If you reference spe
                     }
                     for r in search_results
                 ]
-            
+
             return {
                 'answer': answer,
                 'sources': sources,
                 'context_used': len(search_results) > 0
             }
-            
+
         except Exception as e:
+            error_msg = str(e)
+            # Provide more helpful error messages
+            if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
+                user_msg = "API key is invalid or missing. Please check your API key in Settings."
+            elif "rate" in error_msg.lower() and "limit" in error_msg.lower():
+                user_msg = "Rate limit exceeded. Please wait a moment and try again."
+            elif "model" in error_msg.lower() and "not found" in error_msg.lower():
+                user_msg = f"Model '{self.config.model_name}' is not available. Please select a different model in Settings."
+            else:
+                user_msg = f"I apologize, but I encountered an error: {error_msg}"
+
             return {
-                'answer': f"I apologize, but I encountered an error: {str(e)}",
+                'answer': user_msg,
                 'sources': [],
                 'error': str(e)
             }

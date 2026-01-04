@@ -7,6 +7,9 @@ import Dashboard from './components/Dashboard';
 import DataManager from './components/DataManager';
 import ChatInterface from './components/ChatInterface';
 import ProjectList from './components/ProjectList';
+import Settings from './components/Settings';
+import AdminConsole from './components/AdminConsole';
+import HelpPage from './components/HelpPage';
 
 function ConsoleHeader() {
   return (
@@ -15,7 +18,7 @@ function ConsoleHeader() {
         <div className="flex items-center justify-between">
           <Link to="/console" className="flex items-center space-x-3 group">
             <div className="flex items-center space-x-2">
-              <span className="text-green-400 font-mono text-lg group-hover:animate-pulse">$</span>
+              <span className="text-green-400 font-mono text-lg animate-pulse">&gt;</span>
               <h1 className="text-xl md:text-2xl font-bold text-white font-mono tracking-tight">
                 neighborhood<span className="text-green-400">_</span>ai
               </h1>
@@ -73,6 +76,9 @@ function App() {
         <Route path="/console/projects/:projectId" element={<ConsoleLayout><Dashboard /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/data" element={<ConsoleLayout><DataManager /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/chat" element={<ConsoleLayout><ChatInterface /></ConsoleLayout>} />
+        <Route path="/console/projects/:projectId/settings" element={<ConsoleLayout><Settings /></ConsoleLayout>} />
+        <Route path="/console/projects/:projectId/admin" element={<ConsoleLayout><AdminConsole /></ConsoleLayout>} />
+        <Route path="/console/projects/:projectId/help" element={<ConsoleLayout><HelpPage /></ConsoleLayout>} />
       </Routes>
     </Router>
   );

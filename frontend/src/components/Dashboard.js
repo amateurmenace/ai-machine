@@ -10,7 +10,14 @@ import {
   ArrowPathIcon,
   CommandLineIcon,
   ServerIcon,
-  CpuChipIcon
+  CpuChipIcon,
+  CheckCircleIcon,
+  RocketLaunchIcon,
+  BeakerIcon,
+  PaintBrushIcon,
+  CloudArrowUpIcon,
+  QuestionMarkCircleIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 
 function Dashboard() {
@@ -60,6 +67,15 @@ function Dashboard() {
 
   return (
     <div>
+      {/* Back Button */}
+      <Link
+        to="/console"
+        className="inline-flex items-center text-gray-400 hover:text-green-400 font-mono text-sm mb-6 group"
+      >
+        <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-green-400">$</span> cd ../projects
+      </Link>
+
       {/* Header */}
       <div className="mb-8 bg-gray-900 rounded-lg border border-gray-700 p-6">
         <div className="flex items-center space-x-3 mb-2">
@@ -134,15 +150,145 @@ function Dashboard() {
           </p>
         </Link>
 
-        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 opacity-50 cursor-not-allowed">
-          <CogIcon className="h-10 w-10 text-gray-600 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 font-mono mb-2">./settings</h3>
-          <p className="text-sm text-gray-600">
+        <Link
+          to={`/console/projects/${projectId}/settings`}
+          className="bg-gray-900 p-6 rounded-lg border border-gray-700 hover:border-purple-500/50 transition-all group"
+        >
+          <CogIcon className="h-10 w-10 text-purple-400 mb-4 group-hover:scale-110 transition-transform" />
+          <h3 className="text-lg font-semibold text-white font-mono mb-2">./settings</h3>
+          <p className="text-sm text-gray-500">
             Configure AI model and personality
           </p>
-          <span className="inline-block mt-2 px-2 py-0.5 text-xs font-mono bg-yellow-500/20 text-yellow-500 rounded border border-yellow-500/30">
-            coming soon
-          </span>
+        </Link>
+
+        <Link
+          to={`/console/projects/${projectId}/admin`}
+          className="bg-gray-900 p-6 rounded-lg border border-gray-700 hover:border-yellow-500/50 transition-all group"
+        >
+          <ServerIcon className="h-10 w-10 text-yellow-400 mb-4 group-hover:scale-110 transition-transform" />
+          <h3 className="text-lg font-semibold text-white font-mono mb-2">./admin</h3>
+          <p className="text-sm text-gray-500">
+            Monitor health, jobs, and manage API keys
+          </p>
+        </Link>
+
+        <Link
+          to={`/console/projects/${projectId}/help`}
+          className="bg-gray-900 p-6 rounded-lg border border-gray-700 hover:border-pink-500/50 transition-all group"
+        >
+          <QuestionMarkCircleIcon className="h-10 w-10 text-pink-400 mb-4 group-hover:scale-110 transition-transform" />
+          <h3 className="text-lg font-semibold text-white font-mono mb-2">./help</h3>
+          <p className="text-sm text-gray-500">
+            Setup guides, troubleshooting, and documentation
+          </p>
+        </Link>
+      </div>
+
+      {/* Next Steps Guide */}
+      <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-8">
+        <div className="flex items-center space-x-2 mb-4">
+          <RocketLaunchIcon className="h-5 w-5 text-cyan-400" />
+          <h2 className="text-lg font-bold text-white font-mono"># next_steps</h2>
+        </div>
+
+        <div className="space-y-4">
+          {/* Step 1: Test Your AI */}
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center">
+              <span className="text-cyan-400 text-xs font-mono">1</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-mono text-white mb-1">Test your AI assistant</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Head to the chat interface and ask questions about {project.municipality_name}.
+                Try different queries to see how your AI responds.
+              </p>
+              <Link
+                to={`/console/projects/${projectId}/chat`}
+                className="inline-flex items-center text-xs font-mono text-cyan-400 hover:text-cyan-300"
+              >
+                <BeakerIcon className="h-3 w-3 mr-1" />
+                $ ./chat --test
+              </Link>
+            </div>
+          </div>
+
+          {/* Step 2: Add More Data */}
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 border border-green-500/50 flex items-center justify-center">
+              <span className="text-green-400 text-xs font-mono">2</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-mono text-white mb-1">Add more data sources</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Improve your AI's knowledge by adding more sources: YouTube videos, websites, PDFs,
+                or other community resources.
+              </p>
+              <Link
+                to={`/console/projects/${projectId}/data`}
+                className="inline-flex items-center text-xs font-mono text-green-400 hover:text-green-300"
+              >
+                <DocumentTextIcon className="h-3 w-3 mr-1" />
+                $ ./data --add
+              </Link>
+            </div>
+          </div>
+
+          {/* Step 3: Customize Personality */}
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center">
+              <span className="text-purple-400 text-xs font-mono">3</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-mono text-white mb-1">Customize AI personality</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Fine-tune how your AI responds. Adjust the system prompt, tone, and behavior
+                to match your community's voice.
+              </p>
+              <Link
+                to={`/console/projects/${projectId}/settings`}
+                className="inline-flex items-center text-xs font-mono text-purple-400 hover:text-purple-300"
+              >
+                <PaintBrushIcon className="h-3 w-3 mr-1" />
+                $ ./settings --personality
+              </Link>
+            </div>
+          </div>
+
+          {/* Step 4: Deploy */}
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-500/20 border border-yellow-500/50 flex items-center justify-center">
+              <span className="text-yellow-400 text-xs font-mono">4</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-mono text-white mb-1">Deploy for your community</h3>
+              <p className="text-xs text-gray-500 mb-2">
+                Run with Docker for production, set up API access, or embed the chat widget
+                on your community website.
+              </p>
+              <div className="bg-gray-800 rounded p-2 mt-2">
+                <code className="text-xs font-mono text-gray-400">
+                  <span className="text-green-400">$</span> docker-compose up -d
+                </code>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Help Links */}
+        <div className="mt-6 pt-4 border-t border-gray-700">
+          <p className="text-xs text-gray-500 font-mono mb-2"># resources</p>
+          <div className="flex flex-wrap gap-3 text-xs font-mono">
+            <a href="https://github.com/amateurmenace/ai-machine" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white">
+              github
+            </a>
+            <span className="text-gray-700">|</span>
+            <a href="https://community.weirdmachine.org" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white">
+              community
+            </a>
+            <span className="text-gray-700">|</span>
+            <span className="text-gray-500">docs (coming soon)</span>
+          </div>
         </div>
       </div>
 

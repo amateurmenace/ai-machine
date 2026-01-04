@@ -24,9 +24,10 @@ import {
 
 const steps = [
   { id: 1, name: 'Location', icon: GlobeAltIcon, cmd: 'init' },
-  { id: 2, name: 'Discover Sources', icon: SparklesIcon, cmd: 'discover' },
-  { id: 3, name: 'Configure AI', icon: CogIcon, cmd: 'config' },
-  { id: 4, name: 'Launch', icon: RocketLaunchIcon, cmd: 'launch' },
+  { id: 2, name: 'Discover', icon: SparklesIcon, cmd: 'discover' },
+  { id: 3, name: 'Fine Tune', icon: DocumentTextIcon, cmd: 'finetune' },
+  { id: 4, name: 'Configure', icon: CogIcon, cmd: 'config' },
+  { id: 5, name: 'Launch', icon: RocketLaunchIcon, cmd: 'launch' },
 ];
 
 // Loading spinner component
@@ -280,7 +281,7 @@ Key traits:
       });
       addOutput('success', 'AI configuration saved');
 
-      setCurrentStep(4);
+      setCurrentStep(5);
     } catch (err) {
       addOutput('error', err.response?.data?.detail || 'Failed to configure AI');
       setError(err.response?.data?.detail || 'Failed to configure AI');
@@ -358,16 +359,17 @@ Key traits:
       {/* Progress Steps - Terminal Style */}
       <nav aria-label="Progress" className="mb-8">
         <div className="bg-gray-900 rounded-lg border border-gray-700 p-4">
-          <div className="flex items-center space-x-2 mb-3 text-gray-500 text-xs font-mono">
+          <div className="flex items-center space-x-2 mb-4 text-gray-500 text-xs font-mono">
             <span>~/projects/{projectId || 'new'}</span>
             <span>|</span>
-            <span>step {currentStep}/4</span>
+            <span>step {currentStep}/5</span>
           </div>
-          <ol className="flex items-center justify-between">
+          <ol className="flex items-center">
             {steps.map((step, stepIdx) => (
-              <li key={step.name} className={`relative ${stepIdx !== steps.length - 1 ? 'pr-8 sm:pr-20 flex-1' : ''}`}>
-                <div className="flex items-center">
-                  <div className={`relative flex h-10 w-10 items-center justify-center rounded border-2
+              <li key={step.name} className={`relative flex items-center ${stepIdx !== steps.length - 1 ? 'flex-1' : ''}`}>
+                {/* Step icon and label container */}
+                <div className="flex flex-col items-center z-10">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded border-2 bg-gray-900
                     ${currentStep > step.id
                       ? 'border-green-500 bg-green-500/20'
                       : currentStep === step.id
@@ -381,14 +383,13 @@ Key traits:
                       <span className="text-gray-500 font-mono">{step.id}</span>
                     )}
                   </div>
-                  <div className="ml-3">
-                    <span className={`text-xs font-mono ${currentStep >= step.id ? 'text-gray-300' : 'text-gray-600'}`}>
-                      ./{step.cmd}
-                    </span>
-                  </div>
+                  <span className={`mt-2 text-xs font-mono whitespace-nowrap ${currentStep >= step.id ? 'text-gray-300' : 'text-gray-600'}`}>
+                    ./{step.cmd}
+                  </span>
                 </div>
+                {/* Connecting line */}
                 {stepIdx !== steps.length - 1 && (
-                  <div className={`absolute top-5 left-10 -ml-px mt-0.5 h-0.5 w-full
+                  <div className={`flex-1 h-0.5 mx-2 mt-[-1.5rem]
                     ${currentStep > step.id ? 'bg-green-500' : 'bg-gray-700'}`} />
                 )}
               </li>
@@ -711,7 +712,7 @@ Key traits:
                     disabled={selectedSources.length === 0}
                     className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
                   >
-                    $ ./config --sources {selectedSources.length}
+                    $ ./finetune --sources {selectedSources.length}
                   </button>
                 </div>
               )}
@@ -734,6 +735,148 @@ Key traits:
           )}
 
           {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
+                  <span className="text-green-400">$</span>
+                  <span>finetune</span>
+                </h2>
+                <p className="text-gray-400 mt-2">Add more sources to fine-tune your AI's knowledge</p>
+              </div>
+
+              {/* Current Sources Summary */}
+              <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-cyan-400"># selected sources ({selectedSources.length})</span>
+                </div>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedSources.map((source, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-gray-400">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-400">+</span>
+                        <span className="text-gray-300">{source.name}</span>
+                        <span className="text-gray-600">({source.type})</span>
+                      </div>
+                      <button
+                        onClick={() => toggleSource(source)}
+                        className="text-red-400 hover:text-red-300 text-xs"
+                      >
+                        remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add More Sources */}
+              <div className="border-2 border-dashed border-gray-700 rounded-lg p-6">
+                <h3 className="text-sm font-mono text-cyan-400 mb-4"># add more sources</h3>
+
+                {/* Source Type Buttons */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <button
+                    onClick={() => {
+                      setCustomSource({ type: 'youtube_video', url: '', name: '' });
+                      setShowCustomSourceForm(true);
+                    }}
+                    className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-cyan-500/50 transition-colors"
+                  >
+                    <VideoCameraIcon className="h-8 w-8 text-red-400 mb-2" />
+                    <span className="text-xs font-mono text-gray-300">YouTube Video</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomSource({ type: 'youtube_playlist', url: '', name: '' });
+                      setShowCustomSourceForm(true);
+                    }}
+                    className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-cyan-500/50 transition-colors"
+                  >
+                    <PlayIcon className="h-8 w-8 text-red-400 mb-2" />
+                    <span className="text-xs font-mono text-gray-300">Playlist</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomSource({ type: 'website', url: '', name: '' });
+                      setShowCustomSourceForm(true);
+                    }}
+                    className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-cyan-500/50 transition-colors"
+                  >
+                    <GlobeAmericasIcon className="h-8 w-8 text-blue-400 mb-2" />
+                    <span className="text-xs font-mono text-gray-300">Website</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomSource({ type: 'pdf_url', url: '', name: '' });
+                      setShowCustomSourceForm(true);
+                    }}
+                    className="flex flex-col items-center p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-cyan-500/50 transition-colors"
+                  >
+                    <DocumentTextIcon className="h-8 w-8 text-orange-400 mb-2" />
+                    <span className="text-xs font-mono text-gray-300">PDF</span>
+                  </button>
+                </div>
+
+                {/* Custom Source Form */}
+                {showCustomSourceForm && (
+                  <div className="bg-gray-900 border border-cyan-500/50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-mono text-cyan-400">
+                        # add {customSource.type.replace('_', ' ')}
+                      </h4>
+                      <button onClick={() => setShowCustomSourceForm(false)} className="text-gray-500 hover:text-white">
+                        <XMarkIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-mono text-gray-400 mb-1">--url</label>
+                        <input
+                          type="text"
+                          value={customSource.url}
+                          onChange={(e) => setCustomSource({ ...customSource, url: e.target.value })}
+                          placeholder={
+                            customSource.type === 'youtube_video' ? 'https://youtube.com/watch?v=...' :
+                            customSource.type === 'youtube_playlist' ? 'https://youtube.com/playlist?list=...' :
+                            customSource.type === 'website' ? 'https://example.com' :
+                            'https://example.com/document.pdf'
+                          }
+                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-mono text-gray-400 mb-1">--name</label>
+                        <input
+                          type="text"
+                          value={customSource.name}
+                          onChange={(e) => setCustomSource({ ...customSource, name: e.target.value })}
+                          placeholder="Give this source a name"
+                          className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                      <button
+                        onClick={handleAddCustomSource}
+                        disabled={!customSource.url || !customSource.name}
+                        className="w-full py-2 bg-cyan-500 text-gray-900 rounded font-mono text-sm font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+                      >
+                        + Add Source
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setCurrentStep(4)}
+                disabled={selectedSources.length === 0}
+                className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>$ ./config --sources {selectedSources.length}</span>
+                <span className="animate-pulse">_</span>
+              </button>
+            </div>
+          )}
+
+          {currentStep === 4 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
@@ -909,7 +1052,7 @@ Key traits:
             </div>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 5 && (
             <div className="space-y-6">
               <div className="text-center">
                 <RocketLaunchIcon className="h-16 w-16 mx-auto text-green-400 mb-4" />
@@ -921,18 +1064,94 @@ Key traits:
                 </p>
               </div>
 
-              {/* Summary Terminal */}
+              {/* Project Configuration Summary */}
               <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
-                <TerminalLine type="success">Project: {projectId}</TerminalLine>
-                <TerminalLine type="info">Location: {municipalityName}</TerminalLine>
-                <TerminalLine type="info">AI Provider: {aiProvider}</TerminalLine>
-                <TerminalLine type="info">Model: {modelName}</TerminalLine>
-                <TerminalLine type="info">Sources: {selectedSources.length}</TerminalLine>
-                <div className="mt-3 pt-3 border-t border-gray-700">
-                  <TerminalLine type="warning">Ingestion will begin automatically</TerminalLine>
-                  <TerminalLine type="info">You can chat while data is processing</TerminalLine>
+                <div className="flex items-center space-x-2 mb-3 text-cyan-400">
+                  <span># project configuration</span>
+                </div>
+                <div className="space-y-1">
+                  <TerminalLine type="success">project_id: {projectId}</TerminalLine>
+                  <TerminalLine type="info">location: {municipalityName}</TerminalLine>
+                  <TerminalLine type="info">ai_provider: {aiProvider}</TerminalLine>
+                  <TerminalLine type="info">model: {modelName}</TerminalLine>
+                  <TerminalLine type="info">temperature: {temperature}</TerminalLine>
+                  {showThinking && <TerminalLine type="info">show_thinking: enabled</TerminalLine>}
+                  {extendedThinking && <TerminalLine type="info">extended_thinking: enabled</TerminalLine>}
                 </div>
               </div>
+
+              {/* Data Sources Summary */}
+              <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-cyan-400"># data sources ({selectedSources.length})</span>
+                </div>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {selectedSources.map((source, idx) => (
+                    <div key={idx} className="flex items-center space-x-2 text-gray-400">
+                      <span className="text-green-400">+</span>
+                      <span className="text-gray-300">{source.name}</span>
+                      <span className="text-gray-600">({source.type})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Storage Location */}
+              <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                <div className="flex items-center space-x-2 mb-3 text-cyan-400">
+                  <span># storage paths</span>
+                </div>
+                <div className="space-y-1 text-gray-400">
+                  <div className="flex items-start space-x-2">
+                    <span className="text-yellow-400 shrink-0">config:</span>
+                    <span className="text-gray-300 break-all">./data/{projectId}/config.json</span>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <span className="text-yellow-400 shrink-0">vectors:</span>
+                    <span className="text-gray-300 break-all">./data/{projectId}/qdrant/</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ingestion Estimate */}
+              <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                <div className="flex items-center space-x-2 mb-3 text-cyan-400">
+                  <span># ingestion estimate</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-gray-400">
+                    <span>Sources to process:</span>
+                    <span className="text-white">{selectedSources.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-gray-400">
+                    <span>Estimated time:</span>
+                    <span className="text-white">
+                      {selectedSources.length <= 2 ? '1-2 min' :
+                       selectedSources.length <= 5 ? '2-5 min' :
+                       selectedSources.length <= 10 ? '5-10 min' : '10-20 min'}
+                    </span>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-700">
+                    <TerminalLine type="warning">Ingestion runs in background</TerminalLine>
+                    <TerminalLine type="info">You can chat while data is processing</TerminalLine>
+                  </div>
+                </div>
+              </div>
+
+              {/* Launch Progress */}
+              {loading && (
+                <div className="bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                  <div className="flex items-center space-x-2 mb-3 text-green-400">
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                    <span>launching...</span>
+                  </div>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {terminalOutput.slice(-8).map((line, idx) => (
+                      <TerminalLine key={idx} type={line.type}>{line.message}</TerminalLine>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleLaunch}
@@ -942,7 +1161,7 @@ Key traits:
                 {loading ? (
                   <>
                     <ArrowPathIcon className="h-6 w-6 animate-spin" />
-                    <span>Launching...</span>
+                    <span>Deploying...</span>
                   </>
                 ) : (
                   <>

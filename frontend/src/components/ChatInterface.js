@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { PaperAirplaneIcon, LinkIcon, CommandLineIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, LinkIcon, CommandLineIcon, SparklesIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 function ChatInterface() {
   const { projectId } = useParams();
@@ -99,6 +99,15 @@ function ChatInterface() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)]">
+      {/* Back Button */}
+      <Link
+        to={`/console/projects/${projectId}`}
+        className="inline-flex items-center text-gray-400 hover:text-green-400 font-mono text-sm mb-4 group"
+      >
+        <ArrowLeftIcon className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-green-400">$</span> cd ../dashboard
+      </Link>
+
       {/* Header */}
       <div className="bg-gray-900 border border-gray-700 rounded-t-lg overflow-hidden">
         <div className="flex items-center space-x-2 px-4 py-3 bg-gray-800 border-b border-gray-700">
