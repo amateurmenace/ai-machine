@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   SparklesIcon,
@@ -18,6 +18,7 @@ import {
   XMarkIcon,
   ExclamationCircleIcon
 } from '@heroicons/react/24/outline';
+import Footer from './Footer';
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -161,7 +162,7 @@ brooklineAI.ask("What are the rules for block parties?");
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Animated colorful background with network patterns */}
+      {/* Animated colorful background with blueprint/urban planning patterns */}
       <div className="fixed inset-0 pointer-events-none">
         {/* Colorful animated globs */}
         <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-300/20 to-purple-300/20 rounded-full blur-3xl animate-blob"></div>
@@ -169,31 +170,54 @@ brooklineAI.ask("What are the rules for block parties?");
         <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-300/20 to-teal-300/20 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
         <div className="absolute bottom-40 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-300/20 to-orange-300/20 rounded-full blur-3xl animate-blob animation-delay-6000"></div>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-br from-rose-300/15 to-purple-300/15 rounded-full blur-3xl animate-blob animation-delay-3000"></div>
-        
-        {/* Weave and grid patterns */}
-        <div className="absolute inset-0 opacity-[0.015]">
-          <div className="bg-weave-pattern"></div>
+
+        {/* Blueprint grid pattern */}
+        <div className="absolute inset-0 opacity-[0.03]">
+          <div className="blueprint-grid"></div>
         </div>
-        <div className="absolute inset-0 opacity-[0.02]">
-          <div className="bg-grid-pattern"></div>
-        </div>
-        
-        {/* Network connection lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.03]" xmlns="http://www.w3.org/2000/svg">
+
+        {/* Civic doodles / urban planning sketches */}
+        <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern id="network-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
-              <circle cx="0" cy="0" r="2" fill="#000" />
-              <circle cx="100" cy="50" r="2" fill="#000" />
-              <circle cx="200" cy="0" r="2" fill="#000" />
-              <circle cx="50" cy="100" r="2" fill="#000" />
-              <circle cx="150" cy="150" r="2" fill="#000" />
-              <line x1="0" y1="0" x2="100" y2="50" stroke="#000" strokeWidth="1" />
-              <line x1="100" y1="50" x2="200" y2="0" stroke="#000" strokeWidth="1" />
-              <line x1="100" y1="50" x2="50" y2="100" stroke="#000" strokeWidth="1" />
-              <line x1="100" y1="50" x2="150" y2="150" stroke="#000" strokeWidth="1" />
+            <pattern id="civic-pattern" x="0" y="0" width="400" height="400" patternUnits="userSpaceOnUse">
+              {/* City grid streets */}
+              <line x1="0" y1="100" x2="400" y2="100" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+              <line x1="0" y1="200" x2="400" y2="200" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+              <line x1="0" y1="300" x2="400" y2="300" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+              <line x1="100" y1="0" x2="100" y2="400" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+              <line x1="200" y1="0" x2="200" y2="400" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+              <line x1="300" y1="0" x2="300" y2="400" stroke="#1e40af" strokeWidth="1" strokeDasharray="8 4" />
+
+              {/* Building outlines - simple rectangles representing blocks */}
+              <rect x="20" y="20" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+              <rect x="120" y="20" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+              <rect x="220" y="120" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+              <rect x="320" y="220" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+              <rect x="20" y="220" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+              <rect x="120" y="320" width="60" height="60" fill="none" stroke="#1e40af" strokeWidth="1" />
+
+              {/* Town hall / civic building */}
+              <rect x="220" y="320" width="80" height="50" fill="none" stroke="#1e40af" strokeWidth="1.5" />
+              <polygon points="220,320 260,290 300,320" fill="none" stroke="#1e40af" strokeWidth="1.5" />
+              <rect x="255" y="340" width="10" height="30" fill="none" stroke="#1e40af" strokeWidth="1" />
+
+              {/* Park / green space */}
+              <circle cx="350" cy="50" r="30" fill="none" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 2" />
+              <circle cx="50" cy="350" r="25" fill="none" stroke="#16a34a" strokeWidth="1" strokeDasharray="4 2" />
+
+              {/* Connection nodes */}
+              <circle cx="100" cy="100" r="4" fill="#1e40af" />
+              <circle cx="200" cy="100" r="4" fill="#1e40af" />
+              <circle cx="300" cy="100" r="4" fill="#1e40af" />
+              <circle cx="100" cy="200" r="4" fill="#1e40af" />
+              <circle cx="200" cy="200" r="4" fill="#1e40af" />
+              <circle cx="300" cy="200" r="4" fill="#1e40af" />
+              <circle cx="100" cy="300" r="4" fill="#1e40af" />
+              <circle cx="200" cy="300" r="4" fill="#1e40af" />
+              <circle cx="300" cy="300" r="4" fill="#1e40af" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#network-pattern)" className="animate-network-flow" />
+          <rect width="100%" height="100%" fill="url(#civic-pattern)" className="animate-civic-drift" />
         </svg>
       </div>
 
@@ -220,12 +244,18 @@ brooklineAI.ask("What are the rules for block parties?");
               {projects.length > 0 && (
                 <a href="#projects" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">projects</a>
               )}
-              <button
-                onClick={() => navigate('/guide')}
+              <Link
+                to="/about"
+                className="text-gray-400 hover:text-orange-400 text-sm font-mono transition-colors hidden sm:inline"
+              >
+                about
+              </Link>
+              <Link
+                to="/guide"
                 className="text-purple-400 hover:text-purple-300 px-3 py-2 font-mono text-sm transition-colors border border-purple-500/30 rounded hover:bg-purple-500/10"
               >
                 guide
-              </button>
+              </Link>
               <button
                 onClick={handleNavigateToConsole}
                 className="bg-green-500 text-gray-900 px-4 py-2 rounded font-mono text-sm font-semibold hover:bg-green-400 transition-colors flex items-center space-x-1"
@@ -263,7 +293,15 @@ brooklineAI.ask("What are the rules for block parties?");
                 <span>Open Console</span>
                 <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              
+
+              <Link
+                to="/guide"
+                className="px-8 py-4 bg-purple-600 text-white rounded-lg font-semibold text-lg hover:bg-purple-500 transition-all duration-300 flex items-center space-x-2"
+              >
+                <SparklesIcon className="h-5 w-5" />
+                <span>Read the Guide</span>
+              </Link>
+
               <a
                 href="https://github.com/amateurmenace/ai-machine"
                 target="_blank"
@@ -519,6 +557,155 @@ brooklineAI.ask("What are the rules for block parties?");
               <span>Start Building</span>
               <ArrowRightIcon className="h-5 w-5" />
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Architecture Diagram */}
+      <div id="architecture" className="py-20 bg-gradient-to-br from-slate-900 to-gray-900 relative overflow-hidden">
+        {/* Blueprint background for this section */}
+        <div className="absolute inset-0 opacity-10">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="blueprint-grid-arch" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="50" y2="0" stroke="#3b82f6" strokeWidth="0.5" />
+                <line x1="0" y1="0" x2="0" y2="50" stroke="#3b82f6" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#blueprint-grid-arch)" />
+          </svg>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4 text-white font-mono">
+              <span className="text-blue-400">#</span> system_architecture
+            </h2>
+            <p className="text-xl text-gray-400">
+              How Neighborhood AI turns your data into answers
+            </p>
+          </div>
+
+          {/* Architecture Diagram as SVG */}
+          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border-2 border-blue-500/30 p-8 shadow-2xl">
+            <svg viewBox="0 0 900 320" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
+              {/* Connection lines */}
+              <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                  <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
+                </marker>
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.3" />
+                  <stop offset="50%" stopColor="#22d3ee" stopOpacity="1" />
+                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.3" />
+                </linearGradient>
+              </defs>
+
+              {/* Arrows connecting boxes */}
+              <line x1="155" y1="160" x2="225" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line" />
+              <line x1="365" y1="160" x2="435" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-1" />
+              <line x1="575" y1="160" x2="645" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-2" />
+              <line x1="785" y1="160" x2="855" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-3" />
+
+              {/* Box 1: Data Sources */}
+              <g transform="translate(20, 80)">
+                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#3b82f6" strokeWidth="2" />
+                <text x="65" y="30" textAnchor="middle" fill="#3b82f6" fontSize="12" fontFamily="monospace" fontWeight="bold">DATA SOURCES</text>
+                {/* Icons inside */}
+                <rect x="15" y="50" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
+                <text x="37" y="70" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">YouTube</text>
+                <rect x="70" y="50" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
+                <text x="92" y="70" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">Web</text>
+                <rect x="15" y="90" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
+                <text x="37" y="110" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">PDFs</text>
+                <rect x="70" y="90" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
+                <text x="92" y="110" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">RSS</text>
+                <text x="65" y="145" textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="monospace">Community Data</text>
+              </g>
+
+              {/* Box 2: Ingestion */}
+              <g transform="translate(230, 80)">
+                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#22c55e" strokeWidth="2" />
+                <text x="65" y="30" textAnchor="middle" fill="#22c55e" fontSize="12" fontFamily="monospace" fontWeight="bold">INGESTION</text>
+                {/* Process steps */}
+                <rect x="15" y="50" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
+                <text x="65" y="67" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Extract Text</text>
+                <rect x="15" y="85" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
+                <text x="65" y="102" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Chunk Content</text>
+                <rect x="15" y="120" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
+                <text x="65" y="137" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Embed Vectors</text>
+              </g>
+
+              {/* Box 3: Vector Store */}
+              <g transform="translate(440, 80)">
+                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#a855f7" strokeWidth="2" />
+                <text x="65" y="30" textAnchor="middle" fill="#a855f7" fontSize="12" fontFamily="monospace" fontWeight="bold">VECTOR STORE</text>
+                {/* Database visualization */}
+                <ellipse cx="65" cy="70" rx="45" ry="15" fill="#374151" stroke="#c084fc" strokeWidth="1" />
+                <rect x="20" y="70" width="90" height="40" fill="#374151" stroke="#c084fc" strokeWidth="1" />
+                <ellipse cx="65" cy="110" rx="45" ry="15" fill="#374151" stroke="#c084fc" strokeWidth="1" />
+                <text x="65" y="95" textAnchor="middle" fill="#c084fc" fontSize="10" fontFamily="monospace">Qdrant</text>
+                <text x="65" y="145" textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="monospace">Semantic Search</text>
+              </g>
+
+              {/* Box 4: RAG + LLM */}
+              <g transform="translate(650, 80)">
+                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#f97316" strokeWidth="2" />
+                <text x="65" y="30" textAnchor="middle" fill="#f97316" fontSize="12" fontFamily="monospace" fontWeight="bold">RAG + LLM</text>
+                {/* Query flow */}
+                <rect x="15" y="50" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
+                <text x="65" y="67" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Query Match</text>
+                <rect x="15" y="85" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
+                <text x="65" y="102" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Build Context</text>
+                <rect x="15" y="120" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
+                <text x="65" y="137" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Ollama/Claude</text>
+              </g>
+
+              {/* Box 5: Response */}
+              <g transform="translate(820, 100)">
+                <rect x="0" y="0" width="70" height="120" rx="8" fill="#1e293b" stroke="#22d3ee" strokeWidth="2" />
+                <text x="35" y="25" textAnchor="middle" fill="#22d3ee" fontSize="11" fontFamily="monospace" fontWeight="bold">ANSWER</text>
+                {/* Chat bubble */}
+                <rect x="10" y="40" width="50" height="35" rx="6" fill="#374151" stroke="#67e8f9" strokeWidth="1" />
+                <line x1="20" y1="52" x2="50" y2="52" stroke="#67e8f9" strokeWidth="1" />
+                <line x1="20" y1="60" x2="45" y2="60" stroke="#67e8f9" strokeWidth="1" />
+                <line x1="20" y1="68" x2="40" y2="68" stroke="#67e8f9" strokeWidth="1" />
+                <text x="35" y="98" textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="monospace">+ Sources</text>
+              </g>
+
+              {/* User icon at start */}
+              <g transform="translate(-15, 145)">
+                <circle cx="20" cy="15" r="10" fill="#374151" stroke="#60a5fa" strokeWidth="2" />
+                <text x="20" y="18" textAnchor="middle" fill="#60a5fa" fontSize="10">?</text>
+              </g>
+
+              {/* Labels below */}
+              <text x="85" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Collect</text>
+              <text x="295" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Process</text>
+              <text x="505" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Store</text>
+              <text x="715" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Generate</text>
+              <text x="855" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Respond</text>
+
+              {/* Flow description */}
+              <text x="450" y="305" textAnchor="middle" fill="#9ca3af" fontSize="11" fontFamily="monospace">
+                Question → Semantic Search → Relevant Context → LLM → Cited Answer
+              </text>
+            </svg>
+          </div>
+
+          <div className="mt-8 grid md:grid-cols-3 gap-6 text-center">
+            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+              <div className="text-2xl font-bold text-blue-400 font-mono mb-1">Local</div>
+              <p className="text-gray-400 text-sm">All processing on your hardware</p>
+            </div>
+            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+              <div className="text-2xl font-bold text-green-400 font-mono mb-1">2W</div>
+              <p className="text-gray-400 text-sm">Energy per query (vs 100W cloud)</p>
+            </div>
+            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
+              <div className="text-2xl font-bold text-purple-400 font-mono mb-1">Private</div>
+              <p className="text-gray-400 text-sm">Your data never leaves your server</p>
+            </div>
           </div>
         </div>
       </div>
@@ -840,87 +1027,7 @@ brooklineAI.ask("What are the rules for block parties?");
       </div>
 
       {/* Footer */}
-      <div className="bg-gray-900 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <h3 className="font-bold text-white mb-4">Neighborhood AI</h3>
-              <p className="text-gray-400 text-sm">
-                Building AI for communities, not corporations.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-white mb-4">Resources</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="https://github.com/amateurmenace/ai-machine" className="hover:text-white">Documentation</a></li>
-                <li><a href="https://github.com/amateurmenace/ai-machine" className="hover:text-white">GitHub</a></li>
-                <li><a href="#" className="hover:text-white">Examples</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-white mb-4">Community</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="#" className="hover:text-white">Forum</a></li>
-                <li><a href="#" className="hover:text-white">Discord</a></li>
-                <li><a href="mailto:stephen@weirdmachine.org" className="hover:text-white">Contact</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-white mb-4">Family of Apps</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><a href="https://community.weirdmachine.org" className="hover:text-white">Community AI Project</a></li>
-                <li><a href="#" className="hover:text-white">Community Highlighter</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 pt-8">
-            {/* Attribution and Logos */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
-              <div className="text-center md:text-left">
-                <p className="text-gray-300 text-sm mb-2">
-                  A <a href="https://community.weirdmachine.org" className="text-orange-400 hover:text-orange-300">Community AI Project</a> from{' '}
-                  <a href="https://brooklineinteractive.org" className="text-blue-400 hover:text-blue-300">Brookline Interactive Group</a>{' '}
-                  in partnership with Neighborhood AI
-                </p>
-                <p className="text-gray-400 text-xs">
-                  Designed and developed by <a href="https://weirdmachine.org" className="text-gray-300 hover:text-white">Stephen Walter</a> + AI
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <a href="https://weirdmachine.org" target="_blank" rel="noopener noreferrer">
-                  <img src="/weirdmachine.png" alt="Weird Machine" className="h-8 w-auto opacity-80 hover:opacity-100 transition-opacity" />
-                </a>
-                <a href="https://brooklineinteractive.org" target="_blank" rel="noopener noreferrer">
-                  <img src="/big-logo.png" alt="Brookline Interactive Group" className="h-12 w-auto opacity-80 hover:opacity-100 transition-opacity" />
-                </a>
-              </div>
-            </div>
-            
-            {/* Creative Commons License */}
-            <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-4 border-t border-gray-800">
-              <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-gray-400 hover:text-gray-300 text-sm">
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                </svg>
-                <span>Licensed under CC BY-NC-SA 4.0</span>
-              </a>
-              <span className="text-gray-600 hidden md:inline">•</span>
-              <p className="text-gray-500 text-xs">
-                Creative Commons Attribution-NonCommercial-ShareAlike
-              </p>
-            </div>
-            
-            <div className="text-center text-gray-500 text-xs mt-6">
-              Made for communities by civic technologists 🏘️
-            </div>
-          </div>
-        </div>
-      </div>
+      <Footer />
 
       {/* Custom CSS for animated background */}
       <style>{`
@@ -938,80 +1045,80 @@ brooklineAI.ask("What are the rules for block parties?");
             transform: translate(10px, 10px) scale(1.05);
           }
         }
-        
+
         .animate-blob {
           animation: blob 20s ease-in-out infinite;
         }
-        
+
         .animation-delay-2000 {
           animation-delay: 2s;
         }
-        
+
         .animation-delay-3000 {
           animation-delay: 3s;
         }
-        
+
         .animation-delay-4000 {
           animation-delay: 4s;
         }
-        
+
         .animation-delay-6000 {
           animation-delay: 6s;
         }
-        
-        .bg-weave-pattern {
+
+        .animation-delay-1 {
+          animation-delay: 0.5s;
+        }
+
+        .animation-delay-2 {
+          animation-delay: 1s;
+        }
+
+        .animation-delay-3 {
+          animation-delay: 1.5s;
+        }
+
+        /* Blueprint grid pattern */
+        .blueprint-grid {
           width: 100%;
           height: 100%;
           background-image:
-            repeating-linear-gradient(
-              45deg,
-              transparent,
-              transparent 10px,
-              rgba(0, 0, 0, 0.1) 10px,
-              rgba(0, 0, 0, 0.1) 11px
-            ),
-            repeating-linear-gradient(
-              -45deg,
-              transparent,
-              transparent 10px,
-              rgba(0, 0, 0, 0.1) 10px,
-              rgba(0, 0, 0, 0.1) 11px
-            );
+            linear-gradient(rgba(30, 64, 175, 0.3) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30, 64, 175, 0.3) 1px, transparent 1px),
+            linear-gradient(rgba(30, 64, 175, 0.15) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(30, 64, 175, 0.15) 1px, transparent 1px);
+          background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
         }
-        
-        .bg-grid-pattern {
-          width: 100%;
-          height: 100%;
-          background-image:
-            linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: grid-flow 30s linear infinite;
-        }
-        
-        @keyframes grid-flow {
+
+        /* Civic pattern animation */
+        @keyframes civic-drift {
           0% {
             transform: translate(0, 0);
           }
           100% {
-            transform: translate(50px, 50px);
+            transform: translate(40px, 40px);
           }
         }
-        
-        @keyframes network-flow {
-          0% {
-            opacity: 0.03;
+
+        .animate-civic-drift {
+          animation: civic-drift 60s linear infinite;
+        }
+
+        /* Flow line animation for architecture diagram */
+        @keyframes flow-pulse {
+          0%, 100% {
+            opacity: 0.5;
+            stroke-dashoffset: 0;
           }
           50% {
-            opacity: 0.05;
-          }
-          100% {
-            opacity: 0.03;
+            opacity: 1;
+            stroke-dashoffset: -10;
           }
         }
-        
-        .animate-network-flow {
-          animation: network-flow 8s ease-in-out infinite;
+
+        .animate-flow-line {
+          stroke-dasharray: 5 3;
+          animation: flow-pulse 2s ease-in-out infinite;
         }
       `}</style>
     </div>

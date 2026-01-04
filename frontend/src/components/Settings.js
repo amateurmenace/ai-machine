@@ -7,7 +7,10 @@ import {
   CogIcon,
   BoltIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  PlusIcon,
+  TrashIcon,
+  ScaleIcon
 } from '@heroicons/react/24/outline';
 
 function Settings() {
@@ -30,6 +33,8 @@ function Settings() {
   const [showThinking, setShowThinking] = useState(false);
   const [extendedThinking, setExtendedThinking] = useState(false);
   const [availableModels, setAvailableModels] = useState([]);
+  const [communityConstitution, setCommunityConstitution] = useState([]);
+  const [newRule, setNewRule] = useState('');
 
   useEffect(() => {
     loadProject();
@@ -50,6 +55,7 @@ function Settings() {
       setSystemPrompt(data.system_prompt || '');
       setShowThinking(data.show_thinking || false);
       setExtendedThinking(data.extended_thinking || false);
+      setCommunityConstitution(data.community_constitution || []);
 
       // Load models first to check if current model is custom
       const modelsRes = await axios.get(`/api/models/${data.ai_provider || 'ollama'}`);
@@ -118,7 +124,8 @@ function Settings() {
         temperature: temperature,
         system_prompt: systemPrompt,
         show_thinking: showThinking,
-        extended_thinking: extendedThinking
+        extended_thinking: extendedThinking,
+        community_constitution: communityConstitution
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -126,6 +133,24 @@ function Settings() {
       setError(err.response?.data?.detail || 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addConstitutionRule = () => {
+    if (newRule.trim()) {
+      setCommunityConstitution([...communityConstitution, newRule.trim()]);
+      setNewRule('');
+    }
+  };
+
+  const removeConstitutionRule = (index) => {
+    setCommunityConstitution(communityConstitution.filter((_, i) => i !== index));
+  };
+
+  const handleRuleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addConstitutionRule();
     }
   };
 
@@ -360,6 +385,79 @@ function Settings() {
           <p className="mt-2 text-xs text-gray-500 font-mono">
             # Customize how your AI responds to the community
           </p>
+        </div>
+
+        {/* Community Constitution Section */}
+        <div className="bg-gray-900 rounded-lg border border-orange-500/30 p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <ScaleIcon className="h-5 w-5 text-orange-400" />
+            <h3 className="text-sm font-mono text-orange-400"># community_constitution</h3>
+          </div>
+
+          <p className="text-gray-400 text-sm mb-4">
+            Define ethical guidelines and constraints that your AI must always follow.
+            These rules take precedence over other instructions.
+          </p>
+
+          {/* Existing Rules */}
+          {communityConstitution.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {communityConstitution.map((rule, index) => (
+                <div
+                  key={index}
+                  className="flex items-start space-x-3 bg-gray-800 rounded-lg p-3 border border-gray-700 group"
+                >
+                  <span className="text-orange-400 font-mono text-sm flex-shrink-0">
+                    {String(index + 1).padStart(2, '0')}.
+                  </span>
+                  <p className="text-gray-300 text-sm flex-1">{rule}</p>
+                  <button
+                    onClick={() => removeConstitutionRule(index)}
+                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add New Rule */}
+          <div className="flex space-x-2">
+            <input
+              type="text"
+              value={newRule}
+              onChange={(e) => setNewRule(e.target.value)}
+              onKeyPress={handleRuleKeyPress}
+              placeholder="e.g., Always recommend contacting town hall for official permits..."
+              className="flex-1 px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+            <button
+              onClick={addConstitutionRule}
+              disabled={!newRule.trim()}
+              className="px-4 py-3 bg-orange-500/20 text-orange-400 border border-orange-500/50 rounded-lg hover:bg-orange-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500 font-mono">
+            # Press Enter or click + to add a rule
+          </p>
+
+          {/* Example Rules */}
+          {communityConstitution.length === 0 && (
+            <div className="mt-4 p-4 bg-gray-800/50 rounded-lg border border-dashed border-gray-700">
+              <p className="text-xs text-gray-500 font-mono mb-2"># Example rules:</p>
+              <ul className="space-y-1 text-xs text-gray-500">
+                <li>- Always recommend contacting town hall for official matters</li>
+                <li>- Never provide legal advice - suggest consulting an attorney</li>
+                <li>- Encourage residents to attend public meetings for civic engagement</li>
+                <li>- Clarify that information may be outdated and verify with official sources</li>
+                <li>- Respect privacy and never ask for personal identifying information</li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Save Button */}

@@ -352,7 +352,7 @@ open http://localhost:3000
 - Comprehensive wiki-style Guide
 
 **Data Collection:**
-- YouTube playlist transcript extraction
+- YouTube playlist transcript extraction (with multiple fallback methods)
 - Single YouTube video support
 - Website scraping with BeautifulSoup
 - PDF text extraction (URL and direct upload)
@@ -361,6 +361,8 @@ open http://localhost:3000
 - Custom source addition
 - Collection method tracking (how data was gathered)
 - Document viewer (browse ingested chunks)
+- Data protection limits (120MB or 10M words per source)
+- Sync all sources feature with progress tracking
 
 **AI Integration:**
 - Local models via Ollama (includes OLMo 3)
@@ -392,6 +394,8 @@ open http://localhost:3000
 - Settings page for AI configuration
 - Dashboard notifications for pending data syncs
 - Real-time ingestion progress on dashboard
+- Guide button on landing page
+- Sync all sources button with animated loading
 
 **Admin & Health:**
 - System health monitoring (Ollama status, project count)
@@ -435,6 +439,26 @@ open http://localhost:3000
 - User authentication
 - Analytics dashboard
 - Docker deployment
+
+## Roadmap
+
+### Phase 1: Core Improvements (Next)
+- **Streaming responses**: Show AI answers character-by-character
+- **Conversation persistence**: Save chat history to localStorage or database
+- **Footer component**: Add consistent footer with logos across all pages
+- **About Us page**: Mission, team, and community information
+
+### Phase 2: Advanced Features
+- **Community Constitutions**: Configurable ethical guidelines for AI behavior
+- **RSS feed collector**: Ingest news from RSS/Atom feeds
+- **Reddit collector**: Gather community discussions
+- **Scheduled re-ingestion**: Automatic data updates on schedule
+
+### Phase 3: Production Ready
+- **Docker deployment**: Containerized setup for easy deployment
+- **User authentication**: Multi-user support with roles
+- **Analytics dashboard**: Usage metrics and insights
+- **Architectural diagram**: Visual explanation on landing page
 
 ## Troubleshooting
 
@@ -495,5 +519,15 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 ---
 
 **Last Updated:** January 4, 2026
-**Version:** 1.0.0
+**Version:** 1.0.1
 **Status:** Active development
+
+## Session History
+
+### January 4, 2026 - Session 2
+- Fixed chat 500 error (Qdrant API changed from `search()` to `query_points()`)
+- Added guide button to landing page hero section
+- Improved YouTube transcript collection with multiple fallback methods
+- Added "Sync All" feature for batch data ingestion
+- Added data protection limits (120MB or 10M words per source)
+- Updated CLAUDE.md with roadmap

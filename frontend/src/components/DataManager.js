@@ -17,7 +17,9 @@ import {
   EyeIcon,
   XMarkIcon,
   DocumentDuplicateIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ExclamationTriangleIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 function DataManager() {
@@ -32,6 +34,8 @@ function DataManager() {
   const [documents, setDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncErrors, setSyncErrors] = useState({});
   const fileInputRef = useRef(null);
 
   // Add source form
@@ -102,18 +106,54 @@ function DataManager() {
   };
 
   const handleSyncSource = async (sourceId) => {
+    // Clear any previous errors for this source
+    setSyncErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[sourceId];
+      return newErrors;
+    });
+
     try {
       const response = await axios.post(`/api/projects/${projectId}/sources/${sourceId}/ingest`);
       const jobId = response.data.job_id;
 
       setJobs(prev => ({
         ...prev,
-        [sourceId]: { job_id: jobId, status: 'pending', progress: 0, source_id: sourceId }
+        [sourceId]: {
+          job_id: jobId,
+          status: 'pending',
+          progress: 0,
+          source_id: sourceId,
+          message: 'Starting ingestion...'
+        }
       }));
     } catch (error) {
       console.error('Error syncing source:', error);
-      alert('Failed to start sync');
+      const errorMessage = error.response?.data?.detail || 'Failed to start sync';
+      setSyncErrors(prev => ({ ...prev, [sourceId]: errorMessage }));
     }
+  };
+
+  const handleSyncAll = async () => {
+    if (sources.length === 0) return;
+
+    setSyncingAll(true);
+    setSyncErrors({});
+
+    // Sync all sources sequentially to avoid overwhelming the server
+    for (const source of sources) {
+      // Skip sources that are already syncing
+      if (jobs[source.id]?.status === 'running' || jobs[source.id]?.status === 'pending') {
+        continue;
+      }
+
+      await handleSyncSource(source.id);
+
+      // Small delay between starting syncs
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setSyncingAll(false);
   };
 
   const handlePdfUpload = async (event) => {
@@ -203,6 +243,20 @@ function DataManager() {
 
   const getJobStatus = (sourceId) => {
     const job = jobs[sourceId];
+    const error = syncErrors[sourceId];
+
+    // Show error if there's one
+    if (error && !job) {
+      return (
+        <div className="flex items-center space-x-2 px-2 py-1 rounded bg-red-500/20 border border-red-500/30">
+          <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+          <span className="text-xs font-mono text-red-400 max-w-xs truncate" title={error}>
+            {error.length > 40 ? error.substring(0, 40) + '...' : error}
+          </span>
+        </div>
+      );
+    }
+
     if (!job) return null;
 
     const statusConfig = {
@@ -215,12 +269,36 @@ function DataManager() {
     const config = statusConfig[job.status] || statusConfig.pending;
     const Icon = config.icon;
 
+    // Build status text
+    let statusText = job.status;
+    if (job.status === 'running') {
+      statusText = `${Math.round(job.progress)}%`;
+      if (job.processed_items && job.total_items) {
+        statusText += ` (${job.processed_items}/${job.total_items})`;
+      }
+    } else if (job.status === 'failed' && job.error) {
+      statusText = job.error.length > 30 ? job.error.substring(0, 30) + '...' : job.error;
+    }
+
     return (
-      <div className={`flex items-center space-x-2 px-2 py-1 rounded ${config.bg} border ${config.border}`}>
-        <Icon className={`h-4 w-4 ${config.color} ${config.spin ? 'animate-spin' : ''}`} />
-        <span className={`text-xs font-mono ${config.color}`}>
-          {job.status === 'running' ? `${Math.round(job.progress)}%` : job.status}
-        </span>
+      <div className="flex flex-col">
+        <div className={`flex items-center space-x-2 px-2 py-1 rounded ${config.bg} border ${config.border}`}>
+          <Icon className={`h-4 w-4 ${config.color} ${config.spin ? 'animate-spin' : ''}`} />
+          <span className={`text-xs font-mono ${config.color}`}>
+            {statusText}
+          </span>
+        </div>
+        {job.status === 'running' && job.message && (
+          <span className="text-xs text-gray-500 mt-1 font-mono">{job.message}</span>
+        )}
+        {job.status === 'running' && (
+          <div className="w-full bg-gray-700 rounded-full h-1 mt-1">
+            <div
+              className="bg-cyan-500 h-1 rounded-full transition-all duration-300"
+              style={{ width: `${job.progress}%` }}
+            />
+          </div>
+        )}
       </div>
     );
   };
@@ -265,6 +343,16 @@ function DataManager() {
             accept=".pdf"
             className="hidden"
           />
+          {sources.length > 0 && (
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingAll || Object.values(jobs).some(j => j.status === 'running' || j.status === 'pending')}
+              className="inline-flex items-center px-4 py-2 bg-orange-500/20 text-orange-400 border border-orange-500/50 rounded-lg font-mono hover:bg-orange-500/30 transition-colors disabled:opacity-50"
+            >
+              <BoltIcon className="h-5 w-5 mr-2" />
+              {syncingAll ? 'syncing...' : 'sync all'}
+            </button>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
