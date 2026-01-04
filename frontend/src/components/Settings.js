@@ -22,6 +22,8 @@ function Settings() {
   // Form state
   const [aiProvider, setAiProvider] = useState('ollama');
   const [modelName, setModelName] = useState('');
+  const [customModelName, setCustomModelName] = useState('');
+  const [isCustomModel, setIsCustomModel] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -43,12 +45,26 @@ function Settings() {
       const data = response.data;
       setProject(data);
       setAiProvider(data.ai_provider || 'ollama');
-      setModelName(data.model_name || '');
       setApiKey(data.api_key || '');
       setTemperature(data.temperature || 0.7);
       setSystemPrompt(data.system_prompt || '');
       setShowThinking(data.show_thinking || false);
       setExtendedThinking(data.extended_thinking || false);
+
+      // Load models first to check if current model is custom
+      const modelsRes = await axios.get(`/api/models/${data.ai_provider || 'ollama'}`);
+      const models = modelsRes.data.models || [];
+      setAvailableModels(models);
+
+      const isPresetModel = models.some(m => m.name === data.model_name && m.name !== 'custom');
+      if (isPresetModel) {
+        setModelName(data.model_name || '');
+        setIsCustomModel(false);
+      } else {
+        setModelName('custom');
+        setCustomModelName(data.model_name || '');
+        setIsCustomModel(true);
+      }
     } catch (err) {
       setError('Failed to load project');
       console.error('Error loading project:', err);
@@ -69,15 +85,35 @@ function Settings() {
     }
   };
 
+  const handleModelChange = (e) => {
+    const value = e.target.value;
+    setModelName(value);
+    if (value === 'custom') {
+      setIsCustomModel(true);
+    } else {
+      setIsCustomModel(false);
+      setCustomModelName('');
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     setSaved(false);
 
+    // Use custom model name if "custom" is selected
+    const finalModelName = isCustomModel ? customModelName : modelName;
+
+    if (!finalModelName) {
+      setError('Please enter a model name');
+      setSaving(false);
+      return;
+    }
+
     try {
       await axios.put(`/api/projects/${projectId}`, {
         ai_provider: aiProvider,
-        model_name: modelName,
+        model_name: finalModelName,
         api_key: apiKey || null,
         temperature: temperature,
         system_prompt: systemPrompt,
@@ -192,12 +228,12 @@ function Settings() {
               {availableModels.length > 0 ? (
                 <select
                   value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
+                  onChange={handleModelChange}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono focus:ring-2 focus:ring-green-500"
                 >
                   {availableModels.map((model) => (
                     <option key={model.name} value={model.name}>
-                      {model.name}
+                      {model.display || model.name}
                     </option>
                   ))}
                 </select>
@@ -208,6 +244,21 @@ function Settings() {
                   onChange={(e) => setModelName(e.target.value)}
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono focus:ring-2 focus:ring-green-500"
                 />
+              )}
+              {isCustomModel && (
+                <div className="mt-3">
+                  <label className="block text-sm font-mono text-gray-400 mb-2">--custom-model-name</label>
+                  <input
+                    type="text"
+                    value={customModelName}
+                    onChange={(e) => setCustomModelName(e.target.value)}
+                    placeholder={aiProvider === 'ollama' ? 'e.g., qwen2:7b' : aiProvider === 'openai' ? 'e.g., gpt-4-0125-preview' : 'e.g., claude-3-opus-20240229'}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono placeholder-gray-500 focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 font-mono">
+                    # Enter the exact model identifier
+                  </p>
+                </div>
               )}
             </div>
           </div>

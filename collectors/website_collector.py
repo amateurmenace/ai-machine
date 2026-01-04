@@ -43,13 +43,27 @@ class WebsiteCollector:
         """Scrape content from a single page"""
         if url in self.visited_urls:
             return None
-        
+
         try:
             response = self.session.get(url, timeout=15)
             response.raise_for_status()
             self.visited_urls.add(url)
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
+
+            # Try to decode content properly, handling encoding errors
+            content_type = response.headers.get('content-type', '').lower()
+
+            # Skip non-HTML content
+            if 'html' not in content_type and 'text' not in content_type:
+                print(f"Skipping non-HTML content: {url}")
+                return None
+
+            # Try to get proper encoding
+            try:
+                content = response.content.decode(response.encoding or 'utf-8', errors='replace')
+            except:
+                content = response.content.decode('utf-8', errors='replace')
+
+            soup = BeautifulSoup(content, 'html.parser')
             
             # Remove script and style elements
             for script in soup(["script", "style", "nav", "footer", "header"]):
@@ -105,9 +119,14 @@ class WebsiteCollector:
         try:
             response = self.session.get(sitemap_url, timeout=15)
             response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'xml')
-            urls = [loc.text for loc in soup.find_all('loc')]
+
+            # Try XML parsing first, fall back to lxml-xml
+            try:
+                soup = BeautifulSoup(response.content, 'lxml-xml')
+            except:
+                soup = BeautifulSoup(response.content, 'html.parser')
+
+            urls = [loc.text for loc in soup.find_all('loc') if loc.text]
             return urls
         except Exception as e:
             print(f"Error parsing sitemap: {e}")

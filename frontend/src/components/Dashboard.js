@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -20,7 +20,9 @@ import {
   ArrowLeftIcon,
   CodeBracketIcon,
   BookOpenIcon,
-  XMarkIcon
+  XMarkIcon,
+  ExclamationTriangleIcon,
+  PlayIcon
 } from '@heroicons/react/24/outline';
 
 function Dashboard() {
@@ -32,26 +34,51 @@ function Dashboard() {
   const [configContent, setConfigContent] = useState('');
   const [savingConfig, setSavingConfig] = useState(false);
   const [configError, setConfigError] = useState(null);
+  const [pendingSources, setPendingSources] = useState([]);
+  const [activeJobs, setActiveJobs] = useState([]);
 
-  useEffect(() => {
-    loadProjectData();
-  }, [projectId]);
-
-  const loadProjectData = async () => {
+  const loadProjectData = useCallback(async () => {
     try {
-      const [projectRes, statsRes] = await Promise.all([
+      const [projectRes, statsRes, jobsRes] = await Promise.all([
         axios.get(`/api/projects/${projectId}`),
-        axios.get(`/api/projects/${projectId}/stats`)
+        axios.get(`/api/projects/${projectId}/stats`),
+        axios.get('/api/admin/jobs')
       ]);
 
       setProject(projectRes.data);
       setStats(statsRes.data);
+
+      // Find sources that haven't been synced (no documents and status not 'synced')
+      const sources = projectRes.data.data_sources || [];
+      const pending = sources.filter(s => {
+        const hasNoDocuments = !s.document_count || s.document_count === 0;
+        const isNotSynced = s.status !== 'synced' && s.status !== 'error';
+        return hasNoDocuments && isNotSynced && s.enabled;
+      });
+      setPendingSources(pending);
+
+      // Find active jobs for this project
+      const jobs = (jobsRes.data.jobs || []).filter(
+        j => j.project_id === projectId && (j.status === 'running' || j.status === 'pending')
+      );
+      setActiveJobs(jobs);
     } catch (error) {
       console.error('Error loading project:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    loadProjectData();
+    // Poll for updates if there are pending sources
+    const interval = setInterval(() => {
+      if (pendingSources.length > 0 || activeJobs.length > 0) {
+        loadProjectData();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadProjectData, pendingSources.length, activeJobs.length]);
 
   const openConfigEditor = async () => {
     try {
@@ -118,6 +145,78 @@ function Dashboard() {
           <span className="text-gray-500">location:</span> {project.municipality_name}
         </p>
       </div>
+
+      {/* Pending Sources Notification */}
+      {pendingSources.length > 0 && (
+        <div className="mb-6 bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-mono text-sm text-yellow-300 font-semibold mb-1">
+                Data Sources Need Syncing
+              </h3>
+              <p className="text-xs text-yellow-200/70 mb-3">
+                {pendingSources.length} source{pendingSources.length > 1 ? 's' : ''} ha{pendingSources.length > 1 ? 've' : 's'} not been downloaded yet.
+                YouTube transcripts, website content, and PDFs need to be synced before they can be used for chat.
+              </p>
+              <div className="space-y-2 mb-3">
+                {pendingSources.slice(0, 3).map((source, idx) => (
+                  <div key={idx} className="flex items-center space-x-2 text-xs font-mono text-yellow-200/80">
+                    <PlayIcon className="h-3 w-3" />
+                    <span>{source.name}</span>
+                    <span className="text-yellow-500/60">({source.type})</span>
+                  </div>
+                ))}
+                {pendingSources.length > 3 && (
+                  <div className="text-xs font-mono text-yellow-500/60">
+                    ... and {pendingSources.length - 3} more
+                  </div>
+                )}
+              </div>
+              <Link
+                to={`/console/projects/${projectId}/data`}
+                className="inline-flex items-center px-3 py-1.5 bg-yellow-500/20 text-yellow-300 rounded font-mono text-xs font-semibold hover:bg-yellow-500/30 transition-colors"
+              >
+                <ArrowPathIcon className="h-3 w-3 mr-1" />
+                Go to Data Manager to Sync
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Ingestion Jobs */}
+      {activeJobs.length > 0 && (
+        <div className="mb-6 bg-cyan-500/10 border border-cyan-500/50 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <ArrowPathIcon className="h-6 w-6 text-cyan-400 flex-shrink-0 mt-0.5 animate-spin" />
+            <div className="flex-1">
+              <h3 className="font-mono text-sm text-cyan-300 font-semibold mb-1">
+                Ingestion in Progress
+              </h3>
+              <p className="text-xs text-cyan-200/70 mb-3">
+                {activeJobs.length} job{activeJobs.length > 1 ? 's' : ''} currently processing. You can chat while data is being ingested.
+              </p>
+              <div className="space-y-2">
+                {activeJobs.map((job, idx) => (
+                  <div key={idx} className="bg-cyan-500/10 rounded p-2">
+                    <div className="flex items-center justify-between text-xs font-mono mb-1">
+                      <span className="text-cyan-200">{job.source_id}</span>
+                      <span className="text-cyan-400">{Math.round(job.progress * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-cyan-500 transition-all duration-300"
+                        style={{ width: `${job.progress * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-3 mb-8">

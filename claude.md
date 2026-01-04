@@ -341,12 +341,13 @@ open http://localhost:3000
 - Chat modal for trying out community AIs
 
 **Project Management:**
-- Create multiple AI projects
-- 4-step setup wizard with terminal aesthetics
+- Create multiple AI projects (supports duplicate locations with auto-numbered IDs)
+- 5-step setup wizard with terminal aesthetics
 - Project list with folder view
 - Individual project dashboards with quick action cards
 - Raw config.json editor (Code button)
 - Admin console with health monitoring
+- Project deletion with full data cleanup
 - Help page with setup guides
 - Comprehensive wiki-style Guide
 
@@ -362,14 +363,16 @@ open http://localhost:3000
 - Document viewer (browse ingested chunks)
 
 **AI Integration:**
-- Local models via Ollama
-- Cloud models via APIs (Claude, GPT)
+- Local models via Ollama (includes OLMo 3)
+- Cloud models via APIs (Claude, GPT-5.2, GPT-4o)
+- Custom model input for any provider
 - Hybrid approach: expensive model for discovery, free model for chat
 - Model selection per project
 - Show thinking toggle
 - Extended thinking for Claude (beta)
 - Personality auto-generation
 - Better error handling with actionable messages
+- Custom discovery search prompts
 
 **RAG Pipeline:**
 - Sentence transformer embeddings
@@ -387,6 +390,8 @@ open http://localhost:3000
 - Loading animations and feedback
 - Consistent back navigation on all pages
 - Settings page for AI configuration
+- Dashboard notifications for pending data syncs
+- Real-time ingestion progress on dashboard
 
 **Admin & Health:**
 - System health monitoring (Ollama status, project count)
@@ -422,6 +427,10 @@ open http://localhost:3000
 - RSS feed collector
 - Reddit collector
 - Scheduled re-ingestion
+- Community Constitutions (AI ethics/constraints)
+- About Us page
+- Footer with logos on all pages
+- Architectural diagram on landing page
 - Conversation persistence
 - User authentication
 - Analytics dashboard

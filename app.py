@@ -111,20 +111,23 @@ async def create_project(
     project_name: Optional[str] = None
 ):
     """Create a new project"""
-    project_id = municipality_name.lower().replace(" ", "-").replace(",", "")
-    
-    # Check if exists
-    if load_project(project_id):
-        raise HTTPException(status_code=400, detail="Project already exists")
-    
+    base_project_id = municipality_name.lower().replace(" ", "-").replace(",", "")
+
+    # Check if base project ID exists, if so add a number suffix
+    project_id = base_project_id
+    counter = 2
+    while load_project(project_id):
+        project_id = f"{base_project_id}-{counter}"
+        counter += 1
+
     project = ProjectConfig(
         project_id=project_id,
         municipality_name=municipality_name,
         project_name=project_name or f"{municipality_name} AI"
     )
-    
+
     save_project(project)
-    
+
     return {
         "project_id": project_id,
         "message": "Project created successfully"
@@ -170,38 +173,65 @@ async def update_project(project_id: str, updates: Dict):
     project = load_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Update fields
     for key, value in updates.items():
         if hasattr(project, key):
             setattr(project, key, value)
-    
+
     project.updated_at = datetime.now()
     save_project(project)
-    
+
     # Invalidate agent cache
     if project_id in agents:
         del agents[project_id]
-    
+
     return {"message": "Project updated successfully"}
+
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: str):
+    """Delete a project and all its data"""
+    import shutil
+
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Remove from memory caches
+    if project_id in projects:
+        del projects[project_id]
+    if project_id in agents:
+        del agents[project_id]
+
+    # Remove project data directory
+    project_path = get_project_path(project_id)
+    if os.path.exists(project_path):
+        try:
+            shutil.rmtree(project_path)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to delete project data: {str(e)}")
+
+    return {"message": "Project deleted successfully", "project_id": project_id}
 
 
 @app.post("/api/projects/{project_id}/discover-sources")
 async def discover_sources(
-    project_id: str, 
+    project_id: str,
     provider: str = "anthropic",
     model: Optional[str] = None,
-    api_key: Optional[str] = None
+    api_key: Optional[str] = None,
+    custom_prompt: Optional[str] = None
 ):
     """Use AI to discover data sources for a municipality"""
     project = load_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     try:
         discovery = SourceDiscovery(api_key=api_key, provider=provider, model=model)
-        result = discovery.discover_sources(project.municipality_name)
-        
+        result = discovery.discover_sources(project.municipality_name, custom_prompt=custom_prompt)
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -454,8 +484,34 @@ async def chat(request: ChatRequest):
 @app.get("/api/projects/{project_id}/stats")
 async def get_stats(project_id: str):
     """Get project statistics"""
-    agent = get_or_create_agent(project_id)
-    return agent.get_stats()
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Get vector store stats without loading full agent (which loads SentenceTransformer)
+    vector_docs = 0
+    try:
+        from qdrant_client import QdrantClient
+        qdrant_path = f"./data/{project_id}/qdrant"
+        if os.path.exists(qdrant_path):
+            client = QdrantClient(path=qdrant_path)
+            try:
+                info = client.get_collection(project_id)
+                vector_docs = info.points_count
+            except:
+                pass
+    except Exception as e:
+        print(f"Error getting vector stats: {e}")
+
+    return {
+        'project_name': project.project_name,
+        'municipality': project.municipality_name,
+        'ai_provider': project.ai_provider,
+        'model': project.model_name,
+        'total_documents': vector_docs,
+        'data_sources': len(project.data_sources),
+        'active_sources': len([s for s in project.data_sources if s.enabled])
+    }
 
 
 @app.get("/api/ollama/models")

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   ArrowLeftIcon,
@@ -19,11 +19,13 @@ import {
   StopIcon,
   CommandLineIcon,
   ClockIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 function AdminConsole() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [systemHealth, setSystemHealth] = useState(null);
   const [projectHealth, setProjectHealth] = useState(null);
@@ -34,6 +36,8 @@ function AdminConsole() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -98,6 +102,23 @@ function AdminConsole() {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDeleteProject = async () => {
+    if (deleteConfirm !== projectId) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await axios.delete(`/api/projects/${projectId}`);
+      navigate('/console');
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Failed to delete project: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const StatusBadge = ({ status, label }) => {
@@ -460,6 +481,61 @@ docker-compose logs -f
 # Stop
 docker-compose down`}</code>
             </pre>
+          </div>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-gray-900 rounded-lg border border-red-500/50 p-6 mt-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+          <h2 className="text-lg font-bold text-red-400 font-mono"># danger_zone</h2>
+        </div>
+
+        <div className="bg-red-900/20 rounded-lg p-4 border border-red-500/30">
+          <h3 className="text-sm font-mono text-red-300 mb-2 flex items-center">
+            <TrashIcon className="h-4 w-4 mr-2" />
+            Delete Project
+          </h3>
+          <p className="text-xs text-gray-400 mb-4">
+            This will permanently delete this project and all its data including:
+          </p>
+          <ul className="text-xs text-gray-500 mb-4 space-y-1">
+            <li>• All vector store documents and embeddings</li>
+            <li>• All uploaded PDFs and files</li>
+            <li>• Project configuration and settings</li>
+            <li>• API keys and access credentials</li>
+          </ul>
+          <p className="text-xs text-red-400 font-mono mb-4">
+            This action cannot be undone.
+          </p>
+
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1 font-mono">
+                Type <span className="text-red-400">{projectId}</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder={projectId}
+                className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-white font-mono text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+
+            <button
+              onClick={handleDeleteProject}
+              disabled={deleteConfirm !== projectId || deleting}
+              className="flex items-center space-x-2 px-4 py-2 bg-red-500/20 text-red-400 rounded border border-red-500/30 hover:bg-red-500/30 font-mono text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {deleting ? (
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+              ) : (
+                <TrashIcon className="h-4 w-4" />
+              )}
+              <span>{deleting ? 'deleting...' : 'delete project permanently'}</span>
+            </button>
           </div>
         </div>
       </div>

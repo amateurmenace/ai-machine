@@ -16,21 +16,27 @@ AVAILABLE_MODELS = {
         {"name": "llama3.1:8b", "display": "Llama 3.1 8B (Recommended)", "description": "Fast and efficient, 8GB RAM"},
         {"name": "llama3.1:70b", "display": "Llama 3.1 70B", "description": "Best quality, needs GPU"},
         {"name": "llama3.2:3b", "display": "Llama 3.2 3B", "description": "Lightweight, 4GB RAM"},
+        {"name": "olmo3:8b", "display": "OLMo 3 8B", "description": "Allen AI's open model, research-focused"},
+        {"name": "olmo3:13b", "display": "OLMo 3 13B", "description": "Allen AI's larger open model"},
         {"name": "mistral:7b", "display": "Mistral 7B", "description": "Fast inference"},
         {"name": "mixtral:8x7b", "display": "Mixtral 8x7B", "description": "High quality"},
         {"name": "phi3:medium", "display": "Phi-3 Medium", "description": "Microsoft's efficient model"},
+        {"name": "custom", "display": "Custom Model...", "description": "Enter any Ollama model name"},
     ],
     "openai": [
+        {"name": "gpt-5.2", "display": "GPT-5.2 (Latest)", "description": "OpenAI's most advanced model"},
         {"name": "gpt-4o", "display": "GPT-4o (Recommended)", "description": "Best quality, multimodal"},
         {"name": "gpt-4o-mini", "display": "GPT-4o Mini", "description": "Fast and affordable"},
         {"name": "gpt-4-turbo", "display": "GPT-4 Turbo", "description": "Previous generation"},
         {"name": "gpt-3.5-turbo", "display": "GPT-3.5 Turbo", "description": "Fast and cheap"},
+        {"name": "custom", "display": "Custom Model...", "description": "Enter any OpenAI model name"},
     ],
     "anthropic": [
         {"name": "claude-opus-4-20250514", "display": "Claude Opus 4.5 (Recommended)", "description": "Highest intelligence"},
         {"name": "claude-sonnet-4-20250514", "display": "Claude Sonnet 4.5", "description": "Best balance"},
         {"name": "claude-haiku-4-20250514", "display": "Claude Haiku 4", "description": "Fast and affordable"},
         {"name": "claude-3-5-sonnet-20241022", "display": "Claude 3.5 Sonnet", "description": "Previous generation"},
+        {"name": "custom", "display": "Custom Model...", "description": "Enter any Anthropic model name"},
     ]
 }
 

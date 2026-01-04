@@ -107,6 +107,8 @@ function SetupWizard() {
   const [showCustomSourceForm, setShowCustomSourceForm] = useState(false);
   const [customSource, setCustomSource] = useState({ type: 'youtube_video', url: '', name: '' });
   const [generatingPersonality, setGeneratingPersonality] = useState(false);
+  const [discoveryPrompt, setDiscoveryPrompt] = useState('');
+  const [showDiscoverySettings, setShowDiscoverySettings] = useState(false);
 
   // Add terminal output
   const addOutput = (type, message) => {
@@ -163,6 +165,9 @@ function SetupWizard() {
     setDiscoveryPhase('searching');
     addOutput('command', `neighborhood-ai discover --location "${municipalityName}" --provider ${discoveryProvider}`);
     addOutput('info', 'Searching web for local data sources...');
+    if (discoveryPrompt) {
+      addOutput('info', `Custom search: "${discoveryPrompt.substring(0, 50)}..."`);
+    }
 
     try {
       const response = await axios.post(
@@ -172,7 +177,8 @@ function SetupWizard() {
           params: {
             provider: discoveryProvider,
             model: discoveryModel,
-            api_key: discoveryApiKey || undefined
+            api_key: discoveryApiKey || undefined,
+            custom_prompt: discoveryPrompt || undefined
           }
         }
       );
@@ -561,21 +567,55 @@ Key traits:
               </div>
 
               {discoveryPhase === 'idle' && (
-                <div className="text-center py-12 border-2 border-dashed border-gray-700 rounded-lg">
-                  <MagnifyingGlassIcon className="h-12 w-12 mx-auto text-cyan-500 mb-4" />
-                  <p className="text-gray-400 mb-4 font-mono">Ready to search for local data sources</p>
-                  <button
-                    onClick={handleDiscoverSources}
-                    disabled={loading || !discoveryApiKey}
-                    className="bg-cyan-500 text-gray-900 py-2 px-6 rounded-lg font-mono font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
-                  >
-                    {loading ? 'Searching...' : '$ ./discover --web-search'}
-                  </button>
-                  {!discoveryApiKey && (
-                    <p className="mt-3 text-xs text-yellow-500 font-mono">
-                      # API key required. Go back to add one, or add sources manually below.
-                    </p>
-                  )}
+                <div className="space-y-4">
+                  <div className="text-center py-8 border-2 border-dashed border-gray-700 rounded-lg">
+                    <MagnifyingGlassIcon className="h-12 w-12 mx-auto text-cyan-500 mb-4" />
+                    <p className="text-gray-400 mb-4 font-mono">Ready to search for local data sources</p>
+
+                    {/* Custom Search Prompt */}
+                    <div className="max-w-lg mx-auto mb-4 px-4">
+                      <button
+                        onClick={() => setShowDiscoverySettings(!showDiscoverySettings)}
+                        className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center justify-center space-x-1 mb-3 mx-auto"
+                      >
+                        <CogIcon className="h-3 w-3" />
+                        <span>{showDiscoverySettings ? 'hide' : 'show'} search settings</span>
+                      </button>
+
+                      {showDiscoverySettings && (
+                        <div className="bg-gray-800 rounded-lg p-4 text-left space-y-3">
+                          <div>
+                            <label className="block text-xs font-mono text-gray-400 mb-1">
+                              --custom-search (optional)
+                            </label>
+                            <textarea
+                              value={discoveryPrompt}
+                              onChange={(e) => setDiscoveryPrompt(e.target.value)}
+                              placeholder="e.g., Focus on environmental policy, include local newspapers, prioritize video content from town meetings..."
+                              rows={3}
+                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-cyan-500 resize-none"
+                            />
+                            <p className="mt-1 text-xs text-gray-500 font-mono">
+                              # Customize what the AI searches for
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={handleDiscoverSources}
+                      disabled={loading || !discoveryApiKey}
+                      className="bg-cyan-500 text-gray-900 py-2 px-6 rounded-lg font-mono font-semibold hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+                    >
+                      {loading ? 'Searching...' : '$ ./discover --web-search'}
+                    </button>
+                    {!discoveryApiKey && (
+                      <p className="mt-3 text-xs text-yellow-500 font-mono">
+                        # API key required. Go back to add one, or add sources manually below.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1131,10 +1171,9 @@ Key traits:
                        selectedSources.length <= 10 ? '5-10 min' : '10-20 min'}
                     </span>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-700">
-                    <TerminalLine type="warning">Ingestion runs in background</TerminalLine>
-                    <TerminalLine type="info">You can chat while data is processing</TerminalLine>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-700">
+                    Data ingestion runs in the background. You can start chatting right away - the AI will improve as more data is processed.
+                  </p>
                 </div>
               </div>
 

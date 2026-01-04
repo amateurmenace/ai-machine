@@ -32,15 +32,25 @@ class SourceDiscovery:
             from anthropic import Anthropic
             self.client = Anthropic(api_key=self.api_key)
     
-    def discover_sources(self, municipality: str, neighborhood: Optional[str] = None) -> Dict:
+    def discover_sources(self, municipality: str, neighborhood: Optional[str] = None, custom_prompt: Optional[str] = None) -> Dict:
         """Use AI to discover relevant data sources for a municipality"""
-        
+
         location = f"{municipality}"
         if neighborhood:
             location = f"{neighborhood}, {municipality}"
-        
+
+        # Allow custom search instructions
+        custom_instructions = ""
+        if custom_prompt:
+            custom_instructions = f"""
+ADDITIONAL SEARCH INSTRUCTIONS FROM USER:
+{custom_prompt}
+
+Use these instructions to guide your search. For example, if the user mentions specific topics, organizations, or types of sources, prioritize finding those.
+"""
+
         prompt = f"""You are helping set up a local AI assistant for {location}.
-        
+{custom_instructions}
 Your task is to identify the best data sources to train this AI. Think creatively about:
 
 1. **Official Government Sources:**
