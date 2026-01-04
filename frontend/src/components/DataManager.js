@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   PlusIcon,
   TrashIcon,
@@ -54,7 +54,7 @@ function DataManager() {
 
   const loadProject = async () => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}`);
+      const response = await api.get(`/api/projects/${projectId}`);
       setProject(response.data);
       setSources(response.data.data_sources || []);
     } catch (error) {
@@ -68,7 +68,7 @@ function DataManager() {
     const runningJobs = Object.values(jobs).filter(j => j.status === 'running' || j.status === 'pending');
     for (const job of runningJobs) {
       try {
-        const response = await axios.get(`/api/jobs/${job.job_id}`);
+        const response = await api.get(`/api/jobs/${job.job_id}`);
         setJobs(prev => ({ ...prev, [job.source_id]: response.data }));
       } catch (error) {
         console.error('Error updating job:', error);
@@ -78,7 +78,7 @@ function DataManager() {
 
   const handleAddSource = async () => {
     try {
-      await axios.post(`/api/projects/${projectId}/sources`, {
+      await api.post(`/api/projects/${projectId}/sources`, {
         ...newSource,
         id: Math.random().toString(36).substr(2, 9),
         enabled: true
@@ -97,7 +97,7 @@ function DataManager() {
     if (!window.confirm('Remove this data source?')) return;
 
     try {
-      await axios.delete(`/api/projects/${projectId}/sources/${sourceId}`);
+      await api.delete(`/api/projects/${projectId}/sources/${sourceId}`);
       await loadProject();
     } catch (error) {
       console.error('Error removing source:', error);
@@ -114,7 +114,7 @@ function DataManager() {
     });
 
     try {
-      const response = await axios.post(`/api/projects/${projectId}/sources/${sourceId}/ingest`);
+      const response = await api.post(`/api/projects/${projectId}/sources/${sourceId}/ingest`);
       const jobId = response.data.job_id;
 
       setJobs(prev => ({
@@ -165,7 +165,7 @@ function DataManager() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post(`/api/projects/${projectId}/upload-pdf`, formData, {
+      const response = await api.post(`/api/projects/${projectId}/upload-pdf`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -192,7 +192,7 @@ function DataManager() {
     setDocuments([]);
 
     try {
-      const response = await axios.get(`/api/projects/${projectId}/documents?source_id=${source.id}&limit=50`);
+      const response = await api.get(`/api/projects/${projectId}/documents?source_id=${source.id}&limit=50`);
       setDocuments(response.data.documents || []);
     } catch (error) {
       console.error('Error loading documents:', error);

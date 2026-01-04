@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   ArrowLeftIcon,
   ServerIcon,
@@ -43,10 +43,10 @@ function AdminConsole() {
     if (showRefresh) setRefreshing(true);
     try {
       const [projectRes, systemHealthRes, projectHealthRes, jobsRes] = await Promise.all([
-        axios.get(`/api/projects/${projectId}`),
-        axios.get('/api/health'),
-        axios.get(`/api/projects/${projectId}/health`),
-        axios.get('/api/admin/jobs')
+        api.get(`/api/projects/${projectId}`),
+        api.get('/api/health'),
+        api.get(`/api/projects/${projectId}/health`),
+        api.get('/api/admin/jobs')
       ]);
 
       setProject(projectRes.data);
@@ -75,7 +75,7 @@ function AdminConsole() {
   const generateApiKey = async () => {
     setGeneratingKey(true);
     try {
-      const response = await axios.post(`/api/projects/${projectId}/generate-api-key`);
+      const response = await api.post(`/api/projects/${projectId}/generate-api-key`);
       setApiKey(response.data.api_key);
       setShowApiKey(true);
     } catch (error) {
@@ -90,7 +90,7 @@ function AdminConsole() {
       return;
     }
     try {
-      await axios.delete(`/api/projects/${projectId}/revoke-api-key`);
+      await api.delete(`/api/projects/${projectId}/revoke-api-key`);
       setApiKey(null);
       setShowApiKey(false);
     } catch (error) {
@@ -111,7 +111,7 @@ function AdminConsole() {
 
     setDeleting(true);
     try {
-      await axios.delete(`/api/projects/${projectId}`);
+      await api.delete(`/api/projects/${projectId}`);
       navigate('/console');
     } catch (error) {
       console.error('Error deleting project:', error);

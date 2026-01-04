@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   SparklesIcon,
   GlobeAltIcon,
@@ -53,14 +53,14 @@ function LandingPage() {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await axios.get('/api/projects');
+        const response = await api.get('/api/projects');
         setProjects(response.data);
 
         // Check health for each project
         const healthStatuses = {};
         for (const project of response.data) {
           try {
-            const healthRes = await axios.get(`/api/projects/${project.project_id}/health`);
+            const healthRes = await api.get(`/api/projects/${project.project_id}/health`);
             healthStatuses[project.project_id] = healthRes.data;
           } catch (err) {
             healthStatuses[project.project_id] = { ready: false, issues: ['Unable to check health'] };
@@ -106,7 +106,7 @@ function LandingPage() {
     setChatLoading(true);
 
     try {
-      const response = await axios.post('/api/chat', {
+      const response = await api.post('/api/chat', {
         project_id: activeChat.project_id,
         message: userMessage,
         conversation_history: chatMessages.slice(-5).map(m => ({ role: m.role, content: m.content }))

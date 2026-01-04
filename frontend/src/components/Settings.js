@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -46,7 +46,7 @@ function Settings() {
 
   const loadProject = async () => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}`);
+      const response = await api.get(`/api/projects/${projectId}`);
       const data = response.data;
       setProject(data);
       setAiProvider(data.ai_provider || 'ollama');
@@ -58,7 +58,7 @@ function Settings() {
       setCommunityConstitution(data.community_constitution || []);
 
       // Load models first to check if current model is custom
-      const modelsRes = await axios.get(`/api/models/${data.ai_provider || 'ollama'}`);
+      const modelsRes = await api.get(`/api/models/${data.ai_provider || 'ollama'}`);
       const models = modelsRes.data.models || [];
       setAvailableModels(models);
 
@@ -81,7 +81,7 @@ function Settings() {
 
   const loadModels = async () => {
     try {
-      const response = await axios.get(`/api/models/${aiProvider}`);
+      const response = await api.get(`/api/models/${aiProvider}`);
       setAvailableModels(response.data.models || []);
       if (response.data.models?.length > 0 && !modelName) {
         setModelName(response.data.models[0].name);
@@ -117,7 +117,7 @@ function Settings() {
     }
 
     try {
-      await axios.put(`/api/projects/${projectId}`, {
+      await api.put(`/api/projects/${projectId}`, {
         ai_provider: aiProvider,
         model_name: finalModelName,
         api_key: apiKey || null,
@@ -164,7 +164,7 @@ function Settings() {
     setError(null);
 
     try {
-      const response = await axios.post(`/api/projects/${projectId}/generate-personality`, null, {
+      const response = await api.post(`/api/projects/${projectId}/generate-personality`, null, {
         params: {
           provider: aiProvider === 'ollama' ? 'anthropic' : aiProvider,
           api_key: apiKey || undefined

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   CheckCircleIcon,
   SparklesIcon,
@@ -119,7 +119,7 @@ function SetupWizard() {
   useEffect(() => {
     const loadModels = async () => {
       try {
-        const response = await axios.get(`/api/models/${aiProvider}`);
+        const response = await api.get(`/api/models/${aiProvider}`);
         setAvailableModels(response.data.models);
 
         if (response.data.models.length > 0) {
@@ -140,7 +140,7 @@ function SetupWizard() {
     addOutput('command', `neighborhood-ai init --location "${municipalityName}"`);
 
     try {
-      const response = await axios.post('/api/projects', null, {
+      const response = await api.post('/api/projects', null, {
         params: {
           municipality_name: municipalityName,
           project_name: projectName || undefined
@@ -170,7 +170,7 @@ function SetupWizard() {
     }
 
     try {
-      const response = await axios.post(
+      const response = await api.post(
         `/api/projects/${projectId}/discover-sources`,
         null,
         {
@@ -228,7 +228,7 @@ function SetupWizard() {
     addOutput('command', `neighborhood-ai generate-personality --location "${municipalityName}"`);
 
     try {
-      const response = await axios.post(`/api/projects/${projectId}/generate-personality`, null, {
+      const response = await api.post(`/api/projects/${projectId}/generate-personality`, null, {
         params: {
           provider: discoveryProvider,
           api_key: discoveryApiKey
@@ -264,7 +264,7 @@ Key traits:
     try {
       // Add selected sources
       for (const source of selectedSources) {
-        await axios.post(`/api/projects/${projectId}/sources`, {
+        await api.post(`/api/projects/${projectId}/sources`, {
           id: source.id || Math.random().toString(36).substr(2, 9),
           type: source.type,
           url: source.url,
@@ -276,7 +276,7 @@ Key traits:
       addOutput('success', `Added ${selectedSources.length} data sources`);
 
       // Update AI configuration
-      await axios.put(`/api/projects/${projectId}`, {
+      await api.put(`/api/projects/${projectId}`, {
         ai_provider: aiProvider,
         model_name: modelName,
         api_key: apiKey || null,
@@ -303,13 +303,13 @@ Key traits:
     addOutput('command', `neighborhood-ai launch --project ${projectId}`);
 
     try {
-      const project = await axios.get(`/api/projects/${projectId}`);
+      const project = await api.get(`/api/projects/${projectId}`);
       const sources = project.data.data_sources;
 
       addOutput('info', `Starting ingestion for ${sources.length} sources...`);
 
       for (const source of sources) {
-        await axios.post(`/api/projects/${projectId}/sources/${source.id}/ingest`);
+        await api.post(`/api/projects/${projectId}/sources/${source.id}/ingest`);
         addOutput('info', `Queued: ${source.name}`);
       }
 

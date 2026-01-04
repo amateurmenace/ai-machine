@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import {
   ChartBarIcon,
   DocumentTextIcon,
@@ -40,9 +40,9 @@ function Dashboard() {
   const loadProjectData = useCallback(async () => {
     try {
       const [projectRes, statsRes, jobsRes] = await Promise.all([
-        axios.get(`/api/projects/${projectId}`),
-        axios.get(`/api/projects/${projectId}/stats`),
-        axios.get('/api/admin/jobs')
+        api.get(`/api/projects/${projectId}`),
+        api.get(`/api/projects/${projectId}/stats`),
+        api.get('/api/admin/jobs')
       ]);
 
       setProject(projectRes.data);
@@ -82,7 +82,7 @@ function Dashboard() {
 
   const openConfigEditor = async () => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}/config`);
+      const response = await api.get(`/api/projects/${projectId}/config`);
       setConfigContent(response.data.config);
       setShowConfigEditor(true);
       setConfigError(null);
@@ -95,7 +95,7 @@ function Dashboard() {
     setSavingConfig(true);
     setConfigError(null);
     try {
-      await axios.put(`/api/projects/${projectId}/config`, { config: configContent });
+      await api.put(`/api/projects/${projectId}/config`, { config: configContent });
       setShowConfigEditor(false);
       loadProjectData();
     } catch (error) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { PlusIcon, MapPinIcon, CalendarIcon, FolderIcon, CommandLineIcon } from '@heroicons/react/24/outline';
 
 function ProjectList() {
@@ -13,7 +13,7 @@ function ProjectList() {
 
   const loadProjects = async () => {
     try {
-      const response = await axios.get('/api/projects');
+      const response = await api.get('/api/projects');
       setProjects(response.data.projects);
     } catch (error) {
       console.error('Error loading projects:', error);
