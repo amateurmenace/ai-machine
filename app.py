@@ -37,6 +37,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # Local development
         "https://neighborhood-ai.netlify.app",  # Production Netlify
+        "https://neighborhood.weirdmachine.org",  # Custom domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
