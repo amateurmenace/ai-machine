@@ -232,7 +232,10 @@ function Settings() {
       <div className="space-y-6">
         {/* AI Provider Section */}
         <div className="bg-gray-900 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-sm font-mono text-cyan-400 mb-4"># ai_provider</h3>
+          <h3 className="text-sm font-mono text-cyan-400 mb-2"># ai_provider</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Choose where your AI runs. Ollama is free and private (runs locally). Cloud providers offer more powerful models but require API keys and send data to their servers.
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -246,6 +249,11 @@ function Settings() {
                 <option value="openai">openai (cloud)</option>
                 <option value="anthropic">anthropic (cloud)</option>
               </select>
+              <p className="mt-1 text-xs text-gray-500 font-mono">
+                {aiProvider === 'ollama' && '# Runs on your hardware. Free forever, 100% private.'}
+                {aiProvider === 'openai' && '# Cloud API. Costs per query, data sent to OpenAI.'}
+                {aiProvider === 'anthropic' && '# Cloud API. Costs per query, data sent to Anthropic.'}
+              </p>
             </div>
 
             <div>
@@ -270,6 +278,9 @@ function Settings() {
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono focus:ring-2 focus:ring-green-500"
                 />
               )}
+              <p className="mt-1 text-xs text-gray-500 font-mono">
+                # Larger models (8B+) give better answers but need more RAM/VRAM
+              </p>
               {isCustomModel && (
                 <div className="mt-3">
                   <label className="block text-sm font-mono text-gray-400 mb-2">--custom-model-name</label>
@@ -298,63 +309,91 @@ function Settings() {
                 placeholder={aiProvider === 'anthropic' ? 'sk-ant-...' : 'sk-...'}
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono placeholder-gray-500 focus:ring-2 focus:ring-green-500"
               />
+              <p className="mt-1 text-xs text-gray-500 font-mono">
+                # Get your API key from {aiProvider === 'anthropic' ? 'console.anthropic.com' : 'platform.openai.com'}
+              </p>
             </div>
           )}
         </div>
 
         {/* Model Parameters Section */}
         <div className="bg-gray-900 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-sm font-mono text-cyan-400 mb-4"># model_parameters</h3>
+          <h3 className="text-sm font-mono text-cyan-400 mb-2"># model_parameters</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Fine-tune how your AI responds. These settings affect response style and quality.
+          </p>
 
-          <div>
-            <label className="block text-sm font-mono text-gray-300 mb-2">
-              --temperature <span className="text-cyan-400">{temperature}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={temperature}
-              onChange={(e) => setTemperature(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-            />
-            <div className="flex justify-between text-xs text-gray-500 font-mono mt-1">
-              <span>focused (0.0)</span>
-              <span>creative (1.0)</span>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showThinking}
-                onChange={(e) => setShowThinking(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-gray-900"
-              />
-              <span className="font-mono text-sm text-gray-300">--show-thinking</span>
-              <span className="text-xs text-gray-500"># Display AI reasoning process</span>
-            </label>
-
-            {aiProvider === 'anthropic' && (
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={extendedThinking}
-                  onChange={(e) => setExtendedThinking(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-gray-900"
-                />
-                <span className="font-mono text-sm text-gray-300">--extended-thinking</span>
-                <span className="text-xs text-gray-500"># Claude extended thinking (beta)</span>
+          <div className="space-y-6">
+            {/* Temperature */}
+            <div>
+              <label className="block text-sm font-mono text-gray-300 mb-2">
+                --temperature <span className="text-cyan-400">{temperature}</span>
               </label>
-            )}
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={temperature}
+                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500 font-mono mt-1">
+                <span>focused (0.0)</span>
+                <span>creative (1.0)</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Controls randomness in responses. Lower values (0.0-0.3) give consistent, factual answers—best for civic Q&A.
+                Higher values (0.7-1.0) produce more varied, creative responses.
+                Recommended: <span className="text-green-400">0.3-0.5</span> for community assistants.
+              </p>
+            </div>
+
+            {/* Thinking Options */}
+            <div className="pt-4 border-t border-gray-700">
+              <label className="block text-sm font-mono text-gray-300 mb-3">--thinking-options</label>
+
+              <div className="space-y-3">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showThinking}
+                    onChange={(e) => setShowThinking(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-gray-900"
+                  />
+                  <div>
+                    <span className="font-mono text-sm text-gray-300">--show-thinking</span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Display the AI's reasoning process before answering. Helps users understand how answers are formed.
+                    </p>
+                  </div>
+                </label>
+
+                {aiProvider === 'anthropic' && (
+                  <label className="flex items-start space-x-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={extendedThinking}
+                      onChange={(e) => setExtendedThinking(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 rounded border-gray-600 bg-gray-800 text-green-500 focus:ring-green-500 focus:ring-offset-gray-900"
+                    />
+                    <div>
+                      <span className="font-mono text-sm text-gray-300">--extended-thinking</span>
+                      <span className="ml-2 px-1.5 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded">beta</span>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enable Claude's extended thinking mode for complex questions. Takes longer but provides deeper analysis.
+                      </p>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Personality Section */}
         <div className="bg-gray-900 rounded-lg border border-gray-700 p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-mono text-cyan-400"># system_prompt</h3>
             <button
               onClick={handleGeneratePersonality}
@@ -374,6 +413,10 @@ function Settings() {
               )}
             </button>
           </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Define your AI's personality, tone, and area of expertise. This shapes how it introduces itself and responds to questions.
+            Click "auto-generate" to create a personality based on your location.
+          </p>
 
           <textarea
             value={systemPrompt}
@@ -383,7 +426,7 @@ function Settings() {
             className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-green-500 resize-none"
           />
           <p className="mt-2 text-xs text-gray-500 font-mono">
-            # Customize how your AI responds to the community
+            # Tip: Include your town name, describe the AI's role, and set the tone (friendly, formal, etc.)
           </p>
         </div>
 
