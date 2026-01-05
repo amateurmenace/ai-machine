@@ -21,7 +21,6 @@ import {
   DocumentTextIcon,
   ChatBubbleLeftIcon,
   GlobeAmericasIcon,
-  ShieldCheckIcon,
   WrenchScrewdriverIcon,
   LockClosedIcon
 } from '@heroicons/react/24/outline';
