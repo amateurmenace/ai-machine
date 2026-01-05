@@ -12,14 +12,18 @@
   to = "/index.html"
   status = 200
 
-# Headers for security and caching
+# Headers for security and embedding
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "DENY"
+    # Allow embedding in iframes from any site
+    # Remove X-Frame-Options to allow embedding (CSP frame-ancestors takes precedence)
+    Content-Security-Policy = "frame-ancestors *"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Allow cross-origin requests for embedded usage
+    Access-Control-Allow-Origin = "*"
 
 # Cache static assets
 [[headers]]
