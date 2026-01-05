@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Neighborhood AI - API Test</h1>
+    <button onclick="testCreateProject()">Test Create Project</button>
+    <pre id="output"></pre>
+
+    <script>
+        const API_URL = 'https://episodes-indices-wifi-heath.trycloudflare.com';
+
+        async function testCreateProject() {
+            const output = document.getElementById('output');
+            output.textContent = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/projects?municipality_name=TestCity&project_name=Test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                output.textContent = JSON.stringify({
+                    status: response.status,
+                    data: data
+                }, null, 2);
+            } catch (err) {
+                output.textContent = 'Error: ' + err.message + '\n\n' + err.stack;
+            }
+        }
+    </script>
+</body>
+</html>

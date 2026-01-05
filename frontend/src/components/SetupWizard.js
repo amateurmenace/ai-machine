@@ -147,8 +147,21 @@ function SetupWizard() {
       addOutput('success', `Project created: ${response.data.project_id}`);
       setCurrentStep(2);
     } catch (err) {
-      addOutput('error', err.response?.data?.detail || 'Failed to create project');
-      setError(err.response?.data?.detail || 'Failed to create project');
+      console.error('Project creation error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error details:', err.response?.data);
+
+      let errorMessage = 'Failed to create project';
+      if (err.response?.data?.detail) {
+        errorMessage = typeof err.response.data.detail === 'string'
+          ? err.response.data.detail
+          : JSON.stringify(err.response.data.detail);
+      } else if (err.message) {
+        errorMessage = `Failed to create project: ${err.message}`;
+      }
+
+      addOutput('error', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
