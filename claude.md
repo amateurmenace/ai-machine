@@ -60,6 +60,7 @@ neighborhood-ai/
 ├── vector_store.py             # Qdrant vector database interface
 ├── start-tunnel.sh             # Cloudflare tunnel startup script
 ├── DEPLOYMENT.md               # Cloud deployment guide
+├── SERVER_MANAGEMENT.md        # Server start/stop/troubleshooting guide
 ├── collectors/                 # Data collection modules
 │   ├── youtube_collector.py    # YouTube video/playlist transcripts
 │   ├── website_collector.py    # Web scraping
@@ -288,59 +289,244 @@ REACT_APP_API_URL=http://localhost:8000
 
 ## Setup Instructions
 
+> **📖 For detailed server management, see [SERVER_MANAGEMENT.md](./SERVER_MANAGEMENT.md)**
+> Covers: starting/stopping services, troubleshooting, handling shutdowns, IP changes, and common scenarios.
+
 ### Prerequisites
+
+**System Requirements:**
+- **OS:** macOS, Linux, or Windows (WSL recommended)
+- **RAM:** 8GB minimum (16GB recommended for larger models)
+- **Storage:** 10GB minimum (more for multiple projects and models)
+- **CPU:** Modern multi-core processor (Apple Silicon or x86_64)
+
+**Software Requirements:**
 ```bash
 # macOS (Homebrew)
 brew install python@3.11
 brew install node
 brew install ollama
 
-# Start Ollama
+# Linux (Ubuntu/Debian)
+sudo apt update
+sudo apt install python3 python3-pip nodejs npm
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows (WSL)
+# Install WSL2, then follow Linux instructions above
+```
+
+**Install and Start Ollama:**
+```bash
+# Start Ollama service
 ollama serve
 
-# Pull recommended model
+# Pull recommended model (in another terminal)
 ollama pull llama3.1:8b
+
+# Verify installation
+ollama list
 ```
 
 ### Installation
+
+**1. Clone Repository:**
 ```bash
-# Clone repository
 git clone https://github.com/amateurmenace/ai-machine.git
 cd ai-machine/neighborhood-ai
+```
 
-# Install Python dependencies
+**2. Install Python Dependencies:**
+```bash
 pip3 install -r requirements.txt
+```
 
-# Install frontend dependencies
+**3. Install Frontend Dependencies:**
+```bash
 cd frontend
 npm install
 cd ..
+```
 
-# Configure API keys (optional, only for cloud models)
+**4. Configure API Keys (Optional):**
+
+Only needed if using cloud models (Claude, GPT) or AI-powered source discovery.
+
+```bash
+# Create .env file
 cp .env.example .env
-nano .env  # Add ANTHROPIC_API_KEY and/or OPENAI_API_KEY
 
-# Start backend
+# Edit with your keys
+nano .env
+```
+
+Add your API keys:
+```bash
+# For Claude models and source discovery
+ANTHROPIC_API_KEY=sk-ant-...
+
+# For GPT models
+OPENAI_API_KEY=sk-...
+
+# Optional: for YouTube playlists
+YOUTUBE_API_KEY=...
+```
+
+**5. Start All Services:**
+
+You need **3 terminal windows** running simultaneously:
+
+**Terminal 1 - Ollama:**
+```bash
+ollama serve
+```
+Keep this running. You'll see logs indicating Ollama is ready.
+
+**Terminal 2 - Backend:**
+```bash
 python3 app.py
+```
+Keep this running. Wait for:
+```
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
 
-# In another terminal, start frontend
+**Terminal 3 - Frontend:**
+```bash
 cd frontend
 npm start
+```
+Keep this running. Wait for:
+```
+Compiled successfully!
+You can now view neighborhood-ai-frontend in the browser.
+  Local:            http://localhost:3000
+```
 
-# Visit application
+**6. Visit Application:**
+```bash
 open http://localhost:3000
 ```
 
-### Usage
-1. Visit http://localhost:3000 (landing page)
-2. Click "Console" to open the console
-3. Click "+ new" to create a project
-4. Follow 4-step wizard:
-   - Step 1: Enter location and configure discovery AI
-   - Step 2: Review/select discovered sources, add custom ones
-   - Step 3: Choose AI model, configure personality
-   - Step 4: Review and launch
-5. Chat with your AI from the dashboard
+### First-Time Usage
+
+**Creating Your First Project:**
+
+1. **Visit Landing Page:** http://localhost:3000
+2. **Click "Console"** in the header
+3. **Click "+ new"** to create a project
+4. **Follow 4-Step Setup Wizard:**
+
+   **Step 1: Location & Discovery**
+   - Enter your municipality/neighborhood name
+   - Choose AI provider for source discovery (Anthropic recommended)
+   - Provide API key
+
+   **Step 2: Discover & Select Sources**
+   - Review AI-discovered data sources
+   - Select/deselect sources (all selected by default)
+   - Add custom sources:
+     - YouTube videos/playlists
+     - Websites
+     - PDF documents
+
+   **Step 3: Configure AI**
+   - Choose AI provider:
+     - **Ollama** (free, local, private) - recommended
+     - **OpenAI** (cloud, API costs)
+     - **Anthropic** (cloud, API costs)
+   - Select model (llama3.1:8b recommended for Ollama)
+   - Adjust temperature (0.3-0.5 for civic Q&A)
+   - Configure thinking options
+   - Auto-generate or customize personality
+
+   **Step 4: Launch**
+   - Review configuration summary
+   - Click "Launch Project"
+   - Data ingestion starts in background
+   - Navigate to dashboard
+
+5. **Chat with Your AI:**
+   - Click "Chat" from dashboard
+   - Ask questions about your community
+   - AI answers using local data sources with citations
+
+### Server Management
+
+**Starting Services After Shutdown:**
+
+If your computer shut down or you closed the terminals:
+
+```bash
+# Terminal 1
+ollama serve
+
+# Terminal 2
+python3 app.py
+
+# Terminal 3
+cd frontend && npm start
+```
+
+Services start in **1-2 minutes** total.
+
+**Stopping Services:**
+
+Press `Ctrl+C` in each terminal, or kill all at once:
+```bash
+pkill ollama
+pkill -f "python3 app.py"
+pkill -f "react-scripts start"
+```
+
+**Checking Status:**
+```bash
+# Quick health check
+curl http://localhost:8000/api/health
+
+# Check if services are running
+pgrep ollama && echo "✅ Ollama" || echo "❌ Ollama"
+pgrep -f "python3 app.py" && echo "✅ Backend" || echo "❌ Backend"
+pgrep -f "react-scripts" && echo "✅ Frontend" || echo "❌ Frontend"
+```
+
+**Common Issues:**
+
+| Issue | Solution |
+|-------|----------|
+| Port already in use | `lsof -ti:8000 \| xargs kill -9` |
+| Ollama not responding | `pkill ollama && ollama serve` |
+| Frontend won't start | `cd frontend && rm -rf node_modules && npm install` |
+| Chat returns errors | Check Ollama is running, verify project has data |
+
+**See [SERVER_MANAGEMENT.md](./SERVER_MANAGEMENT.md) for:**
+- Detailed startup/shutdown procedures
+- Handling IP address changes
+- Cloudflare tunnel management
+- Running in production
+- Troubleshooting all common scenarios
+
+### Remote Access (Optional)
+
+To access your local backend from the internet (e.g., for Netlify deployment):
+
+**Start Cloudflare Tunnel:**
+```bash
+./start-tunnel.sh
+```
+
+The tunnel URL will be displayed:
+```
+https://random-words.trycloudflare.com
+```
+
+**Update Netlify (if deployed):**
+1. Go to Netlify dashboard → Site settings → Environment variables
+2. Update: `REACT_APP_API_URL = https://your-tunnel-url.trycloudflare.com`
+3. Trigger redeploy
+
+**Note:** Free tunnels get new URLs each restart. For production, use a named tunnel or dedicated server.
 
 ## Current State (January 2026)
 
@@ -590,6 +776,25 @@ Build settings:
 - Publish directory: `frontend/build`
 
 ## Session History
+
+### January 5, 2026 - Session 6
+- Created comprehensive SERVER_MANAGEMENT.md guide:
+  - Start/stop procedures for all services (3 methods)
+  - Service status checking and health monitoring
+  - 10 common scenarios with solutions (shutdown, IP change, tunnel URL change, etc.)
+  - Port conflict resolution
+  - Troubleshooting guides for all services
+  - Quick restart script template
+  - Background process and tmux/screen workflows
+- Expanded CLAUDE.md Setup Instructions:
+  - Added system requirements (RAM, storage, CPU)
+  - Multi-OS installation (macOS, Linux, Windows/WSL)
+  - Detailed 3-terminal workflow with expected outputs
+  - First-time usage walkthrough
+  - Server management quick reference
+  - Common issues table
+  - Remote access setup with tunnel management
+- Restarted all services after location change/shutdown
 
 ### January 4, 2026 - Session 5
 - Added yt-dlp fallback for YouTube transcript fetching (fixes "no captions" errors)
