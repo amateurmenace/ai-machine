@@ -1,9 +1,14 @@
 """
 YouTube Transcript Collector
 Collects transcripts from YouTube videos and playlists
+Uses multiple fallback methods: youtube-transcript-api, yt-dlp
 """
 
 import re
+import subprocess
+import json
+import tempfile
+import os
 from typing import List, Dict, Optional
 from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
@@ -97,6 +102,107 @@ class YouTubeCollector:
         
         return videos
     
+    def get_transcript_via_ytdlp(self, video_id: str) -> Optional[Dict]:
+        """Fallback method using yt-dlp to get subtitles"""
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+        try:
+            # Create temp directory for subtitle files
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_template = os.path.join(tmpdir, "%(id)s")
+
+                # Try to get subtitles using yt-dlp
+                cmd = [
+                    "yt-dlp",
+                    "--skip-download",
+                    "--write-subs",
+                    "--write-auto-subs",
+                    "--sub-langs", "en.*,en",
+                    "--sub-format", "json3",
+                    "--output", output_template,
+                    video_url
+                ]
+
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+                # Look for subtitle files
+                subtitle_files = [f for f in os.listdir(tmpdir) if f.endswith('.json3')]
+
+                if not subtitle_files:
+                    # Try vtt format as fallback
+                    cmd[7] = "vtt"  # Change sub-format
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                    subtitle_files = [f for f in os.listdir(tmpdir) if f.endswith('.vtt')]
+
+                if not subtitle_files:
+                    print(f"yt-dlp found no subtitles for {video_id}")
+                    return None
+
+                # Read the first available subtitle file
+                subtitle_path = os.path.join(tmpdir, subtitle_files[0])
+
+                if subtitle_path.endswith('.json3'):
+                    with open(subtitle_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        # Parse JSON3 format
+                        segments = []
+                        for event in data.get('events', []):
+                            if 'segs' in event:
+                                text = ''.join(seg.get('utf8', '') for seg in event['segs'])
+                                if text.strip():
+                                    segments.append({
+                                        'text': text.strip(),
+                                        'start': event.get('tStartMs', 0) / 1000,
+                                        'duration': event.get('dDurationMs', 0) / 1000
+                                    })
+                        return segments if segments else None
+                else:
+                    # Parse VTT format
+                    with open(subtitle_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        # Simple VTT parsing
+                        segments = []
+                        lines = content.split('\n')
+                        current_text = []
+                        current_start = 0
+
+                        for line in lines:
+                            if '-->' in line:
+                                # Timestamp line
+                                parts = line.split('-->')
+                                time_str = parts[0].strip()
+                                # Parse time (simplified)
+                                try:
+                                    time_parts = time_str.replace(',', '.').split(':')
+                                    if len(time_parts) == 3:
+                                        h, m, s = time_parts
+                                        current_start = int(h) * 3600 + int(m) * 60 + float(s)
+                                    elif len(time_parts) == 2:
+                                        m, s = time_parts
+                                        current_start = int(m) * 60 + float(s)
+                                except:
+                                    pass
+                            elif line.strip() and not line.startswith('WEBVTT') and not line.strip().isdigit():
+                                # Subtitle text
+                                current_text.append(line.strip())
+                            elif not line.strip() and current_text:
+                                # End of segment
+                                segments.append({
+                                    'text': ' '.join(current_text),
+                                    'start': current_start,
+                                    'duration': 3  # Default duration
+                                })
+                                current_text = []
+
+                        return segments if segments else None
+
+        except subprocess.TimeoutExpired:
+            print(f"yt-dlp timeout for {video_id}")
+            return None
+        except Exception as e:
+            print(f"yt-dlp error for {video_id}: {e}")
+            return None
+
     def get_transcript(self, video_id: str) -> Optional[Dict]:
         """Get transcript for a single video using multiple methods"""
         transcript_list = None
@@ -105,14 +211,14 @@ class YouTubeCollector:
         # Method 1: Try to get English transcript directly
         try:
             transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-            method_used = 'english'
+            method_used = 'youtube_transcript_api-english'
         except Exception as e1:
             print(f"Method 1 (English) failed for {video_id}: {e1}")
 
             # Method 2: Try auto-generated English
             try:
                 transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en-US', 'en-GB'])
-                method_used = 'english-variant'
+                method_used = 'youtube_transcript_api-english-variant'
             except Exception as e2:
                 print(f"Method 2 (English variants) failed for {video_id}: {e2}")
 
@@ -124,7 +230,7 @@ class YouTubeCollector:
                     for transcript in transcript_list_obj:
                         try:
                             transcript_list = transcript.fetch()
-                            method_used = f'{transcript.language_code}-{"manual" if not transcript.is_generated else "auto"}'
+                            method_used = f'youtube_transcript_api-{transcript.language_code}-{"manual" if not transcript.is_generated else "auto"}'
                             break
                         except Exception:
                             continue
@@ -135,15 +241,24 @@ class YouTubeCollector:
                             try:
                                 translated = transcript.translate('en')
                                 transcript_list = translated.fetch()
-                                method_used = f'{transcript.language_code}-translated'
+                                method_used = f'youtube_transcript_api-{transcript.language_code}-translated'
                                 break
                             except Exception:
                                 continue
                 except Exception as e3:
                     print(f"Method 3 (list/translate) failed for {video_id}: {e3}")
 
+        # Method 4: Use yt-dlp as final fallback
         if not transcript_list:
-            print(f"No transcript available for {video_id} after trying all methods")
+            print(f"Trying yt-dlp fallback for {video_id}...")
+            ytdlp_result = self.get_transcript_via_ytdlp(video_id)
+            if ytdlp_result:
+                transcript_list = ytdlp_result
+                method_used = 'yt-dlp'
+                print(f"yt-dlp succeeded for {video_id}")
+
+        if not transcript_list:
+            print(f"No transcript available for {video_id} after trying all methods (including yt-dlp)")
             return None
 
         print(f"Got transcript for {video_id} using method: {method_used}")

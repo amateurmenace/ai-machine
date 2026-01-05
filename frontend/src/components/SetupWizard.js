@@ -105,7 +105,6 @@ function SetupWizard() {
   const [customSource, setCustomSource] = useState({ type: 'youtube_video', url: '', name: '' });
   const [generatingPersonality, setGeneratingPersonality] = useState(false);
   const [discoveryPrompt, setDiscoveryPrompt] = useState('');
-  const [showDiscoverySettings, setShowDiscoverySettings] = useState(false);
 
   // Add terminal output
   const addOutput = (type, message) => {
@@ -569,35 +568,25 @@ Key traits:
                     <MagnifyingGlassIcon className="h-12 w-12 mx-auto text-cyan-500 mb-4" />
                     <p className="text-gray-400 mb-4 font-mono">Ready to search for local data sources</p>
 
-                    {/* Custom Search Prompt */}
-                    <div className="max-w-lg mx-auto mb-4 px-4">
-                      <button
-                        onClick={() => setShowDiscoverySettings(!showDiscoverySettings)}
-                        className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center justify-center space-x-1 mb-3 mx-auto"
-                      >
-                        <CogIcon className="h-3 w-3" />
-                        <span>{showDiscoverySettings ? 'hide' : 'show'} search settings</span>
-                      </button>
-
-                      {showDiscoverySettings && (
-                        <div className="bg-gray-800 rounded-lg p-4 text-left space-y-3">
-                          <div>
-                            <label className="block text-xs font-mono text-gray-400 mb-1">
-                              --custom-search (optional)
-                            </label>
-                            <textarea
-                              value={discoveryPrompt}
-                              onChange={(e) => setDiscoveryPrompt(e.target.value)}
-                              placeholder="e.g., Focus on environmental policy, include local newspapers, prioritize video content from town meetings..."
-                              rows={3}
-                              className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-cyan-500 resize-none"
-                            />
-                            <p className="mt-1 text-xs text-gray-500 font-mono">
-                              # Customize what the AI searches for
-                            </p>
-                          </div>
+                    {/* Custom Search Prompt - Always Visible */}
+                    <div className="max-w-lg mx-auto mb-4 px-4 text-left">
+                      <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+                        <div>
+                          <label className="block text-xs font-mono text-cyan-400 mb-1">
+                            --search-terms <span className="text-gray-500">(optional)</span>
+                          </label>
+                          <textarea
+                            value={discoveryPrompt}
+                            onChange={(e) => setDiscoveryPrompt(e.target.value)}
+                            placeholder="e.g., town meetings, local news, environmental policy, community events, zoning regulations..."
+                            rows={2}
+                            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-white font-mono text-sm placeholder-gray-500 focus:ring-2 focus:ring-cyan-500 resize-none"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 font-mono">
+                            # Customize what the AI searches for. Leave blank for default search.
+                          </p>
                         </div>
-                      )}
+                      </div>
                     </div>
 
                     <button
@@ -746,10 +735,9 @@ Key traits:
 
                   <button
                     onClick={() => setCurrentStep(3)}
-                    disabled={selectedSources.length === 0}
-                    className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
+                    className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 transition-colors"
                   >
-                    $ ./finetune --sources {selectedSources.length}
+                    $ ./finetune {selectedSources.length > 0 ? `--sources ${selectedSources.length}` : '--manual'}
                   </button>
                 </div>
               )}
@@ -759,8 +747,10 @@ Key traits:
                 <div className="text-center">
                   <button
                     onClick={() => {
-                      setDiscoveryPhase('found');
+                      // Skip directly to fine-tune step without AI discovery
                       setDiscoveredSources([]);
+                      setSelectedSources([]);
+                      setCurrentStep(3);
                     }}
                     className="text-gray-500 hover:text-gray-300 text-sm font-mono transition-colors"
                   >
@@ -778,7 +768,11 @@ Key traits:
                   <span className="text-green-400">$</span>
                   <span>finetune</span>
                 </h2>
-                <p className="text-gray-400 mt-2">Add more sources to fine-tune your AI's knowledge</p>
+                <p className="text-gray-400 mt-2">
+                  {selectedSources.length > 0
+                    ? "Add more sources to fine-tune your AI's knowledge"
+                    : "Add data sources to train your AI"}
+                </p>
               </div>
 
               {/* Current Sources Summary */}
@@ -786,23 +780,29 @@ Key traits:
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-cyan-400"># selected sources ({selectedSources.length})</span>
                 </div>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {selectedSources.map((source, idx) => (
-                    <div key={idx} className="flex items-center justify-between text-gray-400">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-green-400">+</span>
-                        <span className="text-gray-300">{source.name}</span>
-                        <span className="text-gray-600">({source.type})</span>
+                {selectedSources.length > 0 ? (
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedSources.map((source, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-gray-400">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-green-400">+</span>
+                          <span className="text-gray-300">{source.name}</span>
+                          <span className="text-gray-600">({source.type})</span>
+                        </div>
+                        <button
+                          onClick={() => toggleSource(source)}
+                          className="text-red-400 hover:text-red-300 text-xs"
+                        >
+                          remove
+                        </button>
                       </div>
-                      <button
-                        onClick={() => toggleSource(source)}
-                        className="text-red-400 hover:text-red-300 text-xs"
-                      >
-                        remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4">
+                    No sources selected yet. Add sources below to train your AI.
+                  </p>
+                )}
               </div>
 
               {/* Add More Sources */}
@@ -904,12 +904,16 @@ Key traits:
 
               <button
                 onClick={() => setCurrentStep(4)}
-                disabled={selectedSources.length === 0}
-                className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+                className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 transition-colors flex items-center justify-center space-x-2"
               >
-                <span>$ ./config --sources {selectedSources.length}</span>
+                <span>$ ./config {selectedSources.length > 0 ? `--sources ${selectedSources.length}` : '--skip-sources'}</span>
                 <span className="animate-pulse">_</span>
               </button>
+              {selectedSources.length === 0 && (
+                <p className="text-center text-xs text-yellow-500 font-mono mt-2">
+                  # No sources selected. You can add them later from the dashboard.
+                </p>
+              )}
             </div>
           )}
 

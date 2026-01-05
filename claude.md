@@ -538,7 +538,11 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 ---
 
 **Last Updated:** January 4, 2026
+<<<<<<< HEAD
+**Version:** 1.0.4
+=======
 **Version:** 1.0.3
+>>>>>>> origin/main
 **Status:** Active development
 
 ## Deployment
@@ -590,6 +594,21 @@ Build settings:
 - Publish directory: `frontend/build`
 
 ## Session History
+
+### January 4, 2026 - Session 5
+- Added yt-dlp fallback for YouTube transcript fetching (fixes "no captions" errors)
+- Added toast notifications to DataManager for sync/upload feedback
+- Fixed skip button in discovery wizard (now skips directly to Step 3)
+- Made custom search terms always visible in discovery step
+- Remade "Why Local?" section with accurate benefits:
+  - Local Context, Less Impact, Community Owned
+  - Privacy & Security, Local Jobs, $0/month
+- Replaced emojis with Heroicons throughout landing page
+- Improved Settings page with detailed descriptions:
+  - AI provider explanations (local vs cloud trade-offs)
+  - Temperature guidance (0.3-0.5 recommended for civic Q&A)
+  - Model size explanations (RAM/VRAM requirements)
+  - Enhanced thinking options descriptions
 
 ### January 4, 2026 - Session 4
 - Deployed frontend to Netlify (https://neighborhood-ai.netlify.app)
