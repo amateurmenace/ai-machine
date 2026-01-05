@@ -538,11 +538,7 @@ Types: Add, Fix, Update, Docs, Style, Refactor
 ---
 
 **Last Updated:** January 4, 2026
-<<<<<<< HEAD
-**Version:** 1.0.4
-=======
-**Version:** 1.0.3
->>>>>>> origin/main
+**Version:** 1.0.5
 **Status:** Active development
 
 ## Deployment
