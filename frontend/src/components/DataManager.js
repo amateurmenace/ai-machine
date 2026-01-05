@@ -35,7 +35,17 @@ function DataManager() {
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncErrors, setSyncErrors] = useState({});
+  const [notifications, setNotifications] = useState([]);
   const fileInputRef = useRef(null);
+
+  // Add notification helper
+  const addNotification = (message, type = 'info') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
 
   // Add source form
   const [newSource, setNewSource] = useState({
@@ -68,7 +78,19 @@ function DataManager() {
     for (const job of runningJobs) {
       try {
         const response = await api.get(`/api/jobs/${job.job_id}`);
-        setJobs(prev => ({ ...prev, [job.source_id]: response.data }));
+        const newJob = response.data;
+
+        // Check if job just completed or failed
+        if ((job.status === 'running' || job.status === 'pending') && newJob.status === 'completed') {
+          const source = sources.find(s => s.id === job.source_id);
+          addNotification(`Sync complete: ${source?.name || 'Source'}`, 'success');
+          loadProject(); // Reload to get updated word counts
+        } else if ((job.status === 'running' || job.status === 'pending') && newJob.status === 'failed') {
+          const source = sources.find(s => s.id === job.source_id);
+          addNotification(`Sync failed: ${source?.name || 'Source'} - ${newJob.error || 'Unknown error'}`, 'error');
+        }
+
+        setJobs(prev => ({ ...prev, [job.source_id]: newJob }));
       } catch (error) {
         console.error('Error updating job:', error);
       }
@@ -85,22 +107,25 @@ function DataManager() {
 
       await loadProject();
       setShowAddSource(false);
+      addNotification(`Source added: ${newSource.name}`, 'success');
       setNewSource({ type: 'youtube_playlist', url: '', name: '', description: '' });
     } catch (error) {
       console.error('Error adding source:', error);
-      alert('Failed to add source');
+      addNotification('Failed to add source', 'error');
     }
   };
 
   const handleRemoveSource = async (sourceId) => {
     if (!window.confirm('Remove this data source?')) return;
 
+    const source = sources.find(s => s.id === sourceId);
     try {
       await api.delete(`/api/projects/${projectId}/sources/${sourceId}`);
       await loadProject();
+      addNotification(`Source removed: ${source?.name || 'Source'}`, 'info');
     } catch (error) {
       console.error('Error removing source:', error);
-      alert('Failed to remove source');
+      addNotification('Failed to remove source', 'error');
     }
   };
 
@@ -112,9 +137,13 @@ function DataManager() {
       return newErrors;
     });
 
+    const source = sources.find(s => s.id === sourceId);
+
     try {
       const response = await api.post(`/api/projects/${projectId}/sources/${sourceId}/ingest`);
       const jobId = response.data.job_id;
+
+      addNotification(`Syncing: ${source?.name || 'Source'}...`, 'info');
 
       setJobs(prev => ({
         ...prev,
@@ -130,6 +159,7 @@ function DataManager() {
       console.error('Error syncing source:', error);
       const errorMessage = error.response?.data?.detail || 'Failed to start sync';
       setSyncErrors(prev => ({ ...prev, [sourceId]: errorMessage }));
+      addNotification(`Failed to sync: ${source?.name || 'Source'}`, 'error');
     }
   };
 
@@ -138,6 +168,7 @@ function DataManager() {
 
     setSyncingAll(true);
     setSyncErrors({});
+    addNotification(`Starting sync for ${sources.length} sources...`, 'info');
 
     // Sync all sources sequentially to avoid overwhelming the server
     for (const source of sources) {
@@ -160,6 +191,7 @@ function DataManager() {
     if (!file) return;
 
     setUploading(true);
+    addNotification(`Uploading: ${file.name}...`, 'info');
     const formData = new FormData();
     formData.append('file', file);
 
@@ -173,10 +205,11 @@ function DataManager() {
         [response.data.source_id]: { job_id: response.data.job_id, status: 'pending', progress: 0, source_id: response.data.source_id }
       }));
 
+      addNotification(`Upload complete: ${file.name}`, 'success');
       await loadProject();
     } catch (error) {
       console.error('Error uploading PDF:', error);
-      alert(error.response?.data?.detail || 'Failed to upload PDF');
+      addNotification(error.response?.data?.detail || 'Failed to upload PDF', 'error');
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -314,7 +347,7 @@ function DataManager() {
   }
 
   return (
-    <div>
+    <div className="relative">
       {/* Back Button */}
       <Link
         to={`/console/projects/${projectId}`}
@@ -645,6 +678,33 @@ function DataManager() {
           </div>
         </div>
       )}
+
+      {/* Notification Toasts */}
+      <div className="fixed bottom-4 right-4 space-y-2 z-50">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`flex items-center space-x-3 px-4 py-3 rounded-lg border shadow-lg font-mono text-sm animate-slide-in ${
+              notification.type === 'success'
+                ? 'bg-green-500/20 border-green-500/50 text-green-300'
+                : notification.type === 'error'
+                ? 'bg-red-500/20 border-red-500/50 text-red-300'
+                : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+            }`}
+          >
+            {notification.type === 'success' && <CheckCircleIcon className="h-5 w-5 flex-shrink-0" />}
+            {notification.type === 'error' && <XCircleIcon className="h-5 w-5 flex-shrink-0" />}
+            {notification.type === 'info' && <ArrowPathIcon className="h-5 w-5 flex-shrink-0 animate-spin" />}
+            <span>{notification.message}</span>
+            <button
+              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+              className="ml-2 text-gray-400 hover:text-white"
+            >
+              <XMarkIcon className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

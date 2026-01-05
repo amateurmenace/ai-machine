@@ -19,6 +19,22 @@
   animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Slide-in animation for notifications */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
 /* Custom utilities */
 .glass-effect {
   background: rgba(255, 255, 255, 0.8);

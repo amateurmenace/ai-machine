@@ -16,14 +16,19 @@ import {
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
   XMarkIcon,
-  ExclamationCircleIcon
+  ExclamationCircleIcon,
+  VideoCameraIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftIcon,
+  GlobeAmericasIcon,
+  ShieldCheckIcon,
+  WrenchScrewdriverIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import Footer from './Footer';
 
 function LandingPage() {
   const navigate = useNavigate();
-  const [energyCount, setEnergyCount] = useState(0);
-  const [localEnergyCount, setLocalEnergyCount] = useState(0);
   const [projects, setProjects] = useState([]);
   const [projectsHealth, setProjectsHealth] = useState({});
   const [activeChat, setActiveChat] = useState(null);
@@ -31,23 +36,6 @@ function LandingPage() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
-
-  // Animated energy counter
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setEnergyCount(prev => {
-        if (prev >= 100) return 0;
-        return prev + 2;
-      });
-      
-      setLocalEnergyCount(prev => {
-        if (prev >= 0.5) return 0;
-        return prev + 0.01;
-      });
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Load projects and check their health
   useEffect(() => {
@@ -309,8 +297,8 @@ brooklineAI.ask("What are the rules for block parties?");
             {/* Key stats - horizontal strip */}
             <div className="flex flex-wrap justify-center gap-8 md:gap-12 text-center">
               <div>
-                <div className="text-3xl md:text-4xl font-black text-green-600">1000×</div>
-                <div className="text-sm text-gray-500 mt-1">less energy</div>
+                <div className="text-3xl md:text-4xl font-black text-green-600">Local</div>
+                <div className="text-sm text-gray-500 mt-1">runs on your hardware</div>
               </div>
               <div>
                 <div className="text-3xl md:text-4xl font-black text-orange-500">$0</div>
@@ -350,112 +338,137 @@ brooklineAI.ask("What are the rules for block parties?");
         </div>
       </div>
 
-      {/* Energy Comparison Section - Bold & Modern */}
+      {/* Why Local Section - Five Key Benefits */}
       <div id="why" className="relative py-24 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black mb-6 text-gray-900">
-              Why Local?
+              Why Local AI?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-4">
-              Running AI locally means you can fine-tune and tailor your model to fit your community.
-              No one-size-fits-all. No sending your data to faraway servers.
-            </p>
-            <p className="text-lg text-gray-500 max-w-2xl mx-auto">
-              Local LLMs can be customized with community-specific knowledge, values, and constraints—
-              creating an AI that truly belongs to and serves your neighborhood.
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Running AI on your own hardware gives your community control, privacy, and sustainability
+              that cloud-based solutions can never match.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {/* Cloud - Minimal card */}
-            <div className="bg-white rounded-3xl p-10 shadow-sm border border-gray-100">
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center">
-                  <CloudIcon className="h-8 w-8 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Cloud AI</h3>
-                  <p className="text-gray-400">GPT-4, Claude Opus</p>
-                </div>
+          {/* Five Benefits Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
+            {/* Context */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center mb-5">
+                <CpuChipIcon className="h-7 w-7 text-blue-600" />
               </div>
-
-              <div className="space-y-6 mb-8">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-gray-500">Energy</span>
-                  <span className="text-4xl font-black text-red-500">{energyCount.toFixed(0)}W</span>
-                </div>
-                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-red-400 to-red-500 transition-all duration-100"
-                    style={{ width: `${energyCount}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="space-y-3 text-gray-500">
-                <div className="flex justify-between">
-                  <span>Cost per query</span>
-                  <span className="font-semibold text-gray-900">$0.003 - $0.15</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Data privacy</span>
-                  <span className="font-semibold text-red-500">Sent to cloud</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Monthly cost</span>
-                  <span className="font-semibold text-gray-900">$20 - $100+</span>
-                </div>
-              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Local Context</h3>
+              <p className="text-gray-600">
+                Train your AI with local knowledge—town bylaws, meeting minutes, community history.
+                It knows your streets, your issues, your people.
+              </p>
             </div>
 
-            {/* Local - Minimal card with accent */}
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-3xl p-10 shadow-lg text-white">
-              <div className="flex items-center space-x-4 mb-8">
-                <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center">
-                  <ServerIcon className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">Local AI</h3>
-                  <p className="text-green-100">Mac Mini M4, Llama 3.1</p>
-                </div>
+            {/* Environmental Impact */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center mb-5">
+                <BoltIcon className="h-7 w-7 text-green-600" />
               </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Less Impact</h3>
+              <p className="text-gray-600">
+                Local AI uses significantly less energy than cloud datacenters.
+                A Mac Mini running Llama uses roughly the same power as a phone charger.
+              </p>
+            </div>
 
-              <div className="space-y-6 mb-8">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-green-100">Energy</span>
-                  <span className="text-4xl font-black">{localEnergyCount.toFixed(2)}W</span>
-                </div>
-                <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white transition-all duration-100"
-                    style={{ width: `${(localEnergyCount / 0.5) * 100}%` }}
-                  ></div>
-                </div>
+            {/* Community Ownership */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-orange-100 flex items-center justify-center mb-5">
+                <UserGroupIcon className="h-7 w-7 text-orange-600" />
               </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Community Owned</h3>
+              <p className="text-gray-600">
+                Your community owns the data, the hardware, and the model. No vendor lock-in.
+                No corporate interests. Run by libraries, community centers, local government.
+              </p>
+            </div>
 
-              <div className="space-y-3 text-green-100">
-                <div className="flex justify-between">
-                  <span>Cost per query</span>
-                  <span className="font-semibold text-white">$0.00</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Data privacy</span>
-                  <span className="font-semibold text-white">100% local</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Monthly cost</span>
-                  <span className="font-semibold text-white">$0</span>
-                </div>
+            {/* Privacy & Security */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center mb-5">
+                <LockClosedIcon className="h-7 w-7 text-purple-600" />
               </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Privacy & Security</h3>
+              <p className="text-gray-600">
+                Data never leaves your server. Safe for young people, seniors, and everyone.
+                No surveillance, no data harvesting, no third-party access.
+              </p>
+            </div>
+
+            {/* Local Employment */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-rose-100 flex items-center justify-center mb-5">
+                <WrenchScrewdriverIcon className="h-7 w-7 text-rose-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">Local Jobs</h3>
+              <p className="text-gray-600">
+                Create local employment: technicians to maintain hardware, educators to train models,
+                coordinators to gather community input. Keep money in your community.
+              </p>
+            </div>
+
+            {/* Zero Cost */}
+            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-lg text-white">
+              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center mb-5">
+                <CheckCircleIcon className="h-7 w-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">$0 Per Month</h3>
+              <p className="text-green-100">
+                After initial hardware setup, there are no recurring API costs, subscription fees,
+                or per-query charges. Truly free to operate forever.
+              </p>
             </div>
           </div>
 
-          {/* Bottom stat */}
-          <div className="mt-16 text-center">
-            <div className="inline-flex items-center space-x-4 bg-white rounded-full px-8 py-4 shadow-lg border border-gray-100">
-              <span className="text-6xl font-black text-green-500">1000×</span>
-              <span className="text-xl text-gray-600 text-left">less energy<br/>per query</span>
+          {/* Comparison strip */}
+          <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <CloudIcon className="h-6 w-6 text-gray-400" />
+                  <span className="font-semibold text-gray-900">Cloud AI</span>
+                </div>
+                <ul className="space-y-2 text-gray-600 text-sm">
+                  <li className="flex items-center space-x-2">
+                    <span className="text-red-500">-</span>
+                    <span>$20-100+/month in API costs</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <span className="text-red-500">-</span>
+                    <span>Data sent to corporate servers</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <span className="text-red-500">-</span>
+                    <span>Generic, one-size-fits-all</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <div className="flex items-center space-x-3 mb-4">
+                  <ServerIcon className="h-6 w-6 text-green-600" />
+                  <span className="font-semibold text-gray-900">Local AI</span>
+                </div>
+                <ul className="space-y-2 text-gray-600 text-sm">
+                  <li className="flex items-center space-x-2">
+                    <span className="text-green-500">+</span>
+                    <span>$0/month after hardware</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <span className="text-green-500">+</span>
+                    <span>100% private, on your hardware</span>
+                  </li>
+                  <li className="flex items-center space-x-2">
+                    <span className="text-green-500">+</span>
+                    <span>Customized for your community</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -584,22 +597,30 @@ brooklineAI.ask("What are the rules for block parties?");
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="text-2xl mb-2">🎥</div>
+                <div className="flex justify-center mb-2">
+                  <VideoCameraIcon className="h-8 w-8 text-red-400" />
+                </div>
                 <p className="text-sm text-gray-300">Government Meeting Videos</p>
                 <p className="text-xs text-gray-500">Auto-transcribed</p>
               </div>
               <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="text-2xl mb-2">📄</div>
+                <div className="flex justify-center mb-2">
+                  <DocumentTextIcon className="h-8 w-8 text-orange-400" />
+                </div>
                 <p className="text-sm text-gray-300">Town PDFs & Guides</p>
                 <p className="text-xs text-gray-500">Policies, forms, bylaws</p>
               </div>
               <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="text-2xl mb-2">💬</div>
+                <div className="flex justify-center mb-2">
+                  <ChatBubbleLeftIcon className="h-8 w-8 text-blue-400" />
+                </div>
                 <p className="text-sm text-gray-300">Community Forums</p>
                 <p className="text-xs text-gray-500">Reddit, local boards</p>
               </div>
               <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="text-2xl mb-2">🌐</div>
+                <div className="flex justify-center mb-2">
+                  <GlobeAmericasIcon className="h-8 w-8 text-green-400" />
+                </div>
                 <p className="text-sm text-gray-300">Local Websites</p>
                 <p className="text-xs text-gray-500">Schools, nonprofits, civic orgs</p>
               </div>
