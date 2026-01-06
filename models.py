@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from enum import Enum
 from datetime import datetime
 
@@ -102,7 +102,8 @@ class ProjectConfig(BaseModel):
     tone: str = "professional but friendly"
 
     # Community Constitution - ethical guidelines and constraints for AI behavior
-    community_constitution: List[str] = []
+    # Supports both old format (List[str]) and new format (Dict with mode, values, etc.)
+    community_constitution: Union[List[str], Dict[str, Any]] = []
     
     # Data Sources
     data_sources: List[DataSource] = []
