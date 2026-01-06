@@ -62,8 +62,9 @@ neighborhood-ai/
 ├── DEPLOYMENT.md               # Cloud deployment guide
 ├── SERVER_MANAGEMENT.md        # Server start/stop/troubleshooting guide
 ├── collectors/                 # Data collection modules
-│   ├── youtube_collector.py    # YouTube video/playlist transcripts
-│   ├── website_collector.py    # Web scraping
+│   ├── youtube_collector.py    # YouTube video/playlist transcripts (with yt-dlp fallback)
+│   ├── website_collector.py    # Basic web scraping (BeautifulSoup)
+│   ├── website_collector_advanced.py  # Advanced scraping (Playwright for JS sites)
 │   ├── pdf_collector.py        # PDF text extraction
 │   └── source_discovery.py     # AI-powered source finding
 ├── frontend/
@@ -801,6 +802,94 @@ Build settings:
 
 ## Session History
 
+### January 6, 2026 - Session 8 (Current)
+**Critical Fixes & Advanced Features:**
+
+1. **Asyncio Event Loop Conflict - FIXED**
+   - **Problem:** Playwright's async code conflicting with FastAPI's event loop
+   - **Error:** `asyncio.run() cannot be called from a running event loop`
+   - **Solution:** Threading with isolated event loop
+     - Use `asyncio.new_event_loop()` in separate thread
+     - `loop.run_until_complete()` instead of `asyncio.run()`
+     - Complete isolation from FastAPI's event loop
+   - **File:** collectors/website_collector_advanced.py:301-320
+   - **Status:** JavaScript websites now scrape perfectly ✅
+
+2. **Advanced Web Scraping with Playwright**
+   - Headless browser automation for JavaScript-rendered sites
+   - Async implementation with thread-based event loop isolation
+   - Automatic fallback to BeautifulSoup for static sites
+   - Same data protection limits (120MB, 10M words)
+   - Performance: ~2-5 seconds per page (vs ~0.5-1 for BeautifulSoup)
+   - **File:** collectors/website_collector_advanced.py (new, 328 lines)
+   - **Integration:** app.py auto-detects Playwright availability
+   - **Dependencies:** playwright>=1.40.0 (~250MB for Chromium)
+
+3. **YouTube Playlist Without API Key**
+   - Added yt-dlp fallback method
+   - Works without YouTube Data API v3 key
+   - Automatic transparent fallback
+   - Backward compatible with API method
+   - **File:** collectors/youtube_collector.py
+   - **Method:** get_playlist_videos_ytdlp() using subprocess
+   - **Dependencies:** yt-dlp>=2024.3.10
+
+4. **Permanent Tunnel Configuration**
+   - **Problem:** create.neighborhoodai.org already pointed to Netlify
+   - **Solution:** Separated frontend and backend subdomains
+     - Frontend: create.neighborhoodai.org → Netlify (static React)
+     - Backend: api.neighborhoodai.org → Cloudflare Tunnel → Local Mac
+   - **Tunnel ID:** 661c38c1-d69e-433c-9910-bc3ec80d6117
+   - **Config:** ~/.cloudflared/config.yml updated with api subdomain
+   - **Script:** start-tunnel-permanent.sh updated
+   - **Status:** Tunnel running, DNS CNAME needs to be added manually
+
+5. **Repository Sync & Commit**
+   - Synced all 32 files from worktree to main repo
+   - Committed all changes to GitHub (commits: 44d89bc, d2d60a0)
+   - Updated documentation comprehensively
+
+**Files Modified:**
+- collectors/website_collector_advanced.py - NEW: Playwright scraper with threading fix
+- collectors/youtube_collector.py - yt-dlp fallback added
+- app.py - Playwright integration with graceful fallback
+- requirements.txt - Added playwright and yt-dlp dependencies
+- ~/.cloudflared/config.yml - Updated hostname to api.neighborhoodai.org
+- start-tunnel-permanent.sh - Updated domain to api.neighborhoodai.org
+
+**Documentation Created:**
+- TUNNEL_DNS_SETUP.md - DNS configuration guide (397 lines)
+- SESSION_COMPLETE.md - Comprehensive session summary (470 lines)
+- FIXES_APPLIED.md - All fixes explained (229 lines)
+- FINAL_STATUS.md - Feature delivery status (354 lines)
+- NETLIFY_UPDATE.md - Netlify configuration guide (79 lines)
+- ADVANCED_FEATURES.md - Playwright & yt-dlp documentation
+
+**GitHub Commits:**
+- 44d89bc: Fix: Asyncio event loop + DNS setup + Sync main folder
+- d2d60a0: Docs: Add session completion summary with DNS setup instructions
+
+**Installation Required:**
+```bash
+pip install playwright yt-dlp
+playwright install chromium
+```
+
+**Testing Status:**
+✅ Asyncio errors resolved (threading with isolated event loop)
+✅ JavaScript websites scrape successfully (Playwright)
+✅ YouTube playlists work without API key (yt-dlp)
+✅ Tunnel configured and running (4 connections)
+✅ All code committed and pushed to GitHub
+⏳ DNS CNAME needs manual addition in Cloudflare dashboard
+
+**User Action Required:**
+1. Add CNAME record in Cloudflare dashboard:
+   - Type: CNAME
+   - Name: api
+   - Target: 661c38c1-d69e-433c-9910-bc3ec80d6117.cfargotunnel.com
+2. Update Netlify env var: REACT_APP_API_URL = https://api.neighborhoodai.org
+
 ### January 6, 2026 - Session 7
 **Three Major Features Completed:**
 
@@ -817,7 +906,7 @@ Build settings:
    - Tested successfully: 2 items, 236 words ingested
    - Added proper error handling and logging
    - Background processing now works correctly
-   - Known limitation documented: JS-rendered sites not supported
+   - Known limitation documented: JS-rendered sites not supported (FIXED in Session 8)
 
 3. **Community Constitution Feature (COMPLETE)**
    - Added Step 3 to setup wizard: "Constitution"
