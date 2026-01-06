@@ -11,15 +11,23 @@ import uuid
 import hashlib
 
 
+# Global Qdrant client cache to avoid file locking issues
+_qdrant_clients: Dict[str, QdrantClient] = {}
+
+
 class VectorStore:
     """Manages vector embeddings and semantic search"""
-    
+
     def __init__(self, path: str = "./qdrant_data", collection_name: str = "neighborhood_knowledge"):
-        self.client = QdrantClient(path=path)
+        # Use shared client for the same path to avoid locking issues
+        if path not in _qdrant_clients:
+            _qdrant_clients[path] = QdrantClient(path=path)
+        self.client = _qdrant_clients[path]
+
         self.collection_name = collection_name
         self.encoder = SentenceTransformer('all-MiniLM-L6-v2')  # 384 dimensions
         self.vector_size = 384
-        
+
         # Create collection if it doesn't exist
         self._ensure_collection_exists()
     

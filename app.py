@@ -24,6 +24,14 @@ from collectors.website_collector import WebsiteCollector
 from collectors.pdf_collector import PDFCollector
 from collectors.source_discovery import SourceDiscovery
 
+# Try to import advanced scraper (requires playwright)
+try:
+    from collectors.website_collector_advanced import AdvancedWebsiteCollector
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
+    print("Playwright not available, using basic web scraper")
+
 
 app = FastAPI(
     title="Neighborhood AI API",
@@ -48,6 +56,7 @@ app.add_middleware(
 projects: Dict[str, ProjectConfig] = {}
 ingestion_jobs: Dict[str, DataIngestionJob] = {}
 agents: Dict[str, NeighborhoodAgent] = {}
+vector_stores: Dict[str, VectorStore] = {}  # Cache to avoid Qdrant locking issues
 
 
 # Helper functions
@@ -87,12 +96,20 @@ def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
     """Get or create agent for a project"""
     if project_id in agents:
         return agents[project_id]
-    
+
     project = load_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    agent = NeighborhoodAgent(project)
+
+    # Get or create shared vector store
+    if project_id not in vector_stores:
+        vector_stores[project_id] = VectorStore(
+            path=f"./data/{project_id}/qdrant",
+            collection_name=project_id
+        )
+
+    # Create agent with shared vector store
+    agent = NeighborhoodAgent(project, vector_store=vector_stores[project_id])
     agents[project_id] = agent
     return agent
 
@@ -186,9 +203,11 @@ async def update_project(project_id: str, updates: Dict):
     project.updated_at = datetime.now()
     save_project(project)
 
-    # Invalidate agent cache
+    # Invalidate caches
     if project_id in agents:
         del agents[project_id]
+    if project_id in vector_stores:
+        del vector_stores[project_id]
 
     return {"message": "Project updated successfully"}
 
@@ -207,6 +226,8 @@ async def delete_project(project_id: str):
         del projects[project_id]
     if project_id in agents:
         del agents[project_id]
+    if project_id in vector_stores:
+        del vector_stores[project_id]
 
     # Remove project data directory
     project_path = get_project_path(project_id)
@@ -285,11 +306,13 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
             job.error = "Source not found"
             return
         
-        # Initialize vector store
-        vector_store = VectorStore(
-            path=f"./data/{project.project_id}/qdrant",
-            collection_name=project.project_id
-        )
+        # Get or create vector store (cached to avoid locking issues)
+        if project.project_id not in vector_stores:
+            vector_stores[project.project_id] = VectorStore(
+                path=f"./data/{project.project_id}/qdrant",
+                collection_name=project.project_id
+            )
+        vector_store = vector_stores[project.project_id]
         
         documents = []
         
@@ -355,10 +378,17 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                 return
 
         elif source.type == DataSourceType.WEBSITE:
-            collection_method = "web_scraper"
-            collector = WebsiteCollector()
+            # Use advanced scraper if Playwright is available
+            if PLAYWRIGHT_AVAILABLE:
+                collection_method = "playwright_scraper"
+                collector = AdvancedWebsiteCollector(use_browser=True)
+                print(f"Using advanced Playwright scraper for {source.url}")
+            else:
+                collection_method = "web_scraper"
+                collector = WebsiteCollector()
+                print(f"Using basic BeautifulSoup scraper for {source.url}")
 
-            def progress(current, total, title):
+            def progress(current, total, title, extra_info=None):
                 job.processed_items = current
                 job.total_items = total
                 job.progress = (current / total) * 100 if total > 0 else 0
@@ -374,7 +404,7 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                         'metadata': {
                             'source': source.name,
                             'source_type': 'website',
-                            'collection_method': collection_method,
+                            'collection_method': result.get('method', collection_method),
                             'url': result['url'],
                             'title': result['title'],
                             'date': ''
@@ -866,9 +896,11 @@ async def save_project_config(project_id: str, config_content: Dict):
         updated_project = ProjectConfig(**config_dict)
         save_project(updated_project)
 
-        # Invalidate agent cache
+        # Invalidate caches
         if project_id in agents:
             del agents[project_id]
+        if project_id in vector_stores:
+            del vector_stores[project_id]
 
         return {"message": "Configuration saved successfully"}
     except json.JSONDecodeError as e:
@@ -960,11 +992,13 @@ async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_
             job.error = "Failed to extract text from PDF"
             return
 
-        # Initialize vector store
-        vector_store = VectorStore(
-            path=f"./data/{project.project_id}/qdrant",
-            collection_name=project.project_id
-        )
+        # Get or create vector store (cached to avoid locking issues)
+        if project.project_id not in vector_stores:
+            vector_stores[project.project_id] = VectorStore(
+                path=f"./data/{project.project_id}/qdrant",
+                collection_name=project.project_id
+            )
+        vector_store = vector_stores[project.project_id]
 
         # Find the source
         source = next((s for s in project.data_sources if s.id == job.source_id), None)

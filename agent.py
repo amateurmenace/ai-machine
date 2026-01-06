@@ -11,13 +11,17 @@ from models import ProjectConfig, ChatMessage
 
 class NeighborhoodAgent:
     """AI agent that answers questions using RAG"""
-    
-    def __init__(self, config: ProjectConfig):
+
+    def __init__(self, config: ProjectConfig, vector_store: VectorStore = None):
         self.config = config
-        self.vector_store = VectorStore(
-            path=f"./data/{config.project_id}/qdrant",
-            collection_name=config.project_id
-        )
+        # Use provided vector store or create new one
+        if vector_store:
+            self.vector_store = vector_store
+        else:
+            self.vector_store = VectorStore(
+                path=f"./data/{config.project_id}/qdrant",
+                collection_name=config.project_id
+            )
         
         # Initialize LLM client based on provider
         if config.ai_provider == "ollama":
