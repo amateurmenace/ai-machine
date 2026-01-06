@@ -853,6 +853,7 @@ Build settings:
 - collectors/website_collector_advanced.py - NEW: Playwright scraper with threading fix
 - collectors/youtube_collector.py - yt-dlp fallback added
 - app.py - Playwright integration with graceful fallback
+- models.py - Fixed community_constitution validation (Union type for backward compatibility)
 - requirements.txt - Added playwright and yt-dlp dependencies
 - ~/.cloudflared/config.yml - Updated hostname to api.neighborhoodai.org
 - start-tunnel-permanent.sh - Updated domain to api.neighborhoodai.org
@@ -868,6 +869,8 @@ Build settings:
 **GitHub Commits:**
 - 44d89bc: Fix: Asyncio event loop + DNS setup + Sync main folder
 - d2d60a0: Docs: Add session completion summary with DNS setup instructions
+- 35624df: Docs: Update CLAUDE.md with Session 8 details
+- 6af27ae: Fix: Add backward compatibility for community_constitution field (Union type)
 
 **Installation Required:**
 ```bash
@@ -880,8 +883,16 @@ playwright install chromium
 ✅ JavaScript websites scrape successfully (Playwright)
 ✅ YouTube playlists work without API key (yt-dlp)
 ✅ Tunnel configured and running (4 connections)
+✅ Models.py backward compatibility (Union type for constitution)
+✅ All services restarted and working
 ✅ All code committed and pushed to GitHub
 ⏳ DNS CNAME needs manual addition in Cloudflare dashboard
+
+**Additional Fixes:**
+- Fixed port 8000 conflict (killed conflicting Community Highlighter app)
+- Restarted Ollama service (now running with 5 models)
+- Fixed Pydantic validation error for community_constitution field
+- Backend now loads all 9 projects without errors
 
 **User Action Required:**
 1. Add CNAME record in Cloudflare dashboard:
