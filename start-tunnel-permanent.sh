@@ -1,11 +1,16 @@
 #!/bin/bash
 # Start Permanent Cloudflare Tunnel for Neighborhood AI
-# This uses a named tunnel with a fixed URL
+# This uses a named tunnel with a fixed custom domain
 
 TUNNEL_NAME="neighborhood-ai"
+TUNNEL_ID="661c38c1-d69e-433c-9910-bc3ec80d6117"
+DOMAIN="create.neighborhoodai.org"
 
 echo "Starting permanent Cloudflare tunnel: $TUNNEL_NAME"
-echo "This tunnel will have a fixed URL that persists across restarts"
+echo "Tunnel ID: $TUNNEL_ID"
+echo "Domain: https://$DOMAIN"
+echo ""
+echo "Backend will be accessible at: https://$DOMAIN"
 echo ""
 echo "Press Ctrl+C to stop"
 echo ""
@@ -22,20 +27,15 @@ if ! cloudflared tunnel info $TUNNEL_NAME &>/dev/null; then
     echo "2. Create the tunnel:"
     echo "   cloudflared tunnel create $TUNNEL_NAME"
     echo ""
-    echo "3. Get your tunnel URL:"
-    echo "   cloudflared tunnel info $TUNNEL_NAME"
+    echo "3. Configure DNS:"
+    echo "   cloudflared tunnel route dns $TUNNEL_NAME $DOMAIN"
     echo ""
     echo "4. Run this script again"
     exit 1
 fi
 
-# Get tunnel URL
-TUNNEL_URL=$(cloudflared tunnel info $TUNNEL_NAME 2>/dev/null | grep -o 'https://[^"]*trycloudflare.com' || echo "")
+echo "✅ Tunnel configured and ready"
+echo ""
 
-if [ -n "$TUNNEL_URL" ]; then
-    echo "✅ Tunnel URL: $TUNNEL_URL"
-    echo ""
-fi
-
-# Run the tunnel
-cloudflared tunnel --url http://localhost:8000 run $TUNNEL_NAME
+# Run the tunnel using config file
+cloudflared tunnel run $TUNNEL_NAME
