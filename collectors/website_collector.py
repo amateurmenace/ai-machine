@@ -166,6 +166,16 @@ class WebsiteCollector:
             print(f"Error parsing sitemap: {e}")
             return []
     
+    def normalize_domain(self, domain: str) -> str:
+        """Normalize domain by removing www. prefix"""
+        return domain.replace('www.', '')
+
+    def is_same_domain(self, url1: str, url2: str) -> bool:
+        """Check if two URLs are from the same domain (ignoring www.)"""
+        domain1 = self.normalize_domain(urlparse(url1).netloc)
+        domain2 = self.normalize_domain(urlparse(url2).netloc)
+        return domain1 == domain2
+
     def crawl_website(self,
                      start_url: str,
                      max_pages: int = 50,
@@ -180,6 +190,10 @@ class WebsiteCollector:
         to_visit = [start_url]
         results = []
         limit_message = None
+        skipped_external = 0
+
+        print(f"Starting crawl of {start_url} (max {max_pages} pages)")
+        print(f"Base domain: {base_domain}")
 
         while to_visit and len(results) < max_pages:
             # Check data protection limits
@@ -196,7 +210,8 @@ class WebsiteCollector:
                 continue
 
             # Check domain if restricting
-            if same_domain_only and urlparse(url).netloc != base_domain:
+            if same_domain_only and not self.is_same_domain(url, start_url):
+                skipped_external += 1
                 continue
 
             # Scrape page
@@ -214,15 +229,16 @@ class WebsiteCollector:
                 # Add new links to visit
                 for link in page_data['links']:
                     if link['url'] not in self.visited_urls and link['url'] not in to_visit:
-                        if not same_domain_only or urlparse(link['url']).netloc == base_domain:
+                        if not same_domain_only or self.is_same_domain(link['url'], start_url):
                             to_visit.append(link['url'])
-            
+
             # Be polite - rate limiting
             time.sleep(1)
 
         # Log final stats
         mb_used = self.total_bytes / (1024 * 1024)
         print(f"Crawl complete: {len(results)} pages, {mb_used:.1f}MB, {self.total_words:,} words")
+        print(f"Skipped {skipped_external} external links")
         if limit_message:
             print(f"Note: {limit_message}")
 

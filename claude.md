@@ -546,7 +546,13 @@ https://random-words.trycloudflare.com
 
 **Project Management:**
 - Create multiple AI projects (supports duplicate locations with auto-numbered IDs)
-- 5-step setup wizard with terminal aesthetics
+- 6-step setup wizard with terminal aesthetics:
+  1. Location - Define municipality/neighborhood
+  2. Discover - AI-powered source discovery
+  3. **Constitution - Define community values and ethics (NEW!)**
+  4. Fine Tune - Add/manage data sources
+  5. Configure - AI model and personality
+  6. Launch - Deploy project
 - Project list with folder view
 - Individual project dashboards with quick action cards
 - Raw config.json editor (Code button)
@@ -558,7 +564,11 @@ https://random-words.trycloudflare.com
 **Data Collection:**
 - YouTube playlist transcript extraction (with multiple fallback methods)
 - Single YouTube video support
-- Website scraping with BeautifulSoup
+- **Website scraping with BeautifulSoup (IMPROVED!)**
+  - Fixed domain matching (www. prefix handling)
+  - Fixed Qdrant file locking issues
+  - Background processing support
+  - Note: JavaScript-rendered sites not supported (static HTML only)
 - PDF text extraction (URL and direct upload)
 - AI-powered source discovery
 - Source preview and selection
@@ -579,6 +589,12 @@ https://random-words.trycloudflare.com
 - Personality auto-generation
 - Better error handling with actionable messages
 - Custom discovery search prompts
+- **Community Constitution integration (NEW!)**
+  - Define core values (e.g., Transparency, Privacy, Accuracy)
+  - Set ethical guidelines (e.g., "Always cite sources")
+  - Establish red lines (e.g., "Never provide medical advice")
+  - Automatically injected into AI system prompts
+  - Three modes: Online form, Workshop (coming soon), Skip
 
 **RAG Pipeline:**
 - Sentence transformer embeddings
@@ -625,6 +641,11 @@ https://random-words.trycloudflare.com
   - Deployment options (Docker, nginx, cloud hosting)
   - Troubleshooting common issues
   - FAQ
+- **New deployment guides:**
+  - TUNNEL_SETUP.md - Permanent Cloudflare tunnel setup (no more URL changes!)
+  - SERVER_MANAGEMENT.md - Start/stop/troubleshoot all services
+  - CONSTITUTION_FEATURE.md - Community Constitution implementation guide
+  - ACTION_PLAN.md - Development roadmap and issue tracking
 
 ### 🚧 Known Limitations
 
@@ -634,27 +655,30 @@ https://random-words.trycloudflare.com
 3. No authentication/multi-user support
 4. No Docker containerization yet
 5. No automated tests
+6. **Website scraping limitation:** JavaScript-rendered sites (SPAs) return empty content
 
 **Planned Features:**
 - RSS feed collector
 - Reddit collector
 - Scheduled re-ingestion
-- Community Constitutions workshop interface (values/ethics input)
+- **Community Constitutions workshop materials** (in-person mode) - online form complete!
 - Architectural diagram on landing page
 - Conversation persistence
 - User authentication
 - Analytics dashboard
 - Docker deployment
+- Playwright/Selenium for JavaScript site scraping
 
 ## Roadmap
 
 ### Phase 1: Core Improvements (Next)
 - **Streaming responses**: Show AI answers character-by-character
 - **Conversation persistence**: Save chat history to localStorage or database
-- **Community Constitution workshop**: UI for collecting community values and ethics
+- ~~**Community Constitution workshop**: UI for collecting community values and ethics~~ ✅ DONE (online form)
 
 ### Phase 2: Advanced Features
-- **Community Constitutions**: Configurable ethical guidelines for AI behavior
+- ~~**Community Constitutions**: Configurable ethical guidelines for AI behavior~~ ✅ DONE
+- **Community Constitution workshop materials**: Printable guides for in-person meetings
 - **RSS feed collector**: Ingest news from RSS/Atom feeds
 - **Reddit collector**: Gather community discussions
 - **Scheduled re-ingestion**: Automatic data updates on schedule
@@ -776,6 +800,49 @@ Build settings:
 - Publish directory: `frontend/build`
 
 ## Session History
+
+### January 6, 2026 - Session 7
+**Three Major Features Completed:**
+
+1. **Permanent Cloudflare Tunnel Setup**
+   - Created TUNNEL_SETUP.md with comprehensive setup guide
+   - Created start-tunnel-permanent.sh script
+   - Fixed URL stays permanent across restarts and IP changes
+   - No more Netlify env var updates needed
+
+2. **Website Scraping Fixes**
+   - Fixed domain matching bug (www. prefix handling)
+   - Fixed Qdrant file locking with global client cache
+   - Fixed progress callback signature mismatch
+   - Tested successfully: 2 items, 236 words ingested
+   - Added proper error handling and logging
+   - Background processing now works correctly
+   - Known limitation documented: JS-rendered sites not supported
+
+3. **Community Constitution Feature (COMPLETE)**
+   - Added Step 3 to setup wizard: "Constitution"
+   - Online form mode fully functional:
+     - Core values selection (6 presets + custom, min 3)
+     - Ethical guidelines (free-form input)
+     - Red lines (what AI should never do)
+   - Workshop mode placeholder (shows "Coming Soon")
+   - Skip option available
+   - Automatically integrates into AI system prompts
+   - Structured data format with backward compatibility
+   - 280+ lines of frontend code, 30 lines backend
+
+**Files Modified:**
+- collectors/website_collector.py - Domain matching + logging
+- vector_store.py - Global Qdrant client cache
+- app.py - Vector store caching + progress callback fix
+- agent.py - Constitution integration in system prompts
+- frontend/src/components/SetupWizard.js - Constitution step UI
+
+**Documentation Created:**
+- SESSION_SUMMARY.md - Complete session overview
+- CONSTITUTION_FEATURE.md - Feature implementation details
+- TUNNEL_SETUP.md - Permanent tunnel guide
+- ACTION_PLAN.md - Task breakdown and roadmap
 
 ### January 5, 2026 - Session 6
 - Created comprehensive SERVER_MANAGEMENT.md guide:

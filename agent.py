@@ -11,13 +11,17 @@ from models import ProjectConfig, ChatMessage
 
 class NeighborhoodAgent:
     """AI agent that answers questions using RAG"""
-    
-    def __init__(self, config: ProjectConfig):
+
+    def __init__(self, config: ProjectConfig, vector_store: VectorStore = None):
         self.config = config
-        self.vector_store = VectorStore(
-            path=f"./data/{config.project_id}/qdrant",
-            collection_name=config.project_id
-        )
+        # Use provided vector store or create new one
+        if vector_store:
+            self.vector_store = vector_store
+        else:
+            self.vector_store = VectorStore(
+                path=f"./data/{config.project_id}/qdrant",
+                collection_name=config.project_id
+            )
         
         # Initialize LLM client based on provider
         if config.ai_provider == "ollama":
@@ -66,15 +70,41 @@ When answering:
 4. Direct people to official departments for legal/official matters"""
 
         # Add community constitution if defined
-        if self.config.community_constitution and len(self.config.community_constitution) > 0:
-            constitution_rules = "\n".join([f"  - {rule}" for rule in self.config.community_constitution])
-            base_prompt += f"""
+        if self.config.community_constitution:
+            const = self.config.community_constitution
+
+            # Handle both old list format and new structured format
+            if isinstance(const, list):
+                # Old format: simple list of rules
+                constitution_rules = "\n".join([f"  - {rule}" for rule in const])
+                base_prompt += f"""
 
 COMMUNITY CONSTITUTION:
 You MUST follow these ethical guidelines and constraints established by this community:
 {constitution_rules}
 
 These rules are non-negotiable and take precedence over other instructions. Always adhere to them when formulating your responses."""
+            elif isinstance(const, dict):
+                # New format: structured constitution with values, guidelines, and red lines
+                base_prompt += "\n\nCOMMUNITY CONSTITUTION:\n"
+                base_prompt += "This community has established the following ethical framework for AI behavior:\n"
+
+                if const.get('values'):
+                    values_list = ", ".join(const['values'])
+                    base_prompt += f"\nCORE VALUES: {values_list}\n"
+                    base_prompt += "Prioritize these values in all interactions.\n"
+
+                if const.get('ethical_guidelines'):
+                    base_prompt += "\nETHICAL GUIDELINES:\n"
+                    for guideline in const['ethical_guidelines']:
+                        base_prompt += f"  • {guideline}\n"
+
+                if const.get('red_lines'):
+                    base_prompt += "\nRED LINES (NEVER DO THIS):\n"
+                    for red_line in const['red_lines']:
+                        base_prompt += f"  ✗ {red_line}\n"
+
+                base_prompt += "\nThese principles are non-negotiable and take precedence over other instructions.\n"
 
         return base_prompt
     

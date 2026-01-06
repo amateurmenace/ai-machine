@@ -16,15 +16,17 @@ import {
   VideoCameraIcon,
   DocumentTextIcon,
   GlobeAmericasIcon,
-  BoltIcon
+  BoltIcon,
+  ScaleIcon
 } from '@heroicons/react/24/outline';
 
 const steps = [
   { id: 1, name: 'Location', icon: GlobeAltIcon, cmd: 'init' },
   { id: 2, name: 'Discover', icon: SparklesIcon, cmd: 'discover' },
-  { id: 3, name: 'Fine Tune', icon: DocumentTextIcon, cmd: 'finetune' },
-  { id: 4, name: 'Configure', icon: CogIcon, cmd: 'config' },
-  { id: 5, name: 'Launch', icon: RocketLaunchIcon, cmd: 'launch' },
+  { id: 3, name: 'Constitution', icon: ScaleIcon, cmd: 'constitution' },
+  { id: 4, name: 'Fine Tune', icon: DocumentTextIcon, cmd: 'finetune' },
+  { id: 5, name: 'Configure', icon: CogIcon, cmd: 'config' },
+  { id: 6, name: 'Launch', icon: RocketLaunchIcon, cmd: 'launch' },
 ];
 
 // Loading spinner component
@@ -105,6 +107,15 @@ function SetupWizard() {
   const [customSource, setCustomSource] = useState({ type: 'youtube_video', url: '', name: '' });
   const [generatingPersonality, setGeneratingPersonality] = useState(false);
   const [discoveryPrompt, setDiscoveryPrompt] = useState('');
+
+  // Constitution state
+  const [constitutionMode, setConstitutionMode] = useState(''); // '', 'online', 'workshop', 'skip'
+  const [constitutionValues, setConstitutionValues] = useState([]);
+  const [customValue, setCustomValue] = useState('');
+  const [ethicalGuidelines, setEthicalGuidelines] = useState([]);
+  const [customGuideline, setCustomGuideline] = useState('');
+  const [redLines, setRedLines] = useState([]);
+  const [customRedLine, setCustomRedLine] = useState('');
 
   // Add terminal output
   const addOutput = (type, message) => {
@@ -284,6 +295,16 @@ Key traits:
       }
       addOutput('success', `Added ${selectedSources.length} data sources`);
 
+      // Build constitution data if provided
+      const constitutionData = constitutionMode === 'online' ? {
+        mode: 'online',
+        values: constitutionValues,
+        ethical_guidelines: ethicalGuidelines,
+        red_lines: redLines
+      } : constitutionMode === 'skip' ? null : {
+        mode: constitutionMode
+      };
+
       // Update AI configuration
       await api.put(`/api/projects/${projectId}`, {
         ai_provider: aiProvider,
@@ -292,11 +313,15 @@ Key traits:
         temperature: temperature,
         system_prompt: personality,
         show_thinking: showThinking,
-        extended_thinking: extendedThinking
+        extended_thinking: extendedThinking,
+        ...(constitutionData && { community_constitution: constitutionData })
       });
       addOutput('success', 'AI configuration saved');
+      if (constitutionData) {
+        addOutput('success', `Community constitution applied (${constitutionValues.length} values, ${ethicalGuidelines.length} guidelines, ${redLines.length} red lines)`);
+      }
 
-      setCurrentStep(5);
+      setCurrentStep(6);
     } catch (err) {
       addOutput('error', err.response?.data?.detail || 'Failed to configure AI');
       setError(err.response?.data?.detail || 'Failed to configure AI');
@@ -774,7 +799,306 @@ Key traits:
             </div>
           )}
 
+          {/* Step 3: Community Constitution */}
           {currentStep === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
+                  <span className="text-green-400">$</span>
+                  <span>constitution --init</span>
+                </h2>
+                <p className="text-gray-400 mt-2">
+                  Define your community's values and ethical guidelines for AI behavior
+                </p>
+              </div>
+
+              {!constitutionMode && (
+                <div className="space-y-4">
+                  <div className="bg-gray-800 rounded-lg p-6 border-2 border-gray-700">
+                    <h3 className="text-cyan-400 font-mono text-sm mb-4"># choose how to gather community input</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Online Form */}
+                      <button
+                        onClick={() => setConstitutionMode('online')}
+                        className="p-6 bg-gray-900 rounded-lg border-2 border-gray-700 hover:border-cyan-500 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center space-y-3">
+                          <DocumentTextIcon className="h-12 w-12 text-cyan-400 group-hover:text-cyan-300" />
+                          <h4 className="text-white font-mono font-bold">Online Form</h4>
+                          <p className="text-gray-400 text-sm">
+                            Digital questionnaire for community members to define values and guidelines
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Workshop */}
+                      <button
+                        onClick={() => setConstitutionMode('workshop')}
+                        className="p-6 bg-gray-900 rounded-lg border-2 border-gray-700 hover:border-green-500 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center space-y-3">
+                          <GlobeAmericasIcon className="h-12 w-12 text-green-400 group-hover:text-green-300" />
+                          <h4 className="text-white font-mono font-bold">In-Person Workshop</h4>
+                          <p className="text-gray-400 text-sm">
+                            Hold a community meeting with printable materials and facilitation guides
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Skip */}
+                      <button
+                        onClick={() => {
+                          setConstitutionMode('skip');
+                          setCurrentStep(4);
+                        }}
+                        className="p-6 bg-gray-900 rounded-lg border-2 border-gray-700 hover:border-yellow-500 transition-all group"
+                      >
+                        <div className="flex flex-col items-center text-center space-y-3">
+                          <ArrowPathIcon className="h-12 w-12 text-yellow-400 group-hover:text-yellow-300" />
+                          <h4 className="text-white font-mono font-bold">Skip for Now</h4>
+                          <p className="text-gray-400 text-sm">
+                            Use default values and add a constitution later
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {constitutionMode === 'online' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-cyan-400 font-mono text-sm mb-4"># step 1: core values</h3>
+                    <p className="text-gray-400 text-sm mb-4">
+                      Select values that are important to your community (select at least 3):
+                    </p>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                      {['Transparency', 'Privacy', 'Accuracy', 'Inclusivity', 'Accessibility', 'Accountability'].map(value => (
+                        <button
+                          key={value}
+                          onClick={() => {
+                            if (constitutionValues.includes(value)) {
+                              setConstitutionValues(constitutionValues.filter(v => v !== value));
+                            } else {
+                              setConstitutionValues([...constitutionValues, value]);
+                            }
+                          }}
+                          className={`p-3 rounded-lg border-2 font-mono text-sm transition-all ${
+                            constitutionValues.includes(value)
+                              ? 'bg-green-900/30 border-green-500 text-green-400'
+                              : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600'
+                          }`}
+                        >
+                          {constitutionValues.includes(value) && <span className="mr-2">✓</span>}
+                          {value}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={customValue}
+                        onChange={(e) => setCustomValue(e.target.value)}
+                        placeholder="Add custom value..."
+                        className="flex-1 bg-gray-900 text-white px-4 py-2 rounded-lg border border-gray-700 focus:border-cyan-500 focus:outline-none font-mono text-sm"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && customValue.trim()) {
+                            setConstitutionValues([...constitutionValues, customValue.trim()]);
+                            setCustomValue('');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (customValue.trim()) {
+                            setConstitutionValues([...constitutionValues, customValue.trim()]);
+                            setCustomValue('');
+                          }
+                        }}
+                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-mono text-sm transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {constitutionValues.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {constitutionValues.map(value => (
+                          <span
+                            key={value}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 border border-green-500/50 rounded-full text-green-400 text-sm font-mono"
+                          >
+                            {value}
+                            <button
+                              onClick={() => setConstitutionValues(constitutionValues.filter(v => v !== value))}
+                              className="hover:text-green-300"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-cyan-400 font-mono text-sm mb-4"># step 2: ethical guidelines</h3>
+                    <p className="text-gray-400 text-sm mb-4">
+                      What principles should guide your AI's behavior?
+                    </p>
+
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        type="text"
+                        value={customGuideline}
+                        onChange={(e) => setCustomGuideline(e.target.value)}
+                        placeholder="e.g., Always cite sources for factual claims"
+                        className="flex-1 bg-gray-900 text-white px-4 py-2 rounded-lg border border-gray-700 focus:border-cyan-500 focus:outline-none font-mono text-sm"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && customGuideline.trim()) {
+                            setEthicalGuidelines([...ethicalGuidelines, customGuideline.trim()]);
+                            setCustomGuideline('');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (customGuideline.trim()) {
+                            setEthicalGuidelines([...ethicalGuidelines, customGuideline.trim()]);
+                            setCustomGuideline('');
+                          }
+                        }}
+                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-mono text-sm transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {ethicalGuidelines.length > 0 && (
+                      <ul className="space-y-2">
+                        {ethicalGuidelines.map((guideline, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-gray-300 font-mono text-sm">
+                            <span className="text-green-400">•</span>
+                            <span className="flex-1">{guideline}</span>
+                            <button
+                              onClick={() => setEthicalGuidelines(ethicalGuidelines.filter((_, i) => i !== idx))}
+                              className="text-red-400 hover:text-red-300 text-xs"
+                            >
+                              remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-800 rounded-lg p-6">
+                    <h3 className="text-cyan-400 font-mono text-sm mb-4"># step 3: red lines</h3>
+                    <p className="text-gray-400 text-sm mb-4">
+                      What should your AI NEVER do?
+                    </p>
+
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        type="text"
+                        value={customRedLine}
+                        onChange={(e) => setCustomRedLine(e.target.value)}
+                        placeholder="e.g., Never provide medical or legal advice"
+                        className="flex-1 bg-gray-900 text-white px-4 py-2 rounded-lg border border-gray-700 focus:border-cyan-500 focus:outline-none font-mono text-sm"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && customRedLine.trim()) {
+                            setRedLines([...redLines, customRedLine.trim()]);
+                            setCustomRedLine('');
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (customRedLine.trim()) {
+                            setRedLines([...redLines, customRedLine.trim()]);
+                            setCustomRedLine('');
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-mono text-sm transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {redLines.length > 0 && (
+                      <ul className="space-y-2">
+                        {redLines.map((line, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-gray-300 font-mono text-sm">
+                            <span className="text-red-400">✗</span>
+                            <span className="flex-1">{line}</span>
+                            <button
+                              onClick={() => setRedLines(redLines.filter((_, i) => i !== idx))}
+                              className="text-red-400 hover:text-red-300 text-xs"
+                            >
+                              remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between">
+                    <button
+                      onClick={() => setConstitutionMode('')}
+                      className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-mono transition-colors"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(4)}
+                      disabled={constitutionValues.length < 3}
+                      className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-mono transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Continue →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {constitutionMode === 'workshop' && (
+                <div className="space-y-6">
+                  <div className="bg-yellow-900/20 border-2 border-yellow-500/50 rounded-lg p-6">
+                    <h3 className="text-yellow-400 font-mono font-bold mb-3">
+                      Workshop Mode - Coming Soon
+                    </h3>
+                    <p className="text-gray-300 mb-4">
+                      In-person workshop materials and facilitation guides are currently in development.
+                      For now, you can use the online form or skip this step.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setConstitutionMode('online')}
+                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-mono text-sm"
+                      >
+                        Use Online Form
+                      </button>
+                      <button
+                        onClick={() => {
+                          setConstitutionMode('skip');
+                          setCurrentStep(4);
+                        }}
+                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-mono text-sm"
+                      >
+                        Skip for Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentStep === 4 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
@@ -916,7 +1240,7 @@ Key traits:
               </div>
 
               <button
-                onClick={() => setCurrentStep(4)}
+                onClick={() => setCurrentStep(5)}
                 className="w-full bg-green-500 text-gray-900 py-3 px-4 rounded-lg font-mono font-semibold hover:bg-green-400 transition-colors flex items-center justify-center space-x-2"
               >
                 <span>$ ./config {selectedSources.length > 0 ? `--sources ${selectedSources.length}` : '--skip-sources'}</span>
@@ -930,7 +1254,7 @@ Key traits:
             </div>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 5 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-white font-mono flex items-center space-x-2">
@@ -1106,7 +1430,7 @@ Key traits:
             </div>
           )}
 
-          {currentStep === 5 && (
+          {currentStep === 6 && (
             <div className="space-y-6">
               <div className="text-center">
                 <RocketLaunchIcon className="h-16 w-16 mx-auto text-green-400 mb-4" />
