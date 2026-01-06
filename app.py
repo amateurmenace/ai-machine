@@ -69,10 +69,14 @@ def save_project(project: ProjectConfig):
     """Save project to disk"""
     path = get_project_path(project.project_id)
     os.makedirs(path, exist_ok=True)
-    
+
+    # Create subdirectories for vector store and uploads
+    os.makedirs(f"{path}/qdrant", exist_ok=True)
+    os.makedirs(f"{path}/uploads", exist_ok=True)
+
     with open(f"{path}/config.json", 'w') as f:
         json.dump(project.model_dump(), f, indent=2, default=str)
-    
+
     projects[project.project_id] = project
 
 
