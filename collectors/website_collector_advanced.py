@@ -304,35 +304,20 @@ class AdvancedWebsiteCollector:
                       same_domain_only: bool = True,
                       progress_callback=None) -> List[Dict]:
         """Synchronous wrapper for async crawling"""
-        # Use a thread with its own event loop to avoid conflicts with FastAPI's loop
-        import threading
-
-        result_container = []
-        error_container = []
-
-        def run_in_thread():
-            try:
-                # Create a fresh event loop in this thread
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    result = loop.run_until_complete(
-                        self.crawl_website_async(start_url, max_pages, same_domain_only, progress_callback)
-                    )
-                    result_container.append(result)
-                finally:
-                    loop.close()
-            except Exception as e:
-                error_container.append(e)
-
-        thread = threading.Thread(target=run_in_thread)
-        thread.start()
-        thread.join()
-
-        if error_container:
-            raise error_container[0]
-
-        return result_container[0] if result_container else []
+        # Check if there's already an event loop running
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're in an event loop, create a new thread to run async code
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    self.crawl_website_async(start_url, max_pages, same_domain_only, progress_callback)
+                )
+                return future.result()
+        except RuntimeError:
+            # No event loop running, safe to use asyncio.run()
+            return asyncio.run(self.crawl_website_async(start_url, max_pages, same_domain_only, progress_callback))
 
 
 # Example usage
