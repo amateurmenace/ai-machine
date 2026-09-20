@@ -1,13 +1,13 @@
 """
 Main FastAPI Application
-Serves the Neighborhood AI backend API
+Serves the Civic AI Engine backend API
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import Any, Dict, List, Optional
 import json
 import os
 import uuid
@@ -17,8 +17,8 @@ from models import (
     ProjectConfig, DataSource, ChatRequest, ChatMessage,
     DataIngestionJob, AIProvider, DataSourceType, APIClient
 )
-from agent import NeighborhoodAgent
-from vector_store import VectorStore
+from agent import CivicAgent
+from stores import build_store
 from collectors.youtube_collector import YouTubeCollector
 from collectors.website_collector import WebsiteCollector
 from collectors.pdf_collector import PDFCollector
@@ -29,6 +29,8 @@ from collectors.youtube_channel import (
 
 from api.auth import ALL_SCOPES, DEFAULT_SCOPES, new_client_record
 from api.gateway import GatewayContext, configure_gateway, router as community_router
+from cloud import cloud_status
+from cloud.storage import get_storage
 from community.constitution import (
     list_constitution_versions,
     load_constitution,
@@ -53,7 +55,7 @@ except ImportError:
 
 
 app = FastAPI(
-    title="Neighborhood AI API",
+    title="Civic AI Engine API",
     description="Backend API for creating community AI assistants",
     version="1.0.0"
 )
@@ -74,8 +76,10 @@ app.add_middleware(
 # In-memory storage (use database in production)
 projects: Dict[str, ProjectConfig] = {}
 ingestion_jobs: Dict[str, DataIngestionJob] = {}
-agents: Dict[str, NeighborhoodAgent] = {}
-vector_stores: Dict[str, VectorStore] = {}  # Cache to avoid Qdrant locking issues
+agents: Dict[str, CivicAgent] = {}
+# Either store from stores/, cached: Qdrant to avoid file locking, Postgres
+# to avoid opening a second connection pool per project.
+vector_stores: Dict[str, Any] = {}
 
 
 # Helper functions
@@ -125,7 +129,7 @@ def list_project_ids() -> List[str]:
     return sorted(ids)
 
 
-def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
+def get_or_create_agent(project_id: str) -> CivicAgent:
     """Get or create agent for a project"""
     if project_id in agents:
         return agents[project_id]
@@ -136,13 +140,10 @@ def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
 
     # Get or create shared vector store
     if project_id not in vector_stores:
-        vector_stores[project_id] = VectorStore(
-            path=f"./data/{project_id}/qdrant",
-            collection_name=project_id
-        )
+        vector_stores[project_id] = build_store(project)
 
     # Create agent with shared vector store
-    agent = NeighborhoodAgent(project, vector_store=vector_stores[project_id])
+    agent = CivicAgent(project, vector_store=vector_stores[project_id])
     agents[project_id] = agent
     return agent
 
@@ -178,6 +179,19 @@ async def list_sync_runs():
     }
 
 
+@app.get("/api/admin/cloud-status")
+async def cloud_backends():
+    """Which backend is serving each piece: rate limits, uploads, secrets, logs.
+
+    Every cloud backend in ``cloud/`` falls back to the local one when it is not
+    configured or not reachable, which is what keeps a single-machine
+    deployment working. The cost of that is that a misconfigured cloud
+    deployment looks exactly like a working local one from the outside. This is
+    where an operator finds out which it is, instead of guessing.
+    """
+    return cloud_status()
+
+
 # The Community AI gateway: OpenAI-compatible /v1 endpoints plus the civic
 # knowledge API. See api/gateway.py and COMMUNITY_AI_SCOPE.md.
 configure_gateway(
@@ -199,7 +213,7 @@ async def api_root():
     """API root. What used to live at `/` before the console shared this service."""
     return {
         "status": "healthy",
-        "service": "Neighborhood AI API",
+        "service": "Civic AI Engine API",
         "version": "1.0.0",
         "docs": "/docs",
         "community_api": "/community",
@@ -223,7 +237,7 @@ async def root():
 
     return {
         "status": "healthy",
-        "service": "Neighborhood AI API",
+        "service": "Civic AI Engine API",
         "version": "1.0.0"
     }
 
@@ -434,10 +448,7 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
         
         # Get or create vector store (cached to avoid locking issues)
         if project.project_id not in vector_stores:
-            vector_stores[project.project_id] = VectorStore(
-                path=f"./data/{project.project_id}/qdrant",
-                collection_name=project.project_id
-            )
+            vector_stores[project.project_id] = build_store(project)
         vector_store = vector_stores[project.project_id]
         
         documents = []
@@ -1238,7 +1249,7 @@ async def health_check():
     """System health check"""
     health = {
         "status": "healthy",
-        "service": "Neighborhood AI API",
+        "service": "Civic AI Engine API",
         "version": "1.0.0",
         "checks": {}
     }
@@ -1330,11 +1341,7 @@ async def project_health(project_id: str):
     vector_docs = 0
     vector_status = "ready"
     try:
-        from vector_store import VectorStore
-        vs = VectorStore(
-            path=f"./data/{project_id}/qdrant",
-            collection_name=project_id
-        )
+        vs = build_store(project)
         stats = vs.get_stats()
         vector_docs = stats.get('total_documents', 0)
         if vector_docs == 0:
@@ -1519,25 +1526,26 @@ async def upload_pdf(
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     try:
-        # Save the file
-        upload_dir = f"./data/{project_id}/uploads"
-        os.makedirs(upload_dir, exist_ok=True)
-
-        file_path = f"{upload_dir}/{file.filename}"
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
+        # Store the file wherever this deployment keeps uploads: local disk by
+        # default, Cloud Storage when COMMUNITY_STORAGE_BUCKET is set. What is
+        # recorded on the source is the URI, so the document is still readable
+        # after a community moves from one to the other.
+        content = await file.read()
+        storage = get_storage()
+        uri = storage.save(project_id, file.filename, content)
 
         # Create a source for this PDF
         source = DataSource(
             id=str(uuid.uuid4()),
             type=DataSourceType.PDF_UPLOAD,
-            url=f"file://{file_path}",
+            url=uri,
             name=name or file.filename,
             description=description or f"Uploaded PDF: {file.filename}",
             enabled=True,
             metadata={
-                "file_path": file_path,
+                "file_path": uri,
+                "storage_uri": uri,
+                "storage_backend": storage.backend,
                 "original_filename": file.filename,
                 "collection_method": "pdf_upload",
                 "file_size": len(content)
@@ -1556,7 +1564,7 @@ async def upload_pdf(
         )
 
         # Start ingestion
-        background_tasks.add_task(ingest_pdf_upload, job, project, file_path)
+        background_tasks.add_task(ingest_pdf_upload, job, project, uri)
 
         return {
             "message": "PDF uploaded successfully",
@@ -1565,10 +1573,12 @@ async def upload_pdf(
         }
 
     except Exception as e:
+        # A StorageError already names its own remedy, because the person who
+        # can fix a full disk or a missing bucket is reading this response.
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_path: str):
+async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, uri: str):
     """Background task to ingest uploaded PDF"""
     ingestion_jobs[job.job_id] = job
     job.status = "running"
@@ -1578,7 +1588,10 @@ async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_
         from collectors.pdf_collector import PDFCollector
 
         collector = PDFCollector()
-        pdf_data = collector.extract_from_file(file_path)
+        # A file-like object rather than a path, so this one line works whether
+        # the PDF is on local disk or in a bucket.
+        with get_storage().open(uri) as handle:
+            pdf_data = collector.extract_from_file(handle)
 
         if not pdf_data:
             job.status = "failed"
@@ -1587,10 +1600,7 @@ async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_
 
         # Get or create vector store (cached to avoid locking issues)
         if project.project_id not in vector_stores:
-            vector_stores[project.project_id] = VectorStore(
-                path=f"./data/{project.project_id}/qdrant",
-                collection_name=project.project_id
-            )
+            vector_stores[project.project_id] = build_store(project)
         vector_store = vector_stores[project.project_id]
 
         # Find the source

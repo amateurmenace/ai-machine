@@ -16,6 +16,10 @@ SUITES=(
   tests.test_tools         # URL guard, tool loop, failure paths
   tests.test_archive       # meeting titles, channel sync, video embeds
   tests.test_ledger        # hash chain, multi-sig ratification, tamper detection
+  tests.test_platform      # record status, tenancy, precompute, second opinion
+  tests.test_cloud         # cloud backends, and the local fallbacks they degrade to
+  tests.test_evalcompare   # provider comparison table, parity, retrieval diversity
+  tests.test_pgvector      # postgres archive: SQL, filters, row round trip, factory
 )
 
 failed=0

@@ -53,7 +53,9 @@ twice.
 ## A production deployment
 
 The test instance is a demo of the code, not an architecture. Production needs
-four changes, and the first is not optional.
+the changes below, and the first is not optional. The rest are each one
+environment variable, and each one falls back to the local behavior when it is
+not set, so they can be done one at a time.
 
 ### 1. Move the database to Cloud SQL
 
@@ -113,6 +115,134 @@ echo -n "sk-ant-..." | gcloud secrets create anthropic-key --data-file=-
 gcloud run services update community-ai --region us-central1 \
   --set-secrets ANTHROPIC_API_KEY=anthropic-key:latest
 ```
+
+There is a second way, and it is the one to use for a value that belongs to a
+project rather than to the service. Any configuration field or environment
+variable may hold a reference instead of a value:
+
+```json
+{
+  "api_key": "sm://projects/YOUR_PROJECT/secrets/anthropic-key/versions/latest",
+  "local_auth_header": "Authorization: Bearer sm://projects/YOUR_PROJECT/secrets/tunnel/versions/latest"
+}
+```
+
+The reference is resolved at the moment the provider is built and cached for
+the life of the process, so the key is never written to `config.json`, never
+appears in a backup of it, and never lands in a support thread. A field without
+the `sm://` prefix is used exactly as written, which is what a community
+keeping its key in an environment variable on its own machine wants.
+
+The service account needs the Secret Manager Secret Accessor role, and the
+short form `sm://anthropic-key` works when `GOOGLE_CLOUD_PROJECT` is set. A
+reference that cannot be resolved leaves the value empty and logs the reason;
+it is never passed along as if it were a key.
+
+### 5. Uploaded PDFs in Cloud Storage
+
+Cloud Run's filesystem is in memory, so a PDF a resident uploaded is gone at
+the next restart, along with the citations pointing at it.
+
+```bash
+gcloud storage buckets create gs://YOUR_PROJECT-uploads --location=us-central1
+gcloud run services update community-ai --region us-central1 \
+  --set-env-vars COMMUNITY_STORAGE_BUCKET=YOUR_PROJECT-uploads
+```
+
+The service account needs Storage Object Admin on the bucket. Sources that were
+ingested before the bucket existed keep their `file://` URIs and are still read
+from local disk, so switching does not orphan them.
+
+### 6. Rate limits in Memorystore
+
+The limiter counts in one process. With four instances a community that
+configured sixty requests a minute is serving two hundred and forty.
+
+```bash
+gcloud redis instances create community-ai --size=1 --region=us-central1
+gcloud run services update community-ai --region us-central1 \
+  --vpc-connector YOUR_CONNECTOR \
+  --set-env-vars COMMUNITY_REDIS_URL=redis://10.0.0.3:6379/0
+```
+
+Needs `pip install redis` in the image and a VPC connector, since Memorystore
+has no public address. Redis becoming unreachable does not fail requests: the
+gateway falls back to per-process limits, says so in the logs, and picks the
+shared counter back up on its own when Redis answers again.
+
+### 7. Request logs in Cloud Logging
+
+The JSONL log under `data/<project>/logs` is what the usage statistics read, so
+it stays. This mirrors the same records somewhere they survive the instance.
+
+```bash
+gcloud run services update community-ai --region us-central1 \
+  --set-env-vars COMMUNITY_CLOUD_LOGGING=true
+```
+
+The privacy rules do not change and are applied again on the way out: what is
+written is operational metadata plus a salted hash of the question, and the
+question text only if the project set `log_question_text`. Cloud Logging
+enforces retention on the log bucket, which this service cannot set, so each
+entry carries the project's `log_retention_days` and you set the bucket to
+match:
+
+```bash
+gcloud logging buckets update _Default --location=global --retention-days=30
+```
+
+Needs the Logs Writer role, and `pip install google-cloud-logging` in the image.
+
+---
+
+## Environment variables
+
+Every one of these is optional, and unset means the local behavior that a
+community running on one machine depends on. Nothing here is required to run
+this project.
+
+| Variable | Turns on | Also needs |
+| --- | --- | --- |
+| `COMMUNITY_REDIS_URL` | Rate limits counted in Redis, shared by every instance | `pip install redis`, a VPC connector |
+| `COMMUNITY_STORAGE_BUCKET` | Uploaded PDFs in Cloud Storage | `pip install google-cloud-storage`, Storage Object Admin |
+| `COMMUNITY_STORAGE_PREFIX` | Object prefix inside that bucket (default `uploads`) | |
+| `COMMUNITY_CLOUD_LOGGING` | Request records mirrored to Cloud Logging | `pip install google-cloud-logging`, Logs Writer |
+| `COMMUNITY_CLOUD_LOG_NAME` | Log name (default `community-ai-requests`) | |
+| `GOOGLE_CLOUD_PROJECT` | The project short `sm://` references resolve in | |
+| `COMMUNITY_DATA_ROOT` | Where local uploads and logs live (default `./data`) | |
+| `sm://` in a config field | That value read from Secret Manager | `pip install google-cloud-secret-manager`, Secret Accessor |
+
+None of these client libraries are in `requirements.txt`. A community server
+should not have to install four Google packages to answer a question about a
+zoning bylaw, and a missing one degrades to the local backend with a line in
+the log saying what to install.
+
+## Check what is actually running
+
+The fallbacks are what make one machine work, and they are also what makes a
+misconfigured cloud deployment look exactly like a working local one. Ask:
+
+```bash
+curl https://your-service.run.app/api/admin/cloud-status
+```
+
+```json
+{
+  "cloud_configured": true,
+  "degraded": ["storage"],
+  "rate_limits": {"backend": "redis", "active": true},
+  "storage": {
+    "backend": "local",
+    "configured": true,
+    "active": false,
+    "detail": "COMMUNITY_STORAGE_BUCKET names brookline-uploads, but uploads are going to local disk, which Cloud Run does not keep.",
+    "remedy": "Install it with: pip install google-cloud-storage ..."
+  }
+}
+```
+
+`degraded` is the list to watch. Empty means every backend you configured is
+the one actually serving.
 
 ---
 

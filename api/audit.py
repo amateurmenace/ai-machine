@@ -16,7 +16,10 @@ Turning question text on is a deliberate, per-project decision
 privacy policy before doing so.
 
 Logs are JSON Lines under ``data/<project_id>/logs/requests-YYYY-MM-DD.jsonl``,
-pruned by ``log_retention_days``.
+pruned by ``log_retention_days``. That file is also what ``usage_summary``
+reads, so it stays the source of truth for the public statistics even when
+``COMMUNITY_CLOUD_LOGGING`` mirrors the same records into Cloud Logging for an
+instance whose disk does not survive the night. See ``cloud/logging_sink.py``.
 """
 
 from __future__ import annotations
@@ -98,6 +101,7 @@ def log_request(
     error: Optional[str] = None,
     latency_ms: Optional[float] = None,
     data_root: str = "./data",
+    retention_days: Optional[int] = None,
     enabled: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """Append one request record. Returns the record, or None if disabled."""
@@ -152,9 +156,32 @@ def log_request(
                 handle.write(json.dumps(record, default=str) + "\n")
     except OSError:
         # Logging must never take down an answer.
+        _mirror_to_cloud(project_id, record, log_question_text, retention_days)
         return record
 
+    _mirror_to_cloud(project_id, record, log_question_text, retention_days)
     return record
+
+
+def _mirror_to_cloud(project_id: str, record: Dict[str, Any],
+                     log_question_text: bool,
+                     retention_days: Optional[int]) -> None:
+    """Copy the record to Cloud Logging, if a community configured one.
+
+    Imported here rather than at module scope so this module keeps working with
+    no ``cloud`` package present at all, and wrapped because a log that cannot
+    be written is not a reason a resident's question fails.
+    """
+    try:
+        from cloud.logging_sink import get_sink
+
+        sink = get_sink()
+        if sink is None:
+            return
+        sink.emit(project_id, record, include_question_text=log_question_text,
+                  retention_days=retention_days)
+    except Exception:
+        pass
 
 
 def prune_logs(project_id: str, retention_days: int, data_root: str = "./data") -> int:

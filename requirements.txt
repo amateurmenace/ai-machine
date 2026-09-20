@@ -36,3 +36,14 @@ validators>=0.22.0
 # purpose, so they keep working when the model stack is unavailable.
 PyYAML>=6.0          # community.yaml / sources.yaml
 cryptography>=42.0        # Ed25519 ratification signatures on the constitution ledger
+
+# Google Cloud backends (see cloud/ and deploy/README.md). Deliberately not
+# installed: each one is optional, is chosen by a single environment variable,
+# and degrades to the local backend with an operator-facing message when it is
+# absent. A community running on one machine should not have to install four
+# Google packages to answer a question about a zoning bylaw.
+# redis>=5.0                         # COMMUNITY_REDIS_URL, shared rate limits
+# google-cloud-storage>=2.14         # COMMUNITY_STORAGE_BUCKET, uploaded PDFs
+# google-cloud-secret-manager>=2.18  # sm:// references in config fields
+# google-cloud-logging>=3.9          # COMMUNITY_CLOUD_LOGGING, request records
+# psycopg[binary,pool]>=3.1          # COMMUNITY_DB_URL, the archive in PostgreSQL

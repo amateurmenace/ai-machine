@@ -17,12 +17,17 @@ Design choices worth stating:
 * **Rate limits are per client.** A community server running a 26B model has
   roughly one generation in flight at a time; an unthrottled script can deny
   service to residents without meaning to.
+* **The limiter backend is chosen, not assumed.** Counting in this process is
+  the default and is correct for one machine. Setting ``COMMUNITY_REDIS_URL``
+  moves the count to Redis so several instances share one window, and a Redis
+  that cannot be reached falls back here rather than refusing to start.
 """
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import threading
 import time
@@ -158,10 +163,14 @@ class RateLimiter:
 
     A fixed window rather than a token bucket because the numbers involved are
     small and an operator reading the logs should be able to reason about it.
-    In-memory, so limits reset on restart and are per-process; a deployment
-    running several workers should move this to Redis, which is noted in the
-    setup guide rather than pretended away.
+    In-memory, so limits reset on restart and are per-process, which is the
+    right answer for one community server and the wrong one for four Cloud Run
+    instances. :class:`cloud.ratelimit.RedisRateLimiter` is the same interface
+    backed by Redis, chosen by ``COMMUNITY_REDIS_URL``; see
+    :func:`_build_rate_limiter` below.
     """
+
+    backend = "memory"
 
     def __init__(self, window_seconds: int = 60) -> None:
         self.window_seconds = window_seconds
@@ -195,9 +204,74 @@ class RateLimiter:
             else:
                 self._windows.pop(key, None)
 
+    def status(self) -> Dict[str, Any]:
+        """What this limiter is, in the shape ``/api/admin/cloud-status`` wants."""
+        return {
+            "backend": self.backend,
+            "configured": bool(_fallback_reason),
+            "active": not _fallback_reason,
+            "window_seconds": self.window_seconds,
+            "tracked_keys": len(self._windows),
+            "detail": _fallback_reason or (
+                "Rate limits are counted per process. Correct for one server, "
+                "and four instances would each enforce the full limit."
+            ),
+            "remedy": _fallback_remedy or None,
+        }
+
+
+REDIS_URL_ENV = "COMMUNITY_REDIS_URL"
+
+# Why the limiter is not the one that was configured, if it is not. Read by
+# RateLimiter.status(), so an operator sees a fallback instead of guessing.
+_fallback_reason = ""
+_fallback_remedy = ""
+
+
+def _build_rate_limiter(window_seconds: int = 60) -> Any:
+    """Choose the limiter backend from the environment.
+
+    Unset ``COMMUNITY_REDIS_URL`` means one machine, which is the deployment
+    this project is built for, so the in-memory limiter is the default rather
+    than a fallback. A Redis that is configured and unreachable is an operator's
+    problem and must not stop the gateway from starting: the community keeps
+    per-process limits, gets a boot log that says what to fix, and
+    ``/api/admin/cloud-status`` keeps saying it.
+    """
+    global _fallback_reason, _fallback_remedy
+
+    url = (os.getenv(REDIS_URL_ENV) or "").strip()
+    if not url:
+        return RateLimiter(window_seconds)
+
+    try:
+        from cloud.ratelimit import RedisRateLimiter
+        return RedisRateLimiter(url, window_seconds=window_seconds,
+                                fallback=RateLimiter(window_seconds))
+    except Exception as exc:
+        _fallback_reason = (
+            f"{REDIS_URL_ENV} is set but Redis is not being used: "
+            f"{getattr(exc, 'message', None) or exc}"
+        )
+        _fallback_remedy = getattr(exc, "remedy", "") or (
+            "Check the Redis URL and that this service can reach it."
+        )
+        print(f"[auth] {_fallback_reason} {_fallback_remedy} "
+              f"Rate limits are being counted per process.")
+        return RateLimiter(window_seconds)
+
 
 # One limiter per process, shared by all gateway routes.
-rate_limiter = RateLimiter()
+rate_limiter = _build_rate_limiter()
+
+
+def rate_limiter_status() -> Dict[str, Any]:
+    """Describe the limiter actually in use."""
+    describe = getattr(rate_limiter, "status", None)
+    if callable(describe):
+        return describe()
+    return {"backend": "unknown", "configured": False, "active": True,
+            "detail": "This limiter does not describe itself.", "remedy": None}
 
 
 def new_client_record(name: str, scopes: Optional[List[str]] = None,
