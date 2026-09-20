@@ -4,10 +4,52 @@ Two deployments, for two different purposes. Do not confuse them.
 
 ---
 
+## Which account this deploys to
+
+Read this first if you are signed into more than one Google account.
+
+gcloud keeps one active account per machine, and being logged into a work
+identity and a personal one at the same time is the normal state of affairs.
+Deploying a community's AI into the wrong organization is not a mistake you
+want to discover from a billing alert, so the script refuses to guess.
+
+Name the account you mean, and it will refuse to run as any other:
+
+```bash
+./deploy/cloudrun.sh YOUR_PROJECT_ID --account you@example.com
+```
+
+Before anything billable happens it prints the account, the project, and the
+project's owning organization, and asks for confirmation:
+
+```
+  account   you@example.com
+  project   civic-ai-test
+  owned by  no organization (personal project)
+  region    us-central1
+```
+
+If the project sits under a Google Workspace organization it says so, in those
+words, because that is the difference between your own project and your
+employer's. Without a terminal it stops rather than deploying unattended to an
+account nobody confirmed; pass `--yes` only in a pipeline where you have
+already pinned `--account`.
+
+To check or switch first:
+
+```bash
+gcloud auth list                              # every account on this machine
+gcloud config get-value account               # the active one
+gcloud config set account you@example.com     # switch
+gcloud projects list                          # what that account can see
+```
+
+---
+
 ## A test instance, in one command
 
 ```bash
-./deploy/cloudrun.sh YOUR_GCP_PROJECT_ID
+./deploy/cloudrun.sh YOUR_GCP_PROJECT_ID --account you@example.com
 ```
 
 That builds the container with Cloud Build and deploys it to Cloud Run. Takes
