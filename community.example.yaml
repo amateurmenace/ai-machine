@@ -1,0 +1,72 @@
+# Community AI deployment configuration
+#
+# Section 20 of the community-owned AI guide: a new community should provide
+# configuration, a constitution, and a source list, not fork the platform. This
+# file is that configuration. Copy it to community.yaml and edit.
+#
+#   cp community.example.yaml community.yaml
+#   python3 -m scripts.bootstrap_community community.yaml
+#
+# Everything the community owns lives outside this file, in source control:
+# the constitution in constitution/, the source inventory in knowledge/, the
+# evaluation set in evals/. This file only says which of them to use.
+
+community:
+  # Used in citations, prompts, and the public model card.
+  name: "Brookline, MA"
+  short_name: "Brookline"
+  project_id: "brookline-ma"
+  assistant_name: "Brookline AI"
+  tagline: "Ask about the town, or anything else."
+  # Shown to residents as the operator of record.
+  operator: "Town of Brookline / Brookline Community Technology"
+  contact: "ai@example.org"
+
+constitution:
+  # Directory holding constitution-v*.md, changelog.md, governance.md.
+  directory: "constitution"
+  # "latest", or pin a version while a new one is under review.
+  version: "latest"
+
+model:
+  # lmstudio | ollama | openai | anthropic
+  provider: "lmstudio"
+  name: "gemma-4-26b-a4b"
+  # LM Studio's local server. Never expose this port to the internet; the
+  # gateway is the only thing that should face outward.
+  base_url: "http://localhost:1234/v1"
+  temperature: 0.3          # lower than a chat default: this system cites records
+  max_tokens: 2000
+  context_window: 8192
+
+retrieval:
+  # Section 5: dense plus keyword, fused, reranked, 8-15 passages out.
+  hybrid: true
+  reranking: true
+  query_expansion: true
+  model_query_rewrite: false   # costs one extra generation per question
+  top_k: 8
+  candidate_pool: 24
+  # all-MiniLM-L6-v2 (384d, default) or BAAI/bge-m3 (1024d, guide's recommendation).
+  # Changing this requires re-indexing; see COMMUNITY_AI_SETUP.md.
+  embedding_model: "all-MiniLM-L6-v2"
+
+provenance:
+  require_citations: true
+
+privacy:
+  # Operational metadata is logged so usage can be reported and retrieval
+  # debugged. Resident question text is not, unless you turn it on and say so
+  # in your published privacy policy.
+  log_requests: true
+  log_question_text: false
+  log_retention_days: 30
+
+api:
+  # Issue per-application keys after bootstrap:
+  #   POST /api/projects/<project_id>/api-clients  {"name": "...", "scopes": [...]}
+  enabled: false
+
+# The source inventory. Keep the authoritative list in knowledge/sources.yaml
+# and point at it here, or inline a short list for a small deployment.
+sources_file: "knowledge/sources.yaml"

@@ -1,306 +1,241 @@
 """
 AI Agent
-Main agent that handles chat with RAG (Retrieval-Augmented Generation)
+
+The community answer path: constitution + hybrid retrieval + citations +
+provenance, per the community-owned AI guide.
+
+This keeps the original ``NeighborhoodAgent`` interface — ``chat()``,
+``search_knowledge()``, ``get_stats()``, ``build_system_prompt()`` — so the
+existing API and frontend keep working, while the work behind ``chat()`` now
+runs through :mod:`rag.pipeline`:
+
+    question -> constitution -> query expansion -> hybrid dense + keyword search
+             -> rerank -> generation -> citation check -> answer + provenance
+
+The pieces are each independently replaceable. Swapping the foundation model
+does not touch the constitution, the archive, the citations, or the evaluation
+set, which is the property section 1 of the guide asks the architecture to have.
 """
 
+from __future__ import annotations
+
 import os
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
+
+from community.constitution import Constitution, corpus_freshness, resolve_for_project
+from models import ChatMessage, ProjectConfig
+from providers import PROVIDER_LABELS, ProviderError, build_provider
+from rag.hybrid import HybridRetriever, RetrievalFilters
+from rag.pipeline import CommunityPipeline, PromptBundle
 from vector_store import VectorStore
-from models import ProjectConfig, ChatMessage
+
+SYSTEM_VERSION = os.getenv("COMMUNITY_AI_VERSION", "0.1")
 
 
 class NeighborhoodAgent:
-    """AI agent that answers questions using RAG"""
+    """AI agent that answers questions from the community's public record."""
 
-    def __init__(self, config: ProjectConfig, vector_store: VectorStore = None):
+    def __init__(self, config: ProjectConfig, vector_store: Optional[VectorStore] = None):
         self.config = config
-        # Use provided vector store or create new one
+
         if vector_store:
             self.vector_store = vector_store
         else:
             self.vector_store = VectorStore(
                 path=f"./data/{config.project_id}/qdrant",
-                collection_name=config.project_id
+                collection_name=config.project_id,
             )
-        
-        # Initialize LLM client based on provider
-        if config.ai_provider == "ollama":
-            import ollama
-            self.client = ollama
-            self.client_type = "ollama"
-        elif config.ai_provider == "openai":
-            from openai import OpenAI
-            self.client = OpenAI(api_key=config.api_key or os.getenv("OPENAI_API_KEY"))
-            self.client_type = "openai"
-        elif config.ai_provider == "anthropic":
-            from anthropic import Anthropic
-            self.client = Anthropic(api_key=config.api_key or os.getenv("ANTHROPIC_API_KEY"))
-            self.client_type = "anthropic"
-    
+
+        # The constitution that governs this project. A file in source control
+        # wins over an inline one; see community/constitution.py.
+        self.constitution: Constitution = resolve_for_project(
+            config, version=getattr(config, "constitution_version", "latest") or "latest"
+        )
+
+        self.retriever = HybridRetriever(
+            self.vector_store,
+            cache_key=config.project_id,
+            # An all-keyword or all-dense corpus is rare; equal weighting is the
+            # reasonable default and reciprocal rank fusion is insensitive to
+            # small changes here.
+            dense_weight=1.0,
+            keyword_weight=1.0,
+        )
+
+        self.provider = build_provider(
+            provider=str(config.ai_provider.value if hasattr(config.ai_provider, "value")
+                         else config.ai_provider),
+            model=config.model_name,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            context_window=config.context_window,
+            api_key=config.api_key,
+            base_url=getattr(config, "lmstudio_base_url", None),
+        )
+        self.client_type = self.provider.name
+
+        self.pipeline = CommunityPipeline(
+            retriever=self.retriever,
+            constitution=self.constitution,
+            project_name=config.project_name,
+            community=config.municipality_name,
+            tone=config.tone,
+            identity=config.system_prompt or None,
+            top_k=getattr(config, "retrieval_top_k", 8),
+            candidate_pool=getattr(config, "retrieval_candidate_pool", 24),
+            model=config.model_name,
+            provider=self.client_type,
+            knowledge_updated=corpus_freshness(config.project_id),
+            system_version=SYSTEM_VERSION,
+        )
+
+    # --- compatibility ---------------------------------------------------
+
     def build_system_prompt(self) -> str:
-        """Build the system prompt from config"""
-        base_prompt = ""
+        """The assembled system text, for callers that want to inspect it."""
+        return "\n\n".join(
+            [self.pipeline.identity, self.constitution.render_for_prompt(
+                self.config.municipality_name)]
+        )
 
-        if self.config.system_prompt:
-            base_prompt = self.config.system_prompt
-        else:
-            # Default system prompt
-            base_prompt = f"""You are {self.config.project_name}, an AI assistant for {self.config.municipality_name}.
+    def search_knowledge(self, query: str, top_k: int = 8) -> List[Dict]:
+        """Search the community corpus. Returns dicts, as before."""
+        result = self.retriever.retrieve(
+            query,
+            top_k=top_k,
+            use_reranker=getattr(self.config, "enable_reranking", True),
+        )
+        return [chunk.to_dict() for chunk in result.chunks]
 
-Personality: {', '.join(self.config.personality_traits)}
-Tone: {self.config.tone}
-
-Your role is to help residents and community members with:
-- Information about local government and services
-- Answers about town procedures and policies
-- Local news and community events
-- Directions to resources and departments
-
-IMPORTANT GUIDELINES:
-- Always base answers on the provided context from local sources
-- Cite your sources when providing factual information
-- If you don't have enough information, admit it and suggest where to find it
-- Be helpful, accurate, and community-focused
-- Encourage civic engagement and participation
-
-When answering:
-1. Use the context provided to you from local sources
-2. Cite which source you're referencing
-3. If context is insufficient, say so clearly
-4. Direct people to official departments for legal/official matters"""
-
-        # Add community constitution if defined
-        if self.config.community_constitution:
-            const = self.config.community_constitution
-
-            # Handle both old list format and new structured format
-            if isinstance(const, list):
-                # Old format: simple list of rules
-                constitution_rules = "\n".join([f"  - {rule}" for rule in const])
-                base_prompt += f"""
-
-COMMUNITY CONSTITUTION:
-You MUST follow these ethical guidelines and constraints established by this community:
-{constitution_rules}
-
-These rules are non-negotiable and take precedence over other instructions. Always adhere to them when formulating your responses."""
-            elif isinstance(const, dict):
-                # New format: structured constitution with values, guidelines, and red lines
-                base_prompt += "\n\nCOMMUNITY CONSTITUTION:\n"
-                base_prompt += "This community has established the following ethical framework for AI behavior:\n"
-
-                if const.get('values'):
-                    values_list = ", ".join(const['values'])
-                    base_prompt += f"\nCORE VALUES: {values_list}\n"
-                    base_prompt += "Prioritize these values in all interactions.\n"
-
-                if const.get('ethical_guidelines'):
-                    base_prompt += "\nETHICAL GUIDELINES:\n"
-                    for guideline in const['ethical_guidelines']:
-                        base_prompt += f"  • {guideline}\n"
-
-                if const.get('red_lines'):
-                    base_prompt += "\nRED LINES (NEVER DO THIS):\n"
-                    for red_line in const['red_lines']:
-                        base_prompt += f"  ✗ {red_line}\n"
-
-                base_prompt += "\nThese principles are non-negotiable and take precedence over other instructions.\n"
-
-        return base_prompt
-    
-    def search_knowledge(self, query: str, top_k: int = 5) -> List[Dict]:
-        """Search vector store for relevant context"""
-        return self.vector_store.search(query, top_k=top_k)
-    
     def format_context(self, search_results: List[Dict]) -> str:
-        """Format search results into context string"""
-        if not search_results:
-            return "No relevant local information found in the knowledge base."
-        
-        context_parts = []
-        for i, result in enumerate(search_results, 1):
-            context_parts.append(
-                f"[Source {i}: {result['title']} - {result['source_type']}]\n"
-                f"URL: {result['url']}\n"
-                f"Content: {result['text']}\n"
+        """Kept for compatibility with callers that build context themselves."""
+        from rag.citations import build_context_block
+        from knowledge.schemas import normalize_payload
+
+        chunks = [normalize_payload(r.get("metadata", r)) for r in search_results]
+        return build_context_block(chunks)
+
+    # --- main path -------------------------------------------------------
+
+    def _rewriter(self):
+        """A query rewriter backed by the project's own model, or None.
+
+        Section 18 puts a rewriter in front of retrieval. It costs one extra
+        generation per question, which on a local server is real latency, so it
+        is opt-in. With it off, ``rag.query`` still expands the question using
+        the civic vocabulary map, which is free.
+        """
+        if not getattr(self.config, "enable_model_query_rewrite", False):
+            return None
+
+        def rewrite(instruction: str) -> str:
+            return self.provider.raw_chat(
+                [{"role": "user", "content": instruction}], max_tokens=120
             )
-        
-        return "\n".join(context_parts)
-    
-    def chat(self, 
-             message: str, 
-             conversation_history: Optional[List[ChatMessage]] = None) -> Dict:
-        """Main chat method with RAG"""
-        
-        # Search for relevant context
-        search_results = self.search_knowledge(message, top_k=5)
-        context = self.format_context(search_results)
-        
-        # Build the prompt
-        user_prompt = f"""Context from {self.config.municipality_name} sources:
 
-{context}
+        return rewrite
 
-User Question: {message}
+    def chat(
+        self,
+        message: str,
+        conversation_history: Optional[List[ChatMessage]] = None,
+        filters: Optional[RetrievalFilters] = None,
+    ) -> Dict:
+        """Answer one question with retrieval, citations, and provenance."""
+        history: List[Dict[str, str]] = []
+        for msg in (conversation_history or [])[-5:]:
+            role = getattr(msg, "role", None) or (
+                msg.get("role") if isinstance(msg, dict) else None)
+            content = getattr(msg, "content", None) or (
+                msg.get("content") if isinstance(msg, dict) else None)
+            if role in ("user", "assistant") and content:
+                history.append({"role": role, "content": content})
 
-Please provide a helpful answer based on the context above. If you reference specific information, mention which source it comes from."""
+        def generate(prompt: PromptBundle) -> str:
+            return self.provider.complete(prompt)
 
-        # Prepare conversation
-        messages = []
-        
-        # Add conversation history if provided
-        if conversation_history:
-            for msg in conversation_history[-5:]:  # Last 5 messages for context
-                messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-        
-        # Add current message
-        messages.append({
-            "role": "user",
-            "content": user_prompt
-        })
-        
-        # Get response from LLM
         try:
-            if self.client_type == "ollama":
-                try:
-                    response = self.client.chat(
-                        model=self.config.model_name,
-                        messages=[
-                            {"role": "system", "content": self.build_system_prompt()},
-                            *messages
-                        ],
-                        options={
-                            "temperature": self.config.temperature,
-                            "num_ctx": self.config.context_window
-                        }
-                    )
-                    answer = response['message']['content']
-                except Exception as ollama_error:
-                    error_msg = str(ollama_error).lower()
-                    if "connection" in error_msg or "refused" in error_msg:
-                        return {
-                            'answer': "Ollama is not running. Please start Ollama with `ollama serve` in your terminal, then try again.",
-                            'sources': [],
-                            'error': 'ollama_not_running',
-                            'error_detail': str(ollama_error)
-                        }
-                    elif "not found" in error_msg or "pull" in error_msg:
-                        return {
-                            'answer': f"The model '{self.config.model_name}' is not installed. Run `ollama pull {self.config.model_name}` to install it.",
-                            'sources': [],
-                            'error': 'model_not_found',
-                            'error_detail': str(ollama_error)
-                        }
-                    else:
-                        raise ollama_error
-
-            elif self.client_type == "openai":
-                if not self.config.api_key and not os.getenv("OPENAI_API_KEY"):
-                    return {
-                        'answer': "OpenAI API key is not configured. Please add your API key in Settings.",
-                        'sources': [],
-                        'error': 'missing_api_key'
-                    }
-                response = self.client.chat.completions.create(
-                    model=self.config.model_name,
-                    messages=[
-                        {"role": "system", "content": self.build_system_prompt()},
-                        *messages
-                    ],
-                    temperature=self.config.temperature,
-                    max_tokens=self.config.max_tokens
-                )
-                answer = response.choices[0].message.content
-
-            elif self.client_type == "anthropic":
-                if not self.config.api_key and not os.getenv("ANTHROPIC_API_KEY"):
-                    return {
-                        'answer': "Anthropic API key is not configured. Please add your API key in Settings.",
-                        'sources': [],
-                        'error': 'missing_api_key'
-                    }
-                # Anthropic doesn't use system message in messages array
-                response = self.client.messages.create(
-                    model=self.config.model_name,
-                    max_tokens=self.config.max_tokens,
-                    temperature=self.config.temperature,
-                    system=self.build_system_prompt(),
-                    messages=messages
-                )
-                answer = response.content[0].text
-
-            # Format sources for response
-            sources = []
-            if self.config.enable_citations and search_results:
-                sources = [
-                    {
-                        'title': r['title'],
-                        'url': r['url'],
-                        'source_type': r['source_type'],
-                        'relevance_score': round(r['score'], 3)
-                    }
-                    for r in search_results
-                ]
-
+            result = self.pipeline.answer(
+                message,
+                generate=generate,
+                filters=filters,
+                history=history,
+                rewriter=self._rewriter(),
+                use_reranker=getattr(self.config, "enable_reranking", True),
+                enforce_citations=getattr(self.config, "require_citations", True),
+                expand=getattr(self.config, "enable_query_expansion", True),
+            )
+        except ProviderError as exc:
+            # A misconfigured or stopped local server is the most common failure
+            # in this deployment, and the operator needs the remedy, not a trace.
             return {
-                'answer': answer,
-                'sources': sources,
-                'context_used': len(search_results) > 0
+                "answer": str(exc),
+                "sources": [],
+                "error": "provider_unavailable",
+                "error_detail": str(exc),
+                "provenance": {
+                    "provider": self.client_type,
+                    "model": self.config.model_name,
+                    "constitution_version": self.constitution.version,
+                },
             }
 
-        except Exception as e:
-            error_msg = str(e)
-            # Provide more helpful error messages
-            if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
-                user_msg = "API key is invalid or missing. Please check your API key in Settings."
-            elif "rate" in error_msg.lower() and "limit" in error_msg.lower():
-                user_msg = "Rate limit exceeded. Please wait a moment and try again."
-            elif "model" in error_msg.lower() and "not found" in error_msg.lower():
-                user_msg = f"Model '{self.config.model_name}' is not available. Please select a different model in Settings."
-            else:
-                user_msg = f"I apologize, but I encountered an error: {error_msg}"
-
+        if result.error:
             return {
-                'answer': user_msg,
-                'sources': [],
-                'error': str(e)
+                "answer": self._friendly_error(result.error),
+                "sources": [],
+                "error": result.error,
+                "provenance": result.provenance.to_dict(),
             }
-    
-    def get_stats(self) -> Dict:
-        """Get agent statistics"""
-        vector_stats = self.vector_store.get_stats()
-        
+
+        show_sources = getattr(self.config, "enable_citations", True)
         return {
-            'project_name': self.config.project_name,
-            'municipality': self.config.municipality_name,
-            'ai_provider': self.config.ai_provider,
-            'model': self.config.model_name,
-            'total_documents': vector_stats.get('total_documents', 0),
-            'data_sources': len(self.config.data_sources),
-            'active_sources': len([s for s in self.config.data_sources if s.enabled])
+            "answer": result.answer,
+            "sources": result.sources_payload() if show_sources else [],
+            "context_used": len(result.citations) > 0,
+            "provenance": result.provenance.to_dict(),
         }
 
+    @staticmethod
+    def _friendly_error(error: str) -> str:
+        text = (error or "").lower()
+        if "api_key" in text or "authentication" in text:
+            return "API key is invalid or missing. Please check your API key in Settings."
+        if "rate" in text and "limit" in text:
+            return "Rate limit exceeded. Please wait a moment and try again."
+        if "connection" in text or "refused" in text:
+            return (
+                "The model server is not reachable. If this project uses LM Studio, "
+                "start its local server and load the configured model."
+            )
+        if "model" in text and "not found" in text:
+            return "The configured model is not available. Choose another in Settings."
+        return f"I apologize, but I encountered an error: {error}"
 
-# Example usage
-if __name__ == "__main__":
-    from models import ProjectConfig, AIProvider
-    
-    config = ProjectConfig(
-        project_id="brookline-ma",
-        municipality_name="Brookline, MA",
-        project_name="Brookline AI",
-        ai_provider=AIProvider.OLLAMA,
-        model_name="llama3.1:8b"
-    )
-    
-    agent = NeighborhoodAgent(config)
-    
-    response = agent.chat("When is trash day?")
-    print(f"Answer: {response['answer']}")
-    if response['sources']:
-        print(f"\nSources:")
-        for source in response['sources']:
-            print(f"  - {source['title']}")
+    # --- reporting -------------------------------------------------------
+
+    def get_stats(self) -> Dict:
+        vector_stats = self.vector_store.get_stats()
+        return {
+            "project_name": self.config.project_name,
+            "municipality": self.config.municipality_name,
+            "ai_provider": self.client_type,
+            "provider_label": PROVIDER_LABELS.get(self.client_type, self.client_type),
+            "model": self.config.model_name,
+            "total_documents": vector_stats.get("total_documents", 0),
+            "embedding_model": vector_stats.get("embedding_model"),
+            "data_sources": len(self.config.data_sources),
+            "active_sources": len([s for s in self.config.data_sources if s.enabled]),
+            "constitution_version": self.constitution.version,
+            "constitution_status": self.constitution.status,
+            "constitution_principles": len(self.constitution.principles),
+            "system_version": SYSTEM_VERSION,
+            "knowledge_updated": corpus_freshness(self.config.project_id),
+        }
+
+    def provider_health(self) -> Dict:
+        return self.provider.health()
+
+    def invalidate_corpus_cache(self) -> None:
+        """Drop the keyword index after ingestion so new records are searchable."""
+        self.retriever.invalidate()

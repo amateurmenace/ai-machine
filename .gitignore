@@ -34,3 +34,10 @@ npm-debug.log*
 
 # Qdrant data
 qdrant_data/
+
+# Community deployment configuration (copy from the .example files)
+community.yaml
+knowledge/sources.yaml
+
+# Evaluation run output
+evals/results/

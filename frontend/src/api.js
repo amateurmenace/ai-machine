@@ -40,4 +40,10 @@ api.interceptors.response.use(
   }
 );
 
+// The resolved backend origin. Components that link directly to a
+// backend-served document (the constitution, the system facts, the OpenAPI
+// docs) need this: in production the frontend and the API are on different
+// hosts, so a root-relative path would resolve against the frontend.
+export const apiBaseUrl = API_BASE_URL;
+
 export default api;

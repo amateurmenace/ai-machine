@@ -15,7 +15,7 @@ from datetime import datetime
 
 from models import (
     ProjectConfig, DataSource, ChatRequest, ChatMessage,
-    DataIngestionJob, AIProvider, DataSourceType
+    DataIngestionJob, AIProvider, DataSourceType, APIClient
 )
 from agent import NeighborhoodAgent
 from vector_store import VectorStore
@@ -23,6 +23,19 @@ from collectors.youtube_collector import YouTubeCollector
 from collectors.website_collector import WebsiteCollector
 from collectors.pdf_collector import PDFCollector
 from collectors.source_discovery import SourceDiscovery
+
+from api.auth import ALL_SCOPES, DEFAULT_SCOPES, new_client_record
+from api.gateway import GatewayContext, configure_gateway, router as community_router
+from community.constitution import (
+    list_constitution_versions,
+    load_constitution,
+    resolve_for_project,
+)
+from providers import LM_STUDIO_BASE_URL, list_lmstudio_models
+from knowledge.schemas import (
+    RecordStatus, SourceType, document_chunks, meeting_chunks,
+)
+from rag.hybrid import HybridRetriever
 
 # Try to import advanced scraper (requires playwright)
 try:
@@ -96,6 +109,16 @@ def load_project(project_id: str) -> Optional[ProjectConfig]:
     return None
 
 
+def list_project_ids() -> List[str]:
+    """Every project id on disk, so the gateway can resolve a key to a project."""
+    ids = set(projects.keys())
+    if os.path.exists("./data"):
+        for folder in os.listdir("./data"):
+            if os.path.isfile(f"./data/{folder}/config.json"):
+                ids.add(folder)
+    return sorted(ids)
+
+
 def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
     """Get or create agent for a project"""
     if project_id in agents:
@@ -116,6 +139,20 @@ def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
     agent = NeighborhoodAgent(project, vector_store=vector_stores[project_id])
     agents[project_id] = agent
     return agent
+
+
+# The Community AI gateway: OpenAI-compatible /v1 endpoints plus the civic
+# knowledge API. See api/gateway.py and COMMUNITY_AI_SCOPE.md.
+configure_gateway(
+    GatewayContext(
+        load_project=load_project,
+        list_project_ids=list_project_ids,
+        get_agent=get_or_create_agent,
+        save_project=save_project,
+        data_root="./data",
+    )
+)
+app.include_router(community_router)
 
 
 # API Routes
@@ -296,6 +333,30 @@ async def remove_data_source(project_id: str, source_id: str):
     return {"message": "Data source removed"}
 
 
+def _source_body(source: DataSource) -> str:
+    """The board or committee a source belongs to.
+
+    Set ``body`` in a source's metadata to name it explicitly (for example
+    "Select Board"); otherwise the source's own name is the best available
+    signal, and is better than leaving the field empty.
+    """
+    return (source.metadata or {}).get("body") or source.name or ""
+
+
+def _pdf_pages(pdf_data: Dict) -> List[Dict]:
+    """Normalize the PDF collector's page list for the document chunker."""
+    pages = pdf_data.get("pages") or []
+    normalized = [
+        {"text": page.get("text", ""), "page": page.get("page_number")}
+        for page in pages
+        if page.get("text")
+    ]
+    if normalized:
+        return normalized
+    # Older collector output, or a PDF that yielded no per-page text.
+    return [{"text": pdf_data.get("full_text", ""), "page": None}]
+
+
 async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig):
     """Background task for data ingestion"""
     ingestion_jobs[job.job_id] = job
@@ -334,23 +395,21 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
 
             results = collector.collect_playlist(source.url, progress_callback=progress)
 
-            # Process into documents
+            # Build structured meeting records rather than loose caption lines.
+            # Grouping by speaker and agenda item keeps each passage citable and
+            # keeps the timestamp that lets a resident jump to the moment.
             for result in results:
-                # Chunk transcript into sections
-                for segment in result['transcript']['segments']:
-                    documents.append({
-                        'text': segment['text'],
-                        'metadata': {
-                            'source': source.name,
-                            'source_type': 'youtube',
-                            'collection_method': collection_method,
-                            'url': result['url'],
-                            'title': result['title'],
-                            'date': result.get('published_at', ''),
-                            'video_id': result['video_id'],
-                            'timestamp': segment['start_time']
-                        }
-                    })
+                for chunk in meeting_chunks(
+                    result['transcript']['segments'],
+                    community=project.municipality_name,
+                    body=_source_body(source),
+                    meeting_date=result.get('published_at', ''),
+                    video_url=result['url'],
+                    title=result['title'],
+                    source=source.name,
+                    collection_method=collection_method,
+                ):
+                    documents.append({'text': chunk.text, 'metadata': chunk.to_payload()})
 
         elif source.type == DataSourceType.YOUTUBE_VIDEO:
             collection_method = "youtube_transcript_api"
@@ -360,21 +419,18 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
             result = collector.collect_video(source.url)
             if result and result.get('transcript'):
                 job.processed_items = 1
-                # Chunk transcript into sections
-                for segment in result['transcript']['segments']:
-                    documents.append({
-                        'text': segment['text'],
-                        'metadata': {
-                            'source': source.name,
-                            'source_type': 'youtube',
-                            'collection_method': collection_method,
-                            'url': source.url,
-                            'title': source.name,
-                            'date': '',
-                            'video_id': result['video_id'],
-                            'timestamp': segment['start_time']
-                        }
-                    })
+                for chunk in meeting_chunks(
+                    result['transcript']['segments'],
+                    community=project.municipality_name,
+                    body=_source_body(source),
+                    meeting_date=(source.metadata or {}).get('meeting_date', '')
+                                 or result.get('published_at', ''),
+                    video_url=source.url,
+                    title=result.get('title') or source.name,
+                    source=source.name,
+                    collection_method=collection_method,
+                ):
+                    documents.append({'text': chunk.text, 'metadata': chunk.to_payload()})
             else:
                 job.status = "failed"
                 job.error = "No transcript available for this video. The video may not have captions enabled."
@@ -400,20 +456,19 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
             results = collector.crawl_website(source.url, max_pages=50, progress_callback=progress)
 
             for result in results:
-                # Chunk content
-                chunks = vector_store.chunk_text(result['content'])
-                for chunk in chunks:
-                    documents.append({
-                        'text': chunk,
-                        'metadata': {
-                            'source': source.name,
-                            'source_type': 'website',
-                            'collection_method': result.get('method', collection_method),
-                            'url': result['url'],
-                            'title': result['title'],
-                            'date': ''
-                        }
-                    })
+                for chunk in document_chunks(
+                    [{'text': result['content']}],
+                    title=result['title'],
+                    document_url=result['url'],
+                    department=(source.metadata or {}).get('department', ''),
+                    community=project.municipality_name,
+                    body=_source_body(source),
+                    source=source.name,
+                    collection_method=result.get('method', collection_method),
+                ):
+                    payload = chunk.to_payload()
+                    payload['source_type'] = SourceType.WEBSITE
+                    documents.append({'text': chunk.text, 'metadata': payload})
 
         elif source.type == DataSourceType.PDF_URL:
             collection_method = "pdf_url_download"
@@ -422,20 +477,24 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
 
             if pdf_data:
                 job.total_items = 1
-                # Chunk PDF text
-                chunks = vector_store.chunk_text(pdf_data['full_text'])
-                for chunk in chunks:
-                    documents.append({
-                        'text': chunk,
-                        'metadata': {
-                            'source': source.name,
-                            'source_type': 'pdf',
-                            'collection_method': collection_method,
-                            'url': source.url,
-                            'title': pdf_data['title'],
-                            'date': ''
-                        }
-                    })
+                # Chunk within each page so citations can name a page number.
+                # "The budget says $4M somewhere" is not a citation a resident
+                # can check; "p. 127" is.
+                meta = source.metadata or {}
+                for chunk in document_chunks(
+                    _pdf_pages(pdf_data),
+                    title=pdf_data.get('title') or source.name,
+                    document_url=source.url,
+                    department=meta.get('department', ''),
+                    date=meta.get('date', ''),
+                    document_type=meta.get('document_type', ''),
+                    community=project.municipality_name,
+                    body=_source_body(source),
+                    status=meta.get('status', RecordStatus.UNKNOWN),
+                    source=source.name,
+                    collection_method=collection_method,
+                ):
+                    documents.append({'text': chunk.text, 'metadata': chunk.to_payload()})
                 job.processed_items = 1
 
         # Store collection method in source metadata
@@ -458,6 +517,12 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
         source.word_count = total_words
         source.document_count = len(documents)
         save_project(project)
+
+        # The keyword half of hybrid retrieval holds an in-memory index of the
+        # corpus. Without this, newly ingested records are findable by vector
+        # search but invisible to keyword search until the cache expires.
+        HybridRetriever(vector_store, cache_key=project.project_id).invalidate()
+        agents.pop(project.project_id, None)
 
         job.status = "completed"
         job.completed_at = datetime.now()
@@ -572,6 +637,17 @@ async def list_ollama_models():
         return {"models": [], "error": str(e)}
 
 
+@app.get("/api/lmstudio/models")
+async def list_lm_studio_models(base_url: Optional[str] = None):
+    """List models loaded in a local LM Studio server.
+
+    Section 12 of the community-owned AI guide runs inference on a local LM
+    Studio instance. This asks that server what it actually has loaded, so the
+    setup wizard can offer real choices instead of a hardcoded list.
+    """
+    return list_lmstudio_models(base_url)
+
+
 @app.get("/api/models/{provider}")
 async def list_available_models(provider: str):
     """Get available models for a provider"""
@@ -607,6 +683,144 @@ async def generate_personality(
         return {"personality": personality}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/projects/{project_id}/constitution")
+async def get_project_constitution(project_id: str):
+    """The constitution governing this project, and the versions available."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    constitution = resolve_for_project(
+        project, version=getattr(project, "constitution_version", "latest") or "latest"
+    )
+    return {
+        "project_id": project_id,
+        "pinned_version": getattr(project, "constitution_version", "latest"),
+        "available_versions": list_constitution_versions(),
+        "active": constitution.summary(),
+        "text": constitution.text,
+        "rendered_prompt": constitution.render_for_prompt(project.municipality_name),
+    }
+
+
+@app.put("/api/projects/{project_id}/constitution")
+async def set_project_constitution_version(project_id: str, payload: Dict):
+    """Pin this project to a constitution version.
+
+    Amending the constitution is a governance action taken in source control,
+    not an API call. What a project chooses here is which adopted version it
+    runs, so a community can review a new version before switching to it.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    version = str(payload.get("version", "latest"))
+    available = list_constitution_versions()
+    if version != "latest" and version not in available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown constitution version '{version}'. Available: "
+                   f"{', '.join(available) or 'none on disk'}.",
+        )
+
+    project.constitution_version = version
+    project.updated_at = datetime.now()
+    save_project(project)
+    agents.pop(project_id, None)  # rebuild the agent with the new constitution
+
+    return {"project_id": project_id, "constitution_version": version}
+
+
+@app.get("/api/projects/{project_id}/api-clients")
+async def list_api_clients(project_id: str):
+    """List the applications authorized to call this project's community API."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return {
+        "api_enabled": project.api_enabled,
+        "legacy_project_key_active": bool(project.project_api_key),
+        "clients": [
+            {
+                "client_id": c.client_id,
+                "name": c.name,
+                "key_prefix": c.key_prefix,
+                "scopes": c.scopes,
+                "rate_limit_per_minute": c.rate_limit_per_minute,
+                "enabled": c.enabled,
+                "created_at": c.created_at,
+                "last_used": c.last_used,
+                "request_count": c.request_count,
+            }
+            for c in (project.api_clients or [])
+        ],
+    }
+
+
+@app.post("/api/projects/{project_id}/api-clients")
+async def create_api_client(project_id: str, payload: Dict):
+    """Issue an application key.
+
+    The plaintext key is returned once and stored only as a hash, so a leaked
+    config file does not hand out working credentials.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="An application name is required.")
+
+    scopes = payload.get("scopes") or list(DEFAULT_SCOPES)
+    unknown = [s for s in scopes if s not in ALL_SCOPES]
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown scopes: {', '.join(unknown)}. Valid: {', '.join(ALL_SCOPES)}.",
+        )
+
+    try:
+        rate_limit = int(payload.get("rate_limit_per_minute", 60))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="rate_limit_per_minute must be a number.")
+
+    record, plaintext = new_client_record(name, scopes, rate_limit)
+
+    project.api_clients = list(project.api_clients or []) + [APIClient(**record)]
+    project.api_enabled = True
+    project.updated_at = datetime.now()
+    save_project(project)
+
+    return {
+        "client_id": record["client_id"],
+        "name": name,
+        "api_key": plaintext,
+        "scopes": scopes,
+        "rate_limit_per_minute": rate_limit,
+        "message": "Store this key now. It is hashed on the server and cannot be shown again.",
+    }
+
+
+@app.delete("/api/projects/{project_id}/api-clients/{client_id}")
+async def revoke_api_client(project_id: str, client_id: str):
+    """Revoke one application's key without affecting the others."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    before = len(project.api_clients or [])
+    project.api_clients = [c for c in (project.api_clients or []) if c.client_id != client_id]
+    if len(project.api_clients) == before:
+        raise HTTPException(status_code=404, detail="Application key not found")
+
+    project.updated_at = datetime.now()
+    save_project(project)
+    return {"message": f"Revoked application key {client_id}."}
 
 
 @app.post("/api/projects/{project_id}/generate-api-key")
@@ -1011,26 +1225,28 @@ async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_
             job.error = "Source not found"
             return
 
-        # Chunk the PDF text
-        chunks = vector_store.chunk_text(pdf_data['full_text'])
+        # Chunk within each page so citations can name a page number.
+        meta = source.metadata or {}
+        chunks = document_chunks(
+            _pdf_pages(pdf_data),
+            title=pdf_data.get('title') or source.name,
+            document_url=source.url,
+            department=meta.get('department', ''),
+            date=meta.get('date', ''),
+            document_type=meta.get('document_type', ''),
+            community=project.municipality_name,
+            body=_source_body(source),
+            status=meta.get('status', RecordStatus.UNKNOWN),
+            source=source.name,
+            collection_method='pdf_upload',
+        )
         job.total_items = len(chunks)
 
         documents = []
         for i, chunk in enumerate(chunks):
-            documents.append({
-                'text': chunk,
-                'metadata': {
-                    'source': source.name,
-                    'source_type': 'pdf',
-                    'collection_method': 'pdf_upload',
-                    'url': source.url,
-                    'title': pdf_data.get('title', source.name),
-                    'date': '',
-                    'page_count': pdf_data.get('num_pages', 0)
-                }
-            })
+            documents.append({'text': chunk.text, 'metadata': chunk.to_payload()})
             job.processed_items = i + 1
-            job.progress = ((i + 1) / len(chunks)) * 50
+            job.progress = ((i + 1) / len(chunks)) * 50 if chunks else 50
 
         # Add to vector store
         if documents:
@@ -1044,6 +1260,9 @@ async def ingest_pdf_upload(job: DataIngestionJob, project: ProjectConfig, file_
         source.word_count = pdf_data.get('word_count', 0)
         source.document_count = len(documents)
         save_project(project)
+
+        HybridRetriever(vector_store, cache_key=project.project_id).invalidate()
+        agents.pop(project.project_id, None)
 
         job.status = "completed"
         job.completed_at = datetime.now()

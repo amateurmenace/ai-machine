@@ -1,0 +1,67 @@
+# Community source inventory
+#
+# The machine-readable half of the data card. Every source the assistant indexes
+# should appear here with enough metadata that a citation can name the board,
+# the department, and the kind of record.
+#
+# Copy to knowledge/sources.yaml and edit.
+#
+# type:  youtube_playlist | youtube_video | website | pdf_url
+#
+# The `body`, `department`, `document_type` and `status` fields are carried into
+# every chunk from that source, which is what lets a citation read
+# "Select Board • March 12, 2026 • 1:13:42" instead of "Source 3".
+
+sources:
+  - name: "Select Board Meetings"
+    type: youtube_playlist
+    url: "https://www.youtube.com/playlist?list=REPLACE_ME"
+    body: "Select Board"
+    description: "Full video archive of Select Board meetings."
+
+  - name: "School Committee Meetings"
+    type: youtube_playlist
+    url: "https://www.youtube.com/playlist?list=REPLACE_ME"
+    body: "School Committee"
+
+  - name: "Planning Board Meetings"
+    type: youtube_playlist
+    url: "https://www.youtube.com/playlist?list=REPLACE_ME"
+    body: "Planning Board"
+
+  - name: "Town Website"
+    type: website
+    url: "https://www.example.gov"
+    department: "General"
+    description: "Departments, services, hours, contacts."
+
+  - name: "Zoning Bylaw"
+    type: pdf_url
+    url: "https://www.example.gov/zoning-bylaw.pdf"
+    document_type: "bylaw"
+    status: "adopted"
+    department: "Planning and Community Development"
+    date: "2024-06-01"
+
+  - name: "FY2027 Recommended Budget"
+    type: pdf_url
+    url: "https://www.example.gov/fy2027-budget.pdf"
+    document_type: "budget"
+    status: "proposed"
+    department: "Finance"
+    date: "2026-02-03"
+
+  - name: "Climate Action Plan"
+    type: pdf_url
+    url: "https://www.example.gov/climate-action-plan.pdf"
+    document_type: "plan"
+    status: "adopted"
+    department: "Sustainability"
+
+# Record what you deliberately chose not to index, and why. Principle 18
+# requires the assistant to be able to say what is missing, and this is where a
+# maintainer writes down what that is.
+known_gaps:
+  - "Executive session minutes are not published and are not indexed."
+  - "Meeting video before 2019 has no captions and has not been transcribed."
+  - "Assessor parcel data is available but not yet ingested."

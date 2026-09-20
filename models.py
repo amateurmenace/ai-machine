@@ -8,10 +8,25 @@ class AIProvider(str, Enum):
     OLLAMA = "ollama"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    # A local LM Studio server, the deployment the community-owned AI guide is
+    # written around. Speaks the OpenAI protocol on localhost:1234 by default.
+    LMSTUDIO = "lmstudio"
 
 
 # Model presets for easy selection
 AVAILABLE_MODELS = {
+    "lmstudio": [
+        {"name": "gemma-4-26b-a4b", "display": "Gemma 4 26B-A4B (Recommended)",
+         "description": "The local deployment the community AI guide is built around"},
+        {"name": "gemma-4-12b", "display": "Gemma 4 12B",
+         "description": "Smaller Gemma, lower memory footprint"},
+        {"name": "qwen3-30b-a3b", "display": "Qwen 3 30B-A3B",
+         "description": "Mixture-of-experts alternative with a large context window"},
+        {"name": "llama-3.3-70b", "display": "Llama 3.3 70B",
+         "description": "Larger open model, needs substantial VRAM"},
+        {"name": "custom", "display": "Custom Model...",
+         "description": "Any model identifier loaded in LM Studio"},
+    ],
     "ollama": [
         {"name": "llama3.1:8b", "display": "Llama 3.1 8B (Recommended)", "description": "Fast and efficient, 8GB RAM"},
         {"name": "llama3.1:70b", "display": "Llama 3.1 70B", "description": "Best quality, needs GPU"},
@@ -64,6 +79,26 @@ class DataSource(BaseModel):
     metadata: Dict[str, Any] = {}
 
 
+class APIClient(BaseModel):
+    """One application authorized to use the community API.
+
+    Section 13 lists "app permissions" as a gateway responsibility. A single
+    shared key cannot be revoked for one misbehaving application without
+    breaking every other one, so each application gets its own.
+    """
+
+    client_id: str
+    name: str
+    key_hash: str                      # sha256 of the key; the key is shown once
+    key_prefix: str = ""               # first characters, for identification in a UI
+    scopes: List[str] = ["ask", "search", "read"]
+    rate_limit_per_minute: int = 60
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=datetime.now)
+    last_used: Optional[datetime] = None
+    request_count: int = 0
+
+
 class ProjectConfig(BaseModel):
     """Main configuration for a neighborhood AI project"""
 
@@ -81,6 +116,10 @@ class ProjectConfig(BaseModel):
     # Project API Access
     project_api_key: Optional[str] = None  # API key for external access to this project
     api_enabled: bool = False  # Whether API access is enabled
+    # Per-application keys, so one application can be revoked without breaking
+    # the rest. Populated by the community gateway; the single key above still
+    # works for projects created before this existed.
+    api_clients: List["APIClient"] = []
     
     # Model Parameters
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -93,6 +132,8 @@ class ProjectConfig(BaseModel):
             self.model_name = "gpt-4o"
         elif self.ai_provider == AIProvider.ANTHROPIC and self.model_name == "llama3.1:8b":
             self.model_name = "claude-opus-4-20250514"
+        elif self.ai_provider == AIProvider.LMSTUDIO and self.model_name == "llama3.1:8b":
+            self.model_name = "gemma-4-26b-a4b"
     
     # Personality & Behavior
     system_prompt: str = ""
@@ -105,6 +146,40 @@ class ProjectConfig(BaseModel):
     # Supports both old format (List[str]) and new format (Dict with mode, values, etc.)
     community_constitution: Union[List[str], Dict[str, Any]] = []
     
+    # Community AI settings (see COMMUNITY_AI_SCOPE.md)
+    #
+    # The constitution lives in source control, not here. This records which
+    # version this project runs so the transparency panel and the model card can
+    # report it, and so a community can pin an older version while reviewing a
+    # new one. `community_constitution` above is the pre-existing inline format
+    # and is still honored when no constitution file is present.
+    constitution_version: str = "latest"
+
+    # Retrieval, per section 5 of the guide.
+    retrieval_top_k: int = Field(default=8, ge=1, le=15)
+    retrieval_candidate_pool: int = Field(default=24, ge=4, le=100)
+    enable_hybrid_search: bool = True
+    enable_reranking: bool = True
+    enable_query_expansion: bool = True
+    # A model-backed query rewrite (guide section 18) costs one extra
+    # generation per question. On a local server that is real latency, so
+    # the free rule-based expansion is the default and this is opt-in.
+    enable_model_query_rewrite: bool = False
+
+    # Provenance, per section 6.
+    require_citations: bool = True
+
+    # Privacy-aware logging, per section 13. Operational metadata is recorded so
+    # the community can see usage and debug retrieval; the resident's question
+    # text is not, unless the community turns it on deliberately. Governance
+    # says aggregate statistics are public and question text is not.
+    log_requests: bool = True
+    log_question_text: bool = False
+    log_retention_days: int = Field(default=30, ge=0, le=3650)
+
+    # Local inference, per section 12.
+    lmstudio_base_url: Optional[str] = None
+
     # Data Sources
     data_sources: List[DataSource] = []
     

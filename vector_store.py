@@ -6,7 +6,8 @@ Handles embeddings and vector search using Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
-from typing import List, Dict, Optional
+from typing import Iterable, List, Dict, Optional, Tuple
+import os
 import uuid
 import hashlib
 
@@ -14,36 +15,85 @@ import hashlib
 # Global Qdrant client cache to avoid file locking issues
 _qdrant_clients: Dict[str, QdrantClient] = {}
 
+# Embedding models this deployment knows the dimensions of.
+#
+# Section 17 of the community-owned AI guide recommends BGE-M3, which produces
+# 1024-dimensional vectors and handles multilingual and long-passage retrieval
+# better than the MiniLM default. Switching is a re-index, not a config flip,
+# because a Qdrant collection has a fixed vector size. The mismatch check in
+# _ensure_collection_exists() makes that failure loud instead of silent.
+EMBEDDING_MODELS: Dict[str, int] = {
+    "all-MiniLM-L6-v2": 384,
+    "all-mpnet-base-v2": 768,
+    "BAAI/bge-small-en-v1.5": 384,
+    "BAAI/bge-base-en-v1.5": 768,
+    "BAAI/bge-m3": 1024,
+}
+
+DEFAULT_EMBEDDING_MODEL = os.getenv("COMMUNITY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+
+
+class EmbeddingDimensionMismatch(RuntimeError):
+    """Raised when the configured model does not match an existing collection."""
+
 
 class VectorStore:
     """Manages vector embeddings and semantic search"""
 
-    def __init__(self, path: str = "./qdrant_data", collection_name: str = "neighborhood_knowledge"):
+    def __init__(self, path: str = "./qdrant_data",
+                 collection_name: str = "neighborhood_knowledge",
+                 embedding_model: Optional[str] = None):
         # Use shared client for the same path to avoid locking issues
         if path not in _qdrant_clients:
             _qdrant_clients[path] = QdrantClient(path=path)
         self.client = _qdrant_clients[path]
 
         self.collection_name = collection_name
-        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')  # 384 dimensions
-        self.vector_size = 384
+        self.embedding_model = embedding_model or DEFAULT_EMBEDDING_MODEL
+        self.encoder = SentenceTransformer(self.embedding_model)
+        self.vector_size = EMBEDDING_MODELS.get(
+            self.embedding_model,
+            self.encoder.get_sentence_embedding_dimension(),
+        )
 
         # Create collection if it doesn't exist
         self._ensure_collection_exists()
     
     def _ensure_collection_exists(self):
-        """Create collection if it doesn't exist"""
+        """Create collection if it doesn't exist, and refuse a size mismatch."""
         try:
-            self.client.get_collection(self.collection_name)
-        except:
-            self.client.create_collection(
-                collection_name=self.collection_name,
-                vectors_config=VectorParams(
-                    size=self.vector_size,
-                    distance=Distance.COSINE
+            info = self.client.get_collection(self.collection_name)
+        except Exception:
+            info = None
+
+        if info is not None:
+            existing = None
+            try:
+                existing = info.config.params.vectors.size
+            except AttributeError:
+                pass
+            if existing is not None and existing != self.vector_size:
+                raise EmbeddingDimensionMismatch(
+                    f"Collection '{self.collection_name}' was built with "
+                    f"{existing}-dimensional vectors, but the configured "
+                    f"embedding model '{self.embedding_model}' produces "
+                    f"{self.vector_size}. Changing embedding models requires "
+                    f"re-indexing the corpus. Either set "
+                    f"COMMUNITY_EMBEDDING_MODEL back to the previous model, or "
+                    f"re-ingest this project's sources into a fresh collection. "
+                    f"See COMMUNITY_AI_SETUP.md, 'Switching embedding models'."
                 )
+            return
+
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=VectorParams(
+                size=self.vector_size,
+                distance=Distance.COSINE
             )
-            print(f"Created collection: {self.collection_name}")
+        )
+        print(f"Created collection: {self.collection_name} "
+              f"({self.vector_size}d, {self.embedding_model})")
     
     def generate_id(self, text: str, metadata: Dict) -> str:
         """Generate consistent ID for a document"""
@@ -157,6 +207,55 @@ class VectorStore:
 
         return formatted_results
     
+    def iter_all_payloads(self, batch_size: int = 512) -> Iterable[Tuple[str, Dict]]:
+        """Stream every stored payload as (id, payload).
+
+        The keyword half of hybrid retrieval needs the whole corpus to build a
+        BM25 index, which a vector database cannot provide through a similarity
+        query. Scrolling avoids loading vectors, so only payload text crosses
+        the boundary.
+        """
+        offset = None
+        while True:
+            try:
+                points, offset = self.client.scroll(
+                    collection_name=self.collection_name,
+                    limit=batch_size,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+            except Exception:
+                return
+
+            if not points:
+                return
+
+            for point in points:
+                payload = point.payload or {}
+                if payload.get('text'):
+                    yield str(point.id), payload
+
+            if offset is None:
+                return
+
+    def get_by_id(self, doc_id: str) -> Optional[Dict]:
+        """Fetch one stored payload by id, for the source-inspection endpoint."""
+        try:
+            points = self.client.retrieve(
+                collection_name=self.collection_name,
+                ids=[doc_id],
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception:
+            return None
+        if not points:
+            return None
+        payload = dict(points[0].payload or {})
+        payload['id'] = str(points[0].id)
+        return payload
+
     def get_stats(self) -> Dict:
         """Get collection statistics"""
         try:
@@ -164,7 +263,8 @@ class VectorStore:
             return {
                 'total_documents': info.points_count,
                 'vector_size': info.config.params.vectors.size,
-                'distance_metric': info.config.params.vectors.distance
+                'distance_metric': info.config.params.vectors.distance,
+                'embedding_model': self.embedding_model,
             }
         except:
             return {'total_documents': 0}

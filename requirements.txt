@@ -30,3 +30,8 @@ aiofiles>=23.2.1
 httpx>=0.25.2,<0.26.0
 apscheduler>=3.10.4
 validators>=0.22.0
+
+# Community AI layer (see COMMUNITY_AI_SCOPE.md)
+# Hybrid retrieval's keyword half and the constitution loader are pure stdlib on
+# purpose, so they keep working when the model stack is unavailable.
+PyYAML>=6.0          # community.yaml / sources.yaml
