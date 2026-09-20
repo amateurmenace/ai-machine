@@ -507,8 +507,8 @@ rebuilds automatically after ingestion.
 ### Switching embedding models
 
 The guide recommends BGE-M3. It produces 1024-dimensional vectors against
-MiniLM's 384, and a Qdrant collection's vector size is fixed, so this is a
-re-index and not a config change.
+MiniLM's 384, and vectors of two widths cannot be compared, so this is a
+re-index and not a config change whichever backend holds the archive.
 
 ```bash
 export COMMUNITY_EMBEDDING_MODEL="BAAI/bge-m3"
@@ -516,8 +516,10 @@ export COMMUNITY_EMBEDDING_MODEL="BAAI/bge-m3"
 
 Starting fresh, set it before the first ingestion. With an existing corpus, the
 app refuses to start with a dimension mismatch and names the remedy. To migrate:
-stop the app, delete `data/<project_id>/qdrant/`, set the variable, re-ingest.
-Budget the full ingestion time again.
+stop the app, take a snapshot first (`python3 -m stores.backup create --project
+<id>`), move `data/<project_id>/archive.sqlite3` aside, set the variable, and
+re-ingest. Budget the full ingestion time again. On a deployment still using the
+embedded Qdrant index, it is `data/<project_id>/qdrant/` that moves aside.
 
 ### Pinning a constitution version
 
@@ -550,7 +552,7 @@ load, usually no model cached and no network. Retrieval still works on fusion
 order. Pre-download it on a machine that has network access, or ignore it.
 
 **Keyword search misses new records.** The index rebuilds after ingestion and on
-a ten-minute timer. If you wrote to Qdrant outside the app, restart it.
+a ten-minute timer. If you wrote to the archive outside the app, restart it.
 
 **Rate limits behave oddly with multiple workers.** The limiter is per-process,
 so `uvicorn --workers 4` gives four times the intended limit. Run one worker, or

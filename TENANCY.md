@@ -125,7 +125,7 @@ data/brookline-ma/
     config.json          their settings, model, provider
     constitution/        their rules, their ledger, their ratifiers
     evals/               their definition of "good"
-    qdrant/              their archive
+    archive.sqlite3      their archive, one file, theirs alone
     sync/                their channel sync state
     logs/                their request metadata
     precomputed.json     their cached common answers

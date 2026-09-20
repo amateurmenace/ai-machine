@@ -523,16 +523,30 @@ directory is its own tenant automatically. `TENANCY.md` covers the rest.
 
 ## 8f. Where the archive lives
 
-Two backends behind one interface.
+Three backends behind one interface, and they are not a progression.
 
-**Qdrant, embedded**, is the default and is right for one community on one
-machine. It writes to a directory beside the process.
+**SQLite** is the default: the whole archive in one file beside the process, at
+`data/<project_id>/archive.sqlite3`. Copying it backs it up; handing it to a
+successor hands over the entire public record. It is not a lesser option chosen
+for simplicity. FTS5 gives it an on-disk keyword index with BM25 built in and
+maintained by the database through triggers, which is the piece that was
+actually wrong before: the keyword half of hybrid retrieval used to be rebuilt
+in Python memory from the whole corpus on every process start. Vector search
+degrades across three implementations rather than requiring any — the
+`sqlite-vec` extension if installed, a numpy scan if not, plain Python if
+neither.
 
-**PostgreSQL with pgvector** is what Google Cloud needs, and it replaces three
-things rather than one: the vector store, the Python metadata filtering, and the
-in-memory keyword index that is the piece actually pinning the app to a single
-instance. One query does the whole hybrid retrieval, fusing a dense ranking and
-a full-text ranking by reciprocal rank, the same algebra the Python path uses.
+**Qdrant, embedded**, is what existed before, and any deployment that already
+has an index keeps using it. The factory checks for one and leaves it alone
+rather than reading from an empty new file after an upgrade. Moving is a
+decision, made with `stores/migrate.py`.
+
+**PostgreSQL with pgvector** is for several communities on shared
+infrastructure, or an archive large enough that one machine is genuinely the
+constraint. It replaces three things rather than one: the vector store, the
+Python metadata filtering, and the keyword index. One query does the whole
+hybrid retrieval, fusing a dense ranking and a full-text ranking by reciprocal
+rank, the same algebra the other two use.
 
 One detail worth knowing, because the obvious version of that query is slow: the
 ranking has to happen *inside* an already-limited subquery. Computing a window
@@ -540,11 +554,17 @@ function in the same select that carries the limit ranks every matching row in
 the corpus first, and the vector index cannot help. The roadmap's original
 sketch had this wrong.
 
-Switching is `COMMUNITY_DB_URL` plus a migration that copies the existing
-collection across, resumable if it is interrupted. A configured Postgres that
-cannot be opened **raises rather than falling back to Qdrant**, which is the one
-place in this codebase that does not degrade quietly: answering residents from a
+Switching is `COMMUNITY_DB_URL` (a Postgres DSN or a `sqlite://` path) or
+`COMMUNITY_DB_PATH` (just the file), plus a migration that copies the existing
+collection across, resumable if it is interrupted. A configured database that
+cannot be opened **raises rather than falling back**, which is the one place in
+this codebase that does not degrade quietly: answering residents from a
 different or empty archive without saying so would be worse than an error page.
+
+`stores/backup.py` snapshots the file through SQLite's backup API, verifies
+each snapshot by opening it, records a SHA-256 and the constitution hash in
+force, and will not prune the last verified copy. `ARCHIVE_BUILD.md` has the
+cron line and the restore drill.
 
 ---
 
@@ -558,11 +578,11 @@ rag/              bm25 · hybrid retrieval · reranking · citations · pipeline
 tools/            web search · fetch · archive search · the tool loop
 collectors/       youtube · websites · pdfs · channel sync · title parsing
 api/              gateway · auth · privacy-aware logging
-stores/           the pluggable vector backend: Qdrant or Postgres
+stores/           the archive: sqlite (default) · qdrant · postgres · backups
 cloud/            optional Google Cloud adapters
 evals/            the frozen set, its runner, and provider comparison
 training/         phase-3 scaffolding; nothing runs yet
-scripts/          bootstrap a community from YAML
+scripts/          bootstrap a community from YAML · backfill the archive
 deploy/           Cloud Run
 tests/            no GPU, no database, no network required
 providers.py      the five model backends
@@ -577,7 +597,9 @@ Data, which is not in git:
 ```
 data/<project_id>/
     config.json      the project's settings
-    qdrant/          the vector index
+    archive.sqlite3  the archive: passages, metadata, embeddings, keyword index
+    backups/         verified snapshots, newest kept, each with a manifest
+    qdrant/          the vector index, on deployments that predate the default
     sync/            per-source archive sync state
     logs/            request metadata, no question text
     uploads/         uploaded PDFs

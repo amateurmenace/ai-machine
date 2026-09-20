@@ -215,14 +215,21 @@ server, which is what a town needs. It is simply not a Cloud Run design.
       │  (scales to zero, autoscales) │
       └───────────┬───────────────────┘
                   │
-      ┌───────────┴───────────┐
-      │                       │
-      ▼                       ▼
-  Cloud SQL              Cloudflare tunnel
-  PostgreSQL + pgvector          │
-  the archive                    ▼
-                          LM Studio at BIG
-                          Gemma on your GPU
+                  │
+                  ▼
+           Cloudflare tunnel
+                  │
+                  ▼
+    ┌─────────────────────────────────┐
+    │  one machine at BIG             │
+    │                                 │
+    │  LM Studio — Gemma on your GPU  │
+    │  archive.sqlite3 — the record   │
+    └─────────────────────────────────┘
+                  │
+                  ▼
+        nightly snapshot, optionally
+        to a bucket that costs cents
 ```
 
 Why this shape and not the obvious alternatives:
@@ -235,83 +242,113 @@ Why this shape and not the obvious alternatives:
   forever for capability you can buy outright for $3,500. More importantly,
   moving inference to Google's servers gives up the property the project is
   about. The tunnel support built for exactly this already works.
-- **The archive belongs in a managed database.** A town's public record should
-  be backed up by someone whose job that is, with point-in-time recovery, not
-  living on a disk in a closet with the model.
+- **The archive belongs next to the model.** This reverses what an earlier
+  draft of this document recommended, and the reason is in the diagram above.
+  Once inference is on your hardware behind a tunnel, the service is already
+  down when that machine is down. A managed database in the cloud cannot make
+  it up again; it can only add $150-200 a month and a network hop to every
+  retrieval. The availability was already spent on the tunnel. What the
+  archive actually needs is backups, and backups are a scheduled copy of a
+  file, not a database server.
 
 If the office network is genuinely too unreliable to serve inference, the
 fallback is a frontier provider with the switch clearly disclosed to residents,
 not a cloud GPU. That is cheaper and more honest than pretending a GCP L4 is
 "local".
 
-### 2.3 The database: change it, and change it to PostgreSQL
+### 2.3 The database: keep it local, and make it one file
 
-**Short answer: no, Qdrant embedded is not the right choice for Google Cloud.
-Move to Cloud SQL for PostgreSQL with the pgvector extension.**
+**Short answer: the archive stays on the machine running inference, in SQLite.
+Postgres is the answer to a different question, and that question is Part 3.**
 
-This also happens to be what the community-owned AI guide recommends, and its
-reasoning is the right reasoning: one database holds structured metadata,
-conventional filters, full-text search, and embeddings together.
+An earlier version of this section argued the opposite, and it is worth saying
+why it was wrong rather than quietly editing it. The argument for Cloud SQL was
+that Postgres replaces three things at once: the vector index, the in-memory
+BM25 index rebuilt at every process start, and the metadata filtering done in
+Python. All three of those were real problems. None of them required a server.
 
-The specific argument for this codebase is stronger than the general one.
-Postgres does not replace one component here. It replaces **three**:
+SQLite's FTS5 is an on-disk keyword index with BM25 built in, maintained by the
+database through triggers rather than rebuilt by the application. Typed columns
+and indexes do the filtering. The embeddings sit in the same file. That is the
+same three wins, in a file you can copy.
 
-| Today | With Postgres |
-| --- | --- |
-| Qdrant for vectors | `vector` column with an HNSW index |
-| Python metadata filtering over the whole corpus | `WHERE body = 'Select Board' AND meeting_date >= '2019-01-01'` |
-| An in-memory BM25 index rebuilt per process | `tsvector` + `ts_rank_cd`, maintained by the database |
+What the cloud database was supposed to buy was availability, and it does not
+buy it here. The tunnel already decided that: when the office loses power, the
+model is gone, and an archive in Google's data centre has nothing to answer
+from. Paying $150-200 a month for a database that is only reachable when the
+free one would also have been reachable is paying for a property you do not get.
 
-That third row is the one that matters. The in-memory keyword index is the piece
-that pins the app to one instance, costs a cold-start rebuild, and caps the
-corpus at 200,000 chunks. Postgres full-text search is an index on disk,
-incrementally maintained, shared by every instance, and it handles phrase
-queries and the exact-identifier matching that made hybrid search necessary in
-the first place.
+So the three backends, and the question each one answers:
 
-One query does the whole hybrid retrieval:
+| Backend | When it is right | What it costs |
+| --- | --- | --- |
+| **SQLite** (`stores/sqlite_store.py`) | One community, one machine. The default. | Nothing. One file. |
+| **Qdrant** (`vector_store.py`) | Deployments that already have an index and should not be converted out from under them. | Nothing, and it is never forced off. |
+| **pgvector** (`stores/pgvector_store.py`) | Many communities on shared infrastructure, or one archive large enough that a single machine is genuinely the constraint. | A managed database, and it is worth it at that point. |
 
-```sql
-WITH dense AS (
-  SELECT id, RANK() OVER (ORDER BY embedding <=> %(q_vec)s) AS rank
-  FROM chunks WHERE project_id = %(project)s AND (%(body)s IS NULL OR body = %(body)s)
-  ORDER BY embedding <=> %(q_vec)s LIMIT 40
-),
-sparse AS (
-  SELECT id, RANK() OVER (ORDER BY ts_rank_cd(tsv, websearch_to_tsquery(%(q)s)) DESC) AS rank
-  FROM chunks WHERE project_id = %(project)s AND tsv @@ websearch_to_tsquery(%(q)s) LIMIT 40
-)
-SELECT id, SUM(1.0 / (60 + rank)) AS score
-FROM (SELECT * FROM dense UNION ALL SELECT * FROM sparse) fused
-GROUP BY id ORDER BY score DESC LIMIT 24;
+`stores/select_backend()` picks between them and says why, so an operator can
+ask which archive a deployment is using without starting the app:
+
+```
+$ python3 -c "from stores import select_backend; c = select_backend('brookline-ma'); print(c.backend, c.location, '--', c.reason)"
+sqlite ./data/brookline-ma/archive.sqlite3 -- default: one file on this machine
 ```
 
-That is the same reciprocal-rank fusion the Python code does now, executed where
-the data lives.
+Two rules keep the default honest. A configured database that will not open is
+an error, never a quiet fallback to an empty archive: a service whose claim is
+that answers come from the public record cannot serve from a different record
+without saying so. And a deployment that already has a Qdrant index keeps it,
+because "better default" is not licence to silently read from an empty file on
+somebody's next restart. Moving is a decision, made with `stores/migrate.py`.
 
-**Why not the alternatives:**
+**When to revisit this.** The brute-force vector scan is fine into the low
+hundreds of thousands of passages, which is more than a decade of one town's
+meetings. Past that, install `sqlite-vec` (the store loads it automatically if
+it is there) before considering Postgres. Move to Postgres when you are hosting
+several communities, not when this one gets big.
 
-- **AlloyDB** is faster and roughly two to three times the cost. Worth it above a
-  few million vectors. A town has tens of thousands. Revisit if you host many
-  communities.
-- **Vertex AI Vector Search** is a managed ANN index with a minimum spend in the
-  hundreds per month for an always-on endpoint, and it keeps vectors in a
-  different system from your metadata. That re-creates the two-store problem
-  Postgres solves.
-- **Qdrant Cloud or self-hosted Qdrant server** is a fine vector database with
-  better pure-vector performance. But you still need a relational database for
-  projects, API keys, sync state and logs, so this means running two. Not worth
-  it at this scale.
-- **Firestore** has no vector search worth the name for this, and the wrong shape
-  for the relational filters civic questions need.
+### 2.3b Backups, which is what a local database actually needs
 
-**The migration is contained.** `HybridRetriever` depends on exactly two methods
-of the store, `search` and `iter_all_payloads`. A `PgVectorStore` implementing
-that interface, plus a re-index, is the whole job. Everything above it, the
-citations, the pipeline, the gateway, the evals, is unchanged.
+`stores/backup.py`. The whole point of one file is that protecting it is
+mechanical:
 
-**Effort: 1-2 weeks**, including an ingestion backfill and a schema with proper
-indexes on the civic metadata columns.
+```bash
+python3 -m stores.backup create --project brookline-ma --keep 14
+python3 -m stores.backup list   --project brookline-ma
+python3 -m stores.backup verify data/backups/brookline-ma/archive-2026-09-20T02-00-00Z.sqlite3
+```
+
+Run the first one from cron at 2am. Three things in it are not obvious and are
+worth knowing:
+
+- **The snapshot is taken through SQLite's backup API, not `cp`.** A copy taken
+  mid-write is torn, and an archive that restores to a corrupt file is worse
+  than no backup at all. The snapshot is also taken out of WAL mode on the way
+  out, so the backup really is one file rather than three.
+- **Every snapshot is verified by opening it**, running an integrity check and
+  counting the passages, and the count goes in the manifest beside it with a
+  SHA-256. A backup nobody has opened is not a backup. A snapshot that verifies
+  but is empty is recorded as not trustworthy, because an empty archive restores
+  to a system that answers nothing.
+- **Retention will not delete the last good copy**, whatever `--keep` says, and
+  prunes nothing at all if no snapshot verifies. A retention policy that mows
+  down the good copies is data loss on a schedule.
+
+Restoring moves the current archive aside rather than overwriting it, and
+refuses a snapshot whose hash no longer matches its manifest unless you pass
+`--force` and mean it.
+
+Offsite is one flag: `--bucket your-bucket` writes a second copy to Cloud
+Storage. At town scale the archive is a few gigabytes, which is about a dollar
+a month in nearline storage, and a failed upload never touches the local
+snapshot. This is the only part of the database story the cloud is genuinely
+better at, and it is the cheap part.
+
+There is no confidentiality to protect here — it is the public record, and
+publishing it is the point — so nothing is encrypted. What it needs is
+integrity, which is why every snapshot carries a hash and the constitution
+hash in force when it was taken. Same chain of custody `community/ledger.py`
+keeps for the rules, applied to the facts.
 
 ### 2.4 The rest of the Cloud Run work
 
@@ -321,26 +358,35 @@ indexes on the civic metadata columns.
 | Long ingestion | A decade backfill outlives a Cloud Run request. Move it to a **Cloud Run job**, or a small always-on worker. | 2-3 days |
 | Rate limits | The limiter is per-process, so four instances give four times the intended limit. Move to **Memorystore** (Redis). | 1 day |
 | Uploaded PDFs | Currently on local disk. Move to **Cloud Storage**. | 1 day |
-| Request logs | JSONL on disk today. Either a Postgres table or **Cloud Logging** with a retention policy matching what the privacy policy promises. | 1-2 days |
+| Request logs | JSONL on disk today. **Cloud Logging** with a retention policy matching what the privacy policy promises, mirrored from the local file rather than replacing it. Built; see `cloud/logging_sink.py`. | done |
 | Secrets | API keys and the tunnel credential into **Secret Manager**, out of `config.json`. | 1 day |
 | Embeddings | Loading a sentence-transformer per instance is slow on cold start. Either bake it into the image or move embedding to a small dedicated service. | 2 days |
 
 ### 2.5 What it costs
 
-A rough monthly picture for one town, with inference staying local:
+A rough monthly picture for one town, with inference and the archive both
+staying on your hardware:
 
 | | |
 | --- | --- |
 | Cloud Run (scales to zero, town-scale traffic) | $5-20 |
-| Cloud SQL, 2 vCPU / 7.5GB / 100GB SSD | $150-200 |
-| Cloud SQL, `db-f1-micro` for a pilot | ~$15 |
-| Cloud Storage, Secret Manager, Scheduler | under $5 |
-| Memorystore, smallest tier, only if multi-instance | ~$35 |
-| **Total, pilot** | **~$30/month** |
-| **Total, production** | **~$200/month** |
+| Cloud Storage for offsite backups, a few GB nearline | ~$1 |
+| Secret Manager, Cloud Scheduler | under $5 |
+| Memorystore, smallest tier, only if you run multiple instances | ~$35 |
+| The database | **$0** |
+| **Total, pilot** | **~$10/month** |
+| **Total, production** | **~$25/month** |
+| Same with Cloud SQL for the archive, as an earlier draft recommended | **+$150-200/month** |
 | Same with a GCP L4 GPU instead of local inference | **+$500/month** |
 
-That last row is the argument for the hybrid architecture, in one number.
+The last two rows are the argument for this architecture, in two numbers. A
+town can run this for the price of a couple of coffees a month, and the two
+line items that would change that are the two that give up the thing the
+project is about.
+
+One-time hardware, for reference: a machine that runs Gemma 3 27B at usable
+speed is $3,500-5,000 and lasts years. The GPU row above is $6,000 a year,
+forever, for less control.
 
 ---
 
@@ -349,9 +395,18 @@ That last row is the argument for the hybrid architecture, in one number.
 ### 3.1 Multi-community hosting
 
 The platform is already community-agnostic: a new deployment is a
-`community.yaml`, a constitution, and a source list. What is missing is tenancy.
-Postgres gives it for free, with `project_id` on every row and row-level
-security.
+`community.yaml`, a constitution, and a source list. Tenancy is now built
+(`tenancy.py`, `TENANCY.md`): every community gets its own constitution, its own
+archive, its own evaluation set and its own keys, and the isolation check raises
+rather than returning false, so a bug that crosses communities stops the request
+instead of answering from the wrong town's record.
+
+**This is where Postgres comes back.** With SQLite, twelve communities is twelve
+files on one machine, which works and is genuinely fine up to the point where
+you want them on separate machines, or want one of them to survive the others.
+`project_id` is already on every row and `COMMUNITY_DB_URL` already switches the
+backend per project, so moving the first town is a DSN and a
+`python3 -m stores.migrate` run. Do it when hosting forces it, not before.
 
 The interesting part is not technical. It is that **each community keeps its own
 constitution, its own corpus, its own evaluation set, and its own release
@@ -377,18 +432,68 @@ That is the thing that makes this infrastructure rather than a chatbot.
 
 ---
 
-## Suggested order
+## What is done, and what is next
 
-1. **Provider comparison in the evals.** 2-3 days, and it tells you what
-   everything else is worth.
-2. **Record status on ingestion.** 2-3 days, fixes the worst civic failure mode.
-3. **Backfill the real archive and write 200 evaluation questions.** The long
-   pole, mostly not engineering, and nothing after it is trustworthy without it.
-4. **Postgres migration.** 1-2 weeks, and it unblocks Google Cloud entirely.
-5. **Cloud Run deployment** with local inference over the tunnel. 1 week.
-6. **Second opinion button and precomputed common questions.** 1 week, and it is
-   what residents will actually notice.
-7. **Training**, only once the gate in `training/README.md` is met.
+Everything in Part 1 and most of Part 2 exists now. The honest summary:
 
-Steps 1 through 3 are worth doing before any cloud work. A faster deployment of
-an unmeasured system is not progress.
+| | |
+| --- | --- |
+| Provider comparison in the evals | **done** — `second_opinion.py`, and retrieval runs once and is shared, so the comparison is of models rather than of luck |
+| Record status on ingestion | **done** — `knowledge/status.py`. Discussion is never reported as a decision |
+| Constitution ledger | **done** — `community/ledger.py`, `LEDGER.md`. Hash chain, N-of-M signatures, tamper detection |
+| Multi-community tenancy | **done** — `tenancy.py`, `TENANCY.md` |
+| Precomputed common answers | **done** — `precompute.py` |
+| The local archive and its backups | **done** — `stores/sqlite_store.py`, `stores/backup.py` |
+| Cloud Run deployment | **ready, not run** — `deploy/cloudrun.sh`, with account guards |
+| **The actual archive** | **not done, and it is the only thing standing between this and being useful** |
+
+### The next four things, in order
+
+1. **Build the Brookline archive.** Five hundred meetings, backfilled and
+   verified. See `ARCHIVE_BUILD.md` for what the process actually looks like,
+   what it costs in time and disk, and what to check afterwards. This is mostly
+   not engineering, and nothing after it is trustworthy without it. A week of
+   wall-clock, a day or two of attention.
+
+2. **Write 200 evaluation questions against the real archive.** Not synthetic
+   ones. Real questions residents ask, with the answer and the citation that
+   proves it. Until this exists, every claim in this document about local models
+   being good enough is a guess. The eval harness has been waiting for it since
+   Part 1. Two to three days, and it is the highest-value two days in the
+   project.
+
+3. **Deploy to Cloud Run with the tunnel.** `deploy/cloudrun.sh` is written and
+   guarded; it has not been run because this development environment has no
+   access to any cloud control plane. Run it from your own machine, signed in as
+   your personal account. Half a day, most of it waiting for a build.
+
+4. **Set up the nightly backup and one restore drill.** The cron line is in
+   §2.3b. Then actually restore a snapshot into a scratch directory and ask it
+   a question. A backup nobody has restored is a hypothesis.
+
+### After that, in rough order of value
+
+- **The question log as a product.** `precompute.py` already mines the request
+  log for repeated questions. Publishing "what residents asked this month",
+  with the answers and citations, is a civic artifact nobody else can make.
+- **Speaker identification.** Transcripts give you turns; matching them to
+  named board members turns "someone said" into "Member Ortiz said" across the
+  whole archive, and makes a decade of votes searchable by who cast them.
+- **The re-sync gap for uploaded PDFs.** `ingest_source_background` has no
+  `PDF_UPLOAD` branch, so re-syncing an uploaded document indexes nothing. Small
+  bug, real one.
+- **Training**, only once the gate in `training/README.md` is met — which is to
+  say, only once step 2 above says fine-tuning would beat better retrieval.
+  Retrieval has beaten parameters at every decision point in this project so
+  far, and it will probably beat them here too.
+- **A second community.** Cambridge, or any town with a YouTube channel and a
+  clerk who posts agendas. The tenancy is built; running it is how you find out
+  whether the architecture survives contact with a second set of conventions.
+
+### What not to do next
+
+Do not migrate to Postgres. Do not add a managed database. Do not move
+inference to a cloud GPU. Each of those is a real option at a scale this project
+is not at, and taking any of them now costs money and control in exchange for
+capability that would sit unused. The system is not slow, and the archive is not
+big. The archive is *empty*, and that is step 1.

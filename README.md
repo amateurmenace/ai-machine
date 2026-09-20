@@ -61,7 +61,7 @@ cd frontend && npm start
     ┌────┴────┐
     ▼         ▼
 ┌────────┐ ┌──────┐
-│ Qdrant │ │Ollama│
+│ SQLite │ │Ollama│
 │        │ │/API  │
 └────────┘ └──────┘
 ```
@@ -95,10 +95,12 @@ public-information service, not just a locally running chatbot.
   owns.
 
 **[SYSTEM_GUIDE.md](SYSTEM_GUIDE.md)** — how the whole thing works
+**[ARCHIVE_BUILD.md](ARCHIVE_BUILD.md)** — loading five hundred meetings into the archive
 **[LEDGER.md](LEDGER.md)** — the signed hash chain over the constitution
 **[deploy/README.md](deploy/README.md)** — putting it on Google Cloud
 **[COMMUNITY_AI_SETUP.md](COMMUNITY_AI_SETUP.md)** — install and run it
-**[ROADMAP.md](ROADMAP.md)** — where it goes next, Google Cloud, and the database decision
+**[HANDOFF.md](HANDOFF.md)** — moving the project to another machine
+**[ROADMAP.md](ROADMAP.md)** — where it goes next, and why the database stays local
 **[COMMUNITY_AI_SCOPE.md](COMMUNITY_AI_SCOPE.md)** — what's built and what's left
 
 ```bash

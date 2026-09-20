@@ -23,6 +23,13 @@ Thumbs.db
 # Data (project-specific)
 data/
 *.db
+# The archive itself, wherever somebody points COMMUNITY_DB_PATH. It is the
+# public record and it is meant to be published, but a few hundred megabytes
+# of embeddings does not belong in git.
+*.sqlite3
+*.sqlite
+*.sqlite3-wal
+*.sqlite3-shm
 
 # Cache
 .cache/
