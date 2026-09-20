@@ -1,6 +1,29 @@
-# Deploying to Google Cloud
+# Deploying
 
-Two deployments, for two different purposes. Do not confuse them.
+Two scripts, and only one of them is the deployment this project currently
+has.
+
+**`netlify.sh` is the one you want.** It builds the console and publishes it to
+Netlify, where the frontend already lives. The API, the archive and the model
+stay on your machine behind the Cloudflare tunnel. This is the shape
+`ROADMAP.md` §2.2 recommends, and it costs nothing beyond what you already run.
+
+```bash
+./deploy/netlify.sh --api-url https://api.neighborhoodai.org          # draft
+./deploy/netlify.sh --api-url https://api.neighborhoodai.org --prod   # live
+```
+
+It refuses to publish a stale build, refuses a build whose API URL does not
+match the one you named, refuses a localhost API that a published page could
+never reach, and publishes a draft unless you type `--prod` on purpose. It also
+prints the API's CORS whitelist, because a console served from an origin the
+API does not know fails in a way that looks like a backend outage and is not.
+
+**`cloudrun.sh` moves the API into Google Cloud.** It is written, guarded, and
+has never been run. It is not the current recommendation: §2.2b of the roadmap
+gives the one condition that would make it right, and that condition is not met
+today. Read that section before using it. Everything below is about that
+script.
 
 ---
 

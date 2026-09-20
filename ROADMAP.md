@@ -202,17 +202,19 @@ Be clear about this before choosing anything. The current design is a
 None of this is a flaw in the current design. It is the correct design for one
 server, which is what a town needs. It is simply not a Cloud Run design.
 
-### 2.2 The recommended architecture: cloud front, local brain
+### 2.2 The recommended architecture: static front, local everything else
 
-**Keep inference on your own hardware. Move everything else to Google Cloud.**
+**Keep the console on Netlify, where it already is. Keep the API, the archive
+and the model on your hardware. Cloud Run is for later, and section 2.2b says
+exactly when.**
 
 ```
              residents on the web
                       │
                       ▼
       ┌───────────────────────────────┐
-      │  Cloud Run                    │   the app: gateway, RAG, API
-      │  (scales to zero, autoscales) │
+      │  Netlify                      │   the console: static React
+      │  (free tier, already running) │   neighborhood-ai.netlify.app
       └───────────┬───────────────────┘
                   │
                   │
@@ -223,6 +225,7 @@ server, which is what a town needs. It is simply not a Cloud Run design.
     ┌─────────────────────────────────┐
     │  one machine at BIG             │
     │                                 │
+    │  FastAPI — gateway, RAG, API    │
     │  LM Studio — Gemma on your GPU  │
     │  archive.sqlite3 — the record   │
     └─────────────────────────────────┘
@@ -234,10 +237,21 @@ server, which is what a town needs. It is simply not a Cloud Run design.
 
 Why this shape and not the obvious alternatives:
 
-- **The web tier belongs in the cloud.** It needs to be up at 2am, survive a
-  power cut at the office, and handle a traffic spike when a meeting makes the
-  news. Cloud Run does that for roughly the cost of a sandwich per month at town
-  traffic, and scales to zero between questions.
+- **The console belongs in the cloud, and already is.** It is static files.
+  Netlify serves them from a CDN for nothing, they are up at 2am whatever the
+  office is doing, and a page that loads and says the assistant is temporarily
+  offline is a far better outage than a dead link. `deploy/netlify.sh`
+  publishes it, with the same account and site guards the Cloud Run script has.
+- **The API does not belong in the cloud, for the same reason the database
+  does not.** This is the bullet that used to argue the opposite, and the
+  argument it made — up at 2am, survives a power cut, absorbs a traffic spike —
+  does not survive contact with where the model is. If inference runs on the
+  machine at the office, an API in Google's data centre is up and unable to
+  answer anything the moment that machine is down. It converts an outage into
+  a differently-shaped outage. The traffic spike argument fails the same way:
+  autoscaling the web tier does not help when every request queues behind one
+  GPU. So the API sits next to the model and the archive, and the tunnel puts
+  it on the public internet without exposing the machine.
 - **Inference belongs on your hardware.** A GPU on GCP is about $500/month
   forever for capability you can buy outright for $3,500. More importantly,
   moving inference to Google's servers gives up the property the project is
@@ -255,6 +269,36 @@ If the office network is genuinely too unreliable to serve inference, the
 fallback is a frontier provider with the switch clearly disclosed to residents,
 not a cloud GPU. That is cheaper and more honest than pretending a GCP L4 is
 "local".
+
+### 2.2b When Cloud Run becomes the right answer
+
+`deploy/cloudrun.sh` is written, guarded, and tested as far as it can be
+without a cloud account. It is not deleted, because the case for it is real.
+It is just not this month's case. One condition decides it:
+
+> **Move the API to Cloud Run when the default answer path no longer depends
+> on the machine at the office.**
+
+Which means one of:
+
+- **The default provider becomes a frontier model.** Then there is no tunnel
+  in the request path, nothing local to be down, and an always-up API tier is
+  worth paying for. That is a policy change more than a technical one, and it
+  gets disclosed to residents rather than slipped in.
+- **You host a second and third community.** The machine at one office is then
+  a single point of failure for towns that do not share that office, and the
+  argument in section 3.1 for Postgres is the same argument for a cloud API
+  tier. They arrive together.
+- **Inference moves to a cloud GPU.** $500 a month, and it gives up the thing
+  the project is about. Listed for completeness, not recommended.
+
+One practical note for whenever that day comes: Cloud Run's filesystem is
+in-memory, and the archive is now a local SQLite file, so a naive deployment
+gets a service whose archive disappears on restart. The script says so when it
+finishes. Making it real means either Cloud SQL, which section 2.3 argues
+against, or baking a read-only copy of the archive into the container image
+and rebuilding on ingest — which is a genuinely good design, cheap, and the
+first thing to build if the condition above is ever met.
 
 ### 2.3 The database: keep it local, and make it one file
 
@@ -462,10 +506,11 @@ Everything in Part 1 and most of Part 2 exists now. The honest summary:
    Part 1. Two to three days, and it is the highest-value two days in the
    project.
 
-3. **Deploy to Cloud Run with the tunnel.** `deploy/cloudrun.sh` is written and
-   guarded; it has not been run because this development environment has no
-   access to any cloud control plane. Run it from your own machine, signed in as
-   your personal account. Half a day, most of it waiting for a build.
+3. **Republish the console against the real archive.** `deploy/netlify.sh`,
+   which builds the frontend against the tunnel URL, checks the two agree, and
+   publishes a draft before it will touch production. The API stays where it
+   is. An hour. Cloud Run is not step 3 and is not step 9; section 2.2b says
+   what would make it step anything.
 
 4. **Set up the nightly backup and one restore drill.** The cron line is in
    §2.3b. Then actually restore a snapshot into a scratch directory and ask it

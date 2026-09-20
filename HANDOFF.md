@@ -128,9 +128,13 @@ actually wrong:
 - Inference runs locally in LM Studio, reachable over a Cloudflare tunnel.
   Frontier models are available as an explicit, disclosed second opinion, not
   as the default path.
-- Deployment goes to Google Cloud Run under my personal account
-  (swalter4669), never the Hope Group organization. deploy/cloudrun.sh enforces
-  this and has never actually been run.
+- The console is a static React app on Netlify; the API, the archive and the
+  model all live on my machine behind a Cloudflare tunnel. deploy/netlify.sh
+  publishes the console. Cloud Run is written (deploy/cloudrun.sh) but is
+  deliberately not the current deployment — ROADMAP.md §2.2b says what would
+  change that.
+- Any cloud deployment goes to my personal account (swalter4669), never the
+  Hope Group organization. Both deploy scripts enforce this.
 - These hostnames are real and must not be renamed: neighborhood-ai.netlify.app,
   neighborhood.weirdmachine.org, neighborhoodai.org, create.neighborhoodai.org.
 
@@ -141,7 +145,7 @@ What's next, in the order ROADMAP.md argues for:
    check that the board names and dates parse correctly before committing to a
    long run.
 2. Write ~200 real evaluation questions against that archive.
-3. Run the Cloud Run deployment.
+3. Republish the console with deploy/netlify.sh once the archive is real.
 4. Set up nightly backups and do one restore drill.
 
 Start with step 1, and show me the dry run before ingesting anything.
