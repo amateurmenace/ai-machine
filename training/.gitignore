@@ -1,0 +1,5 @@
+datasets/*.jsonl
+adapters/
+*.safetensors
+*.gguf
+*.bin
