@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Neighborhood AI landing page communicates our mission, values, and approach to building community-owned AI infrastructure. It's designed to be educational, transparent, and inspiring.
+The Civic AI Engine landing page communicates our mission, values, and approach to building community-owned AI infrastructure. It's designed to be educational, transparent, and inspiring.
 
 ## Key Messages
 

@@ -72,7 +72,7 @@ function Guide() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white font-mono"># Overview</h2>
             <p className="text-gray-300">
-              Neighborhood AI is an open-source platform for creating local AI assistants tailored to
+              Civic AI Engine is an open-source platform for creating local AI assistants tailored to
               your community, municipality, or organization. It uses RAG (Retrieval-Augmented Generation)
               to ground AI responses in your actual data sources.
             </p>
@@ -337,7 +337,7 @@ cd ..`}
             <h2 className="text-2xl font-bold text-white font-mono"># Starting the Application</h2>
 
             <p className="text-gray-300 mb-4">
-              Neighborhood AI consists of two parts: the Python backend (API server) and the
+              Civic AI Engine consists of two parts: the Python backend (API server) and the
               React frontend (web interface). Both need to be running.
             </p>
 
@@ -475,7 +475,7 @@ npm start`}
             <h2 className="text-2xl font-bold text-white font-mono"># Data Sources</h2>
 
             <p className="text-gray-300 mb-6">
-              Neighborhood AI supports multiple data source types. Each type has its own
+              Civic AI Engine supports multiple data source types. Each type has its own
               collection method and best practices.
             </p>
 
@@ -626,7 +626,7 @@ npm start`}
             <h2 className="text-2xl font-bold text-white font-mono"># Deployment</h2>
 
             <p className="text-gray-300 mb-6">
-              Deploy Neighborhood AI for public access using Docker, traditional hosting, or
+              Deploy Civic AI Engine for public access using Docker, traditional hosting, or
               cloud platforms.
             </p>
 
@@ -815,7 +815,7 @@ docker-compose down`}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-white font-mono mb-2">Can I use this for my business instead of a municipality?</h3>
                 <p className="text-gray-300 text-sm">
-                  Yes, Neighborhood AI works for any organization that wants a custom AI assistant
+                  Yes, Civic AI Engine works for any organization that wants a custom AI assistant
                   grounded in their own data - businesses, nonprofits, schools, etc.
                 </p>
               </div>

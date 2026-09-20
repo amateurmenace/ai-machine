@@ -219,7 +219,7 @@ brooklineAI.ask("What are the rules for block parties?");
                 <CpuChipIcon className="h-5 w-5 text-green-400" />
               </div>
               <h1 className="text-xl md:text-2xl font-bold text-gray-900 font-mono tracking-tight">
-                Neighborhood AI
+                Civic AI Engine
               </h1>
             </div>
             <div className="flex items-center space-x-4 md:space-x-6">

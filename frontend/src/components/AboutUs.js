@@ -47,7 +47,7 @@ function AboutUs() {
       <div className="bg-gradient-to-br from-orange-500/10 via-rose-500/10 to-purple-500/10 py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            About <span className="text-orange-400">Neighborhood AI</span>
+            About <span className="text-orange-400">Civic AI Engine</span>
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
             Building privacy-respecting, energy-efficient AI assistants for communities.
@@ -72,7 +72,7 @@ function AboutUs() {
                 on local hardware, and are truly owned by the people who use them.
               </p>
               <p className="text-gray-300 text-lg leading-relaxed mb-6">
-                Neighborhood AI is an open-source platform for building locally-run AI assistants
+                Civic AI Engine is an open-source platform for building locally-run AI assistants
                 that can answer questions about your town, city, or organization using your own data
                 sources - without sending anything to external servers.
               </p>
@@ -145,7 +145,7 @@ function AboutUs() {
                 <div>
                   <h3 className="text-xl font-bold text-white mb-3">40+ Years of Community Media</h3>
                   <p className="text-gray-300 mb-4">
-                    Neighborhood AI is a project of <strong className="text-blue-400">Brookline Interactive Group (BIG)</strong>,
+                    Civic AI Engine is a project of <strong className="text-blue-400">Brookline Interactive Group (BIG)</strong>,
                     a community media organization that has been serving Brookline, Massachusetts since 1983.
                   </p>
                   <p className="text-gray-300 mb-4">
@@ -223,7 +223,7 @@ function AboutUs() {
                   <h3 className="text-xl font-bold text-white mb-2">Stephen Walter</h3>
                   <p className="text-gray-400 mb-4">Designer & Developer</p>
                   <p className="text-gray-300 mb-4">
-                    Neighborhood AI is designed and developed by Stephen Walter in collaboration
+                    Civic AI Engine is designed and developed by Stephen Walter in collaboration
                     with AI assistants. Stephen is a technologist focused on building tools that
                     serve community needs.
                   </p>
@@ -261,7 +261,7 @@ function AboutUs() {
                 <div>
                   <h3 className="text-lg font-bold text-white mb-3">Creative Commons BY-NC-SA 4.0</h3>
                   <p className="text-gray-300 mb-4">
-                    Neighborhood AI is open source software released under the
+                    Civic AI Engine is open source software released under the
                     <a
                       href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
                       target="_blank"

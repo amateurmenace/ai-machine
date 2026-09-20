@@ -4,7 +4,7 @@ AI Agent
 The community answer path: constitution + hybrid retrieval + citations +
 provenance, per the community-owned AI guide.
 
-This keeps the original ``NeighborhoodAgent`` interface — ``chat()``,
+This keeps the original ``CivicAgent`` interface — ``chat()``,
 ``search_knowledge()``, ``get_stats()``, ``build_system_prompt()`` — so the
 existing API and frontend keep working, while the work behind ``chat()`` now
 runs through :mod:`rag.pipeline`:
@@ -30,10 +30,10 @@ from rag.hybrid import HybridRetriever, RetrievalFilters
 from rag.pipeline import CommunityPipeline, PromptBundle
 from vector_store import VectorStore
 
-SYSTEM_VERSION = os.getenv("COMMUNITY_AI_VERSION", "0.1")
+SYSTEM_VERSION = os.getenv("COMMUNITY_AI_VERSION", "0.3")
 
 
-class NeighborhoodAgent:
+class CivicAgent:
     """AI agent that answers questions from the community's public record."""
 
     def __init__(self, config: ProjectConfig, vector_store: Optional[VectorStore] = None):
@@ -84,6 +84,10 @@ class NeighborhoodAgent:
             provider=self.client_type,
             knowledge_updated=corpus_freshness(config.project_id),
             system_version=SYSTEM_VERSION,
+            # Zero unless the community turned it on, which leaves every
+            # existing project's retrieval exactly as it was.
+            diversity=(getattr(config, "retrieval_diversity", 0.0)
+                       if getattr(config, "enable_retrieval_diversity", False) else 0.0),
         )
 
     # --- compatibility ---------------------------------------------------
@@ -246,3 +250,9 @@ class NeighborhoodAgent:
     def invalidate_corpus_cache(self) -> None:
         """Drop the keyword index after ingestion so new records are searchable."""
         self.retriever.invalidate()
+
+
+# The agent was called NeighborhoodAgent before the project was named the Civic
+# AI Engine. Anything already deployed or scripted against the old name keeps
+# working; a rename is not a reason to break someone's integration.
+NeighborhoodAgent = CivicAgent

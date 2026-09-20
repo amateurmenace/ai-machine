@@ -1,10 +1,10 @@
-# Neighborhood AI 🏘️
+# Civic AI Engine 🏘️
 
 A browser-based platform to create AI assistants for local communities, towns, and neighborhoods.
 
 ## What It Does
 
-Neighborhood AI helps you build a custom AI chatbot for your community that knows about:
+Civic AI Engine helps you build a custom AI chatbot for your community that knows about:
 - Local government meetings & decisions
 - Town services & procedures  
 - Community news & events
@@ -110,7 +110,7 @@ python3 -m scripts.bootstrap_community community.yaml --dry-run
 ### 🎨 Landing Page
 Beautiful, educational landing page that explains:
 - Why frontier models harm communities (environment, privacy, context)
-- How Neighborhood AI solves these problems
+- How Civic AI Engine solves these problems
 - Our civic-minded design philosophy
 - Real example: Brookline AI
 - Click "Open Console" to access the app

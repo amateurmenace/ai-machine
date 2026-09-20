@@ -26,7 +26,7 @@ ollama pull llama3.1:8b
 ollama pull llama3.1:70b
 ```
 
-### 2. Install Neighborhood AI
+### 2. Install Civic AI Engine
 
 ```bash
 cd neighborhood-ai

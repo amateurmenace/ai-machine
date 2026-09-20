@@ -1,6 +1,6 @@
 """End-to-end test through the real agent.
 
-Exercises the actual production path -- NeighborhoodAgent -> CommunityPipeline
+Exercises the actual production path -- CivicAgent -> CommunityPipeline
 -> HybridRetriever -> citations -> provenance -- with only the vector database
 and the language model replaced. Everything between them is the real code that
 serves /api/chat.
@@ -80,7 +80,7 @@ def main() -> int:
     print("=" * 62)
     _stub_ml()
 
-    from agent import NeighborhoodAgent
+    from agent import CivicAgent
     from models import AIProvider, ProjectConfig
     from tests.fakes import FakeVectorStore
 
@@ -92,7 +92,7 @@ def main() -> int:
         model_name="gemma-4-26b-a4b",
     )
     store = FakeVectorStore(CORPUS, collection_name="e2e-town")
-    agent = NeighborhoodAgent(project, vector_store=store)
+    agent = CivicAgent(project, vector_store=store)
 
     print("\nagent construction")
     check("constitution loaded from source control",
@@ -206,7 +206,7 @@ def main() -> int:
         project_name="Old Town AI",
         community_constitution=["Always cite sources", "Never guess at local facts"],
     )
-    legacy_agent = NeighborhoodAgent(
+    legacy_agent = CivicAgent(
         legacy_project, vector_store=FakeVectorStore(CORPUS, "legacy-town"))
     check("legacy project constructs", legacy_agent is not None)
     check("file constitution takes precedence over inline",

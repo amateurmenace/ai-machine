@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🏘️  Starting Neighborhood AI..."
+echo "🏘️  Starting Civic AI Engine..."
 echo ""
 
 # Create data directory if it doesn't exist
@@ -31,7 +31,7 @@ npm start &
 FRONTEND_PID=$!
 
 echo ""
-echo "✅ Neighborhood AI is running!"
+echo "✅ Civic AI Engine is running!"
 echo ""
 echo "Backend:  http://localhost:8000"
 echo "Frontend: http://localhost:3000"

@@ -1,0 +1,55 @@
+# Communities served by this deployment.
+#
+# Copy to tenants.yaml only if you host more than one community. A single
+# community needs no tenants file at all: every project directory becomes its
+# own tenant automatically, which keeps the common setup free of configuration.
+#
+# The point of tenancy here is not density. It is that Brookline and Cambridge
+# can share a server and still disagree about what the assistant should do.
+# Each community keeps its own constitution, corpus, evaluation set, ratifiers
+# and release history. Nothing is shared by default except the code.
+
+single_tenant: false
+
+tenants:
+  - id: brookline
+    project_id: brookline-ma
+    community: "Brookline, MA"
+    hostnames:
+      - brookline.civicai.org
+      - ai.brooklinema.gov
+    branding:
+      display_name: "Brookline Community AI"
+      tagline: "Ask about the town, or anything else."
+      primary_color: "#0f766e"
+      operator: "Brookline Interactive Group"
+      contact: "ai@brooklineinteractive.org"
+    quota:
+      requests_per_minute: 60
+      requests_per_day: 5000
+    admins:
+      - staff@brooklineinteractive.org
+
+  - id: cambridge
+    project_id: cambridge-ma
+    community: "Cambridge, MA"
+    hostnames:
+      - cambridge.civicai.org
+    path_prefix: /cambridge          # also reachable at one shared domain
+    branding:
+      display_name: "Cambridge Community AI"
+      primary_color: "#7c3aed"
+      operator: "Cambridge Community Television"
+    quota:
+      requests_per_minute: 60
+
+  # A wildcard lets you add a community by creating its directory, with no
+  # change to this file. The tenant id must match the project directory name.
+  - id: demo
+    community: "Demo"
+    hostnames:
+      - "*.demo.civicai.org"
+    quota:
+      requests_per_minute: 10
+      inference_enabled: true
+    notes: "Catch-all for trial deployments."

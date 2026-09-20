@@ -2,7 +2,7 @@
 
 ## Status: ✅ COMPLETE
 
-This document describes two major enhancements to Neighborhood AI's data collection capabilities:
+This document describes two major enhancements to Civic AI Engine's data collection capabilities:
 
 1. **YouTube Playlist Collection Without API Key** (yt-dlp fallback)
 2. **Advanced Web Scraping with JavaScript Support** (Playwright)
@@ -373,7 +373,7 @@ yt-dlp>=2024.3.10
 
 ## Summary
 
-These two features significantly improve Neighborhood AI's data collection capabilities:
+These two features significantly improve Civic AI Engine's data collection capabilities:
 
 1. **YouTube playlists work without API keys** - Thanks to yt-dlp fallback
 2. **JavaScript-rendered websites now work** - Thanks to Playwright

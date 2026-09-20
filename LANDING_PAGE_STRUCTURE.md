@@ -8,7 +8,7 @@
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │   [Live Badge: Open Source • Community Owned]           │ │
 │  │                                                          │ │
-│  │            Neighborhood AI                               │ │
+│  │            Civic AI Engine                               │ │
 │  │   Build AI for Us, Not Them                             │ │
 │  │                                                          │ │
 │  │   [Open Console Button]  [View on GitHub]               │ │
@@ -36,7 +36,7 @@
 │  │ Local AI │  │ Local AI  │  │ Local AI  │                  │
 │  └──────────┘  └──────────┘  └──────────┘                  │
 │                                                              │
-│  [Cost comparison: GPT-4: $30 vs Neighborhood AI: $0]       │
+│  [Cost comparison: GPT-4: $30 vs Civic AI Engine: $0]       │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api, { apiBaseUrl } from '../api';
 import MeetingPlayer from './MeetingPlayer';
+import SecondOpinion from './SecondOpinion';
 import {
   PaperAirplaneIcon, LinkIcon, SparklesIcon, ArrowLeftIcon,
   InformationCircleIcon, ExclamationTriangleIcon, DocumentTextIcon,
@@ -192,6 +193,7 @@ function ChatInterface() {
   const [loading, setLoading] = useState(false);
   const [project, setProject] = useState(null);
   const [systemInfo, setSystemInfo] = useState(null);
+  const [opinionOptions, setOpinionOptions] = useState([]);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -216,6 +218,15 @@ function ChatInterface() {
       } catch (statsError) {
         // The gateway may not be reachable; the chat still works without it.
         setSystemInfo(null);
+      }
+
+      // Which frontier models a resident could choose to ask. Absent or empty
+      // means the control simply does not appear.
+      try {
+        const opinions = await api.get(`/api/projects/${projectId}/second-opinion/options`);
+        setOpinionOptions(opinions.data.options || []);
+      } catch (optionsError) {
+        setOpinionOptions([]);
       }
 
       // Add welcome message
@@ -260,6 +271,7 @@ function ChatInterface() {
       // Add assistant response
       setMessages([...newMessages, {
         role: 'assistant',
+        question: userMessage,
         content: response.data.answer,
         sources: response.data.sources || [],
         provenance: response.data.provenance || null,
@@ -386,6 +398,17 @@ function ChatInterface() {
               {/* "Why did you answer this way?" (guide section 14) */}
               {message.role === 'assistant' && message.provenance && (
                 <ProvenancePanel provenance={message.provenance} />
+              )}
+
+              {/* A frontier model, if the resident chooses and is told where
+                  the question goes. Never automatic. */}
+              {message.role === 'assistant' && message.question && !message.isError && (
+                <SecondOpinion
+                  projectId={projectId}
+                  question={message.question}
+                  localAnswer={message}
+                  options={opinionOptions}
+                />
               )}
             </div>
           </div>

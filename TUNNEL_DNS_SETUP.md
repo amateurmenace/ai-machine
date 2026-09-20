@@ -47,7 +47,7 @@ Expected result:
 ```json
 {
   "status": "healthy",
-  "service": "Neighborhood AI API",
+  "service": "Civic AI Engine API",
   "ollama_status": "running",
   "projects_count": 10
 }

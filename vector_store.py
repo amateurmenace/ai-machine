@@ -41,7 +41,7 @@ class VectorStore:
     """Manages vector embeddings and semantic search"""
 
     def __init__(self, path: str = "./qdrant_data",
-                 collection_name: str = "neighborhood_knowledge",
+                 collection_name: str = "civic_knowledge",
                  embedding_model: Optional[str] = None):
         # Use shared client for the same path to avoid locking issues
         if path not in _qdrant_clients:

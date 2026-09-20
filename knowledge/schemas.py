@@ -129,6 +129,12 @@ class CivicChunk:
     section: str = ""
     effective_date: str = ""
     status: str = RecordStatus.UNKNOWN
+    # What the passage represents, decided at ingestion rather than inferred by
+    # the model at answer time. See knowledge/status.py for why that matters.
+    status_confidence: float = 0.0
+    vote_taken: bool = False
+    vote_outcome: str = ""       # passed | failed | tabled | none
+    vote_tally: str = ""         # "4-1", "unanimous"
 
     # Civic identifiers that keyword search handles better than embeddings
     docket_number: str = ""          # docket, warrant article, case number
@@ -206,7 +212,11 @@ class MeetingTranscriptRecord:
     title: str = ""
     source: str = ""
     collection_method: str = ""
-    status: str = RecordStatus.DISCUSSION
+    # Left unknown so the classifier can read the passage. Its own default for
+    # meeting text is discussion, so a transcript that says nothing about a vote
+    # still ends up marked discussion; the difference is that one that does say
+    # "the motion carries 4-1" is no longer overridden by this default.
+    status: str = RecordStatus.UNKNOWN
 
     def to_chunk(self) -> CivicChunk:
         title = self.title or f"{self.body} — {self.meeting_date}"
@@ -335,6 +345,34 @@ def normalize_payload(payload: Dict[str, Any]) -> CivicChunk:
 # --- chunking helpers ------------------------------------------------------
 
 
+def apply_status(chunk: "CivicChunk") -> "CivicChunk":
+    """Classify what a passage represents, unless the source already declared it.
+
+    Imported lazily because knowledge.status reads the constants defined here,
+    and a module-level import would be circular. The classifier is pure stdlib,
+    so this costs nothing at ingestion.
+    """
+    if chunk.status and chunk.status != RecordStatus.UNKNOWN:
+        return chunk
+
+    try:
+        from knowledge.status import classify_status
+    except ImportError:
+        return chunk
+
+    assessment = classify_status(chunk.text, {
+        "source_type": chunk.source_type,
+        "document_type": chunk.document_type,
+        "status": chunk.status,
+    })
+    chunk.status = assessment.status
+    chunk.status_confidence = assessment.confidence
+    chunk.vote_taken = assessment.vote.vote_taken
+    chunk.vote_outcome = assessment.vote.outcome
+    chunk.vote_tally = assessment.vote.tally
+    return chunk
+
+
 def _split_words(text: str, chunk_size: int, overlap: int) -> List[str]:
     words = text.split()
     if not words:
@@ -403,6 +441,7 @@ def meeting_chunks(
                     collection_method=collection_method,
                 ).to_chunk()
             )
+            apply_status(chunks[-1])
         buffer = []
         buf_start = buf_end = None
         buf_speaker = buf_role = buf_item = ""
@@ -498,6 +537,7 @@ def document_chunks(
                     collection_method=collection_method,
                 ).to_chunk()
             )
+            apply_status(chunks[-1])
     return chunks
 
 

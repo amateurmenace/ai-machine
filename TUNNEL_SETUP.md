@@ -115,7 +115,7 @@ Create a convenience script to start everything:
 #!/bin/bash
 # start-all.sh
 
-echo "Starting Neighborhood AI services..."
+echo "Starting Civic AI Engine services..."
 
 # Terminal 1: Ollama (in background)
 ollama serve > /tmp/ollama.log 2>&1 &

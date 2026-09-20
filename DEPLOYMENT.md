@@ -1,6 +1,6 @@
 # Deployment Guide: Hybrid Architecture
 
-This guide explains how to deploy Neighborhood AI with:
+This guide explains how to deploy Civic AI Engine with:
 - **Frontend**: Netlify (free static hosting, global CDN)
 - **Backend**: Your local Mac Mini with Cloudflare Tunnel
 

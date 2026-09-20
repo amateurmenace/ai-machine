@@ -1,8 +1,8 @@
-# Neighborhood AI - Project Documentation
+# Civic AI Engine - Project Documentation
 
 ## Project Overview
 
-**Neighborhood AI** is an open-source platform for building privacy-respecting, energy-efficient, locally-run AI assistants for communities. It enables civic organizations, community media centers, local governments, and neighborhood groups to create AI chatbots that answer questions about their town using local data sources.
+**Civic AI Engine** is an open-source platform for building privacy-respecting, energy-efficient, locally-run AI assistants for communities. It enables civic organizations, community media centers, local governments, and neighborhood groups to create AI chatbots that answer questions about their town using local data sources.
 
 **Key Principle:** Run powerful AI on modest local hardware (like a Mac Mini M4) instead of relying on cloud-based frontier models. This approach offers 1000x better energy efficiency, zero ongoing costs, complete privacy, and 100% community ownership.
 
@@ -401,7 +401,7 @@ npm start
 Keep this running. Wait for:
 ```
 Compiled successfully!
-You can now view neighborhood-ai-frontend in the browser.
+You can now view civic-ai-engine-frontend in the browser.
   Local:            http://localhost:3000
 ```
 

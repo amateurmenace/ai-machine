@@ -1,4 +1,4 @@
-# Neighborhood AI - Quick Reference Card
+# Civic AI Engine - Quick Reference Card
 
 ## Installation (One-time)
 ```bash
@@ -6,7 +6,7 @@
 curl -fsSL https://ollama.com/install.sh | sh
 ollama pull llama3.1:8b
 
-# 2. Install Neighborhood AI
+# 2. Install Civic AI Engine
 ./install.sh
 ```
 

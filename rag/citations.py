@@ -360,6 +360,14 @@ def build_context_block(
         lines.append(header)
         if meta:
             lines.append("    " + " | ".join(meta))
+
+        # Tell the model what this passage represents rather than leaving it to
+        # infer parliamentary state from prose. Turning discussion into a
+        # decision is the signature civic hallucination, and it is far cheaper
+        # to prevent here than to correct after the fact.
+        status_line = _status_line(chunk)
+        if status_line:
+            lines.append(f"    {status_line}")
         text = chunk.text
         if len(text) > max_chars_per_passage:
             text = text[:max_chars_per_passage].rsplit(" ", 1)[0] + " ..."
@@ -367,6 +375,33 @@ def build_context_block(
         lines.append("")
 
     return "\n".join(lines).strip()
+
+
+def _status_line(chunk: CivicChunk) -> str:
+    """One line naming what the passage is: talk, a proposal, or a decision."""
+    if getattr(chunk, "vote_outcome", ""):
+        outcome = chunk.vote_outcome
+        if outcome == "passed":
+            tally = f" ({chunk.vote_tally})" if chunk.vote_tally else ""
+            return f"RECORD STATUS: a vote was taken and it passed{tally}"
+        if outcome == "failed":
+            return "RECORD STATUS: a vote was taken and the motion failed"
+        if outcome == "tabled":
+            return "RECORD STATUS: tabled, continued or referred, not decided"
+        if outcome == "none":
+            return "RECORD STATUS: the record states explicitly that no vote was taken"
+
+    status = (chunk.status or "").strip()
+    if status == "discussion":
+        return ("RECORD STATUS: discussion. This passage does not record a vote. "
+                "Do not describe it as a decision.")
+    if status == "proposed":
+        return "RECORD STATUS: a proposal, not adopted policy"
+    if status == "adopted":
+        return "RECORD STATUS: adopted text"
+    if status == "superseded":
+        return "RECORD STATUS: superseded. This is no longer in force."
+    return ""
 
 
 @dataclass

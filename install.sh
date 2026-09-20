@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🏘️  Installing Neighborhood AI..."
+echo "🏘️  Installing Civic AI Engine..."
 echo ""
 
 # Check Python version

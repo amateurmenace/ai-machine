@@ -1,8 +1,8 @@
-# Neighborhood AI - Project Structure
+# Civic AI Engine - Project Structure
 
 ## Overview
 
-Neighborhood AI is a complete browser-based platform for creating AI assistants for local communities. It features:
+Civic AI Engine is a complete browser-based platform for creating AI assistants for local communities. It features:
 
 - **Setup Wizard** - AI-powered discovery of local data sources
 - **Data Ingestion** - Automated collection from YouTube, websites, PDFs, RSS feeds

@@ -1,4 +1,4 @@
-# Neighborhood AI - Action Plan
+# Civic AI Engine - Action Plan
 **Date:** January 6, 2026
 **Session:** Issue Resolution & Feature Additions
 

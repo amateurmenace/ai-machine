@@ -1,4 +1,4 @@
-# Neighborhood AI User Guide
+# Civic AI Engine User Guide
 
 ## Quick Start Guide
 

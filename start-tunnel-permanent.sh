@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Permanent Cloudflare Tunnel for Neighborhood AI
+# Start Permanent Cloudflare Tunnel for Civic AI Engine
 # This uses a named tunnel with a fixed URL
 
 TUNNEL_NAME="neighborhood-ai"

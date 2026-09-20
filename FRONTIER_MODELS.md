@@ -2,7 +2,7 @@
 
 ## Overview
 
-Neighborhood AI supports three types of AI providers:
+Civic AI Engine supports three types of AI providers:
 
 1. **Ollama** (Local, Free) - Run models on your computer
 2. **OpenAI** (Cloud, API Key) - GPT-4o and other OpenAI models
@@ -123,7 +123,7 @@ ollama pull llama3.1:8b
 - Create a new key
 - Copy it (starts with `sk-ant-`)
 
-**2. In Neighborhood AI Wizard (Step 1)**
+**2. In Civic AI Engine Wizard (Step 1)**
 - Enter your municipality name
 - Under "AI-Powered Source Discovery":
   - Provider: Select "Anthropic Claude"

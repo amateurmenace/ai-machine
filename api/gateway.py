@@ -201,6 +201,7 @@ def _log(project: Any, principal: Principal, endpoint: str, question: str,
         error=error,
         latency_ms=(time.perf_counter() - started) * 1000,
         data_root=ctx().data_root,
+        retention_days=getattr(project, "log_retention_days", None),
         enabled=getattr(project, "log_requests", True),
     )
 

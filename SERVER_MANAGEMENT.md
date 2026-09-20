@@ -1,6 +1,6 @@
 # Server Management Guide
 
-Complete guide for managing Neighborhood AI servers, handling shutdowns, restarts, and common scenarios.
+Complete guide for managing Civic AI Engine servers, handling shutdowns, restarts, and common scenarios.
 
 ## Table of Contents
 - [Quick Reference](#quick-reference)
@@ -93,7 +93,7 @@ npm start
 Leave this running. You'll see:
 ```
 Compiled successfully!
-You can now view neighborhood-ai-frontend in the browser.
+You can now view civic-ai-engine-frontend in the browser.
   Local:            http://localhost:3000
 ```
 
@@ -270,7 +270,7 @@ curl http://localhost:8000/api/health
 # Should return:
 # {
 #   "status": "healthy",
-#   "service": "Neighborhood AI API",
+#   "service": "Civic AI Engine API",
 #   "checks": {
 #     "ollama": {"status": "running", "models_available": 5},
 #     "projects": {"status": "ok", "count": 6}

@@ -132,7 +132,7 @@ curl http://localhost:8000/api/health
 ```json
 {
   "status": "healthy",
-  "service": "Neighborhood AI API",
+  "service": "Civic AI Engine API",
   "ollama_status": "running",
   "ollama_models": 5,
   "projects_count": 10
@@ -196,7 +196,7 @@ curl https://api.neighborhoodai.org/api/health
    ```
    Should return:
    ```json
-   {"status": "healthy", "service": "Neighborhood AI API", ...}
+   {"status": "healthy", "service": "Civic AI Engine API", ...}
    ```
 
 ### 🟡 Update Netlify Environment Variable

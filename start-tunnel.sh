@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Cloudflare tunnel for Neighborhood AI
+# Start Cloudflare tunnel for Civic AI Engine
 # The URL will be printed - update Netlify env var if it changes
 
 echo "Starting Cloudflare tunnel..."

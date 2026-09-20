@@ -205,6 +205,7 @@ class CommunityPipeline:
         provider: str = "",
         knowledge_updated: Optional[str] = None,
         system_version: str = "0.1",
+        diversity: float = 0.0,
     ) -> None:
         self.retriever = retriever
         self.constitution = constitution
@@ -220,6 +221,7 @@ class CommunityPipeline:
         self.provider = provider
         self.knowledge_updated = knowledge_updated
         self.system_version = system_version
+        self.diversity = diversity
 
     # --- stages ----------------------------------------------------------
 
@@ -242,6 +244,7 @@ class CommunityPipeline:
             filters=filters,
             candidate_pool=self.candidate_pool,
             use_reranker=use_reranker,
+            diversity=self.diversity,
         )
         # Report the question the user asked, not the expanded form.
         result.query = question

@@ -365,22 +365,164 @@ better. That single discipline is what keeps the whole exercise honest.
 
 ---
 
+## 8b. Telling discussion from a decision
+
+The signature failure of a civic assistant is answering "did the board approve
+it?" with "yes" when the record shows a conversation.
+
+The usual fix is to prompt harder. That works badly, because at answer time the
+model is inferring the parliamentary state of a meeting from prose. Inference is
+the wrong tool here: a meeting announces its own state out loud, in a small and
+highly conventional vocabulary. "I move that", "is there a second", "the motion
+carries four to one" are not ambiguous English. They are a protocol.
+
+So classification happens at **ingestion**, once, and the result is stored:
+
+```
+"...the motion carries 4-1."        → adopted    · vote passed · tally 4-1
+"...no motion was made."            → discussion · no vote taken, stated outright
+"The board discussed parking."      → discussion · no vote language at all
+"The motion failed for lack of..."  → discussion · vote failed
+"The article was tabled."           → discussion · tabled, not decided
+Article 8.4 of the zoning bylaw     → adopted    · bylaw text is adopted text
+Warrant Article 24-105              → proposed   · a warrant article is a proposal
+```
+
+Every retrieved passage then carries a line the model cannot miss:
+
+```
+RECORD STATUS: discussion. This passage does not record a vote.
+Do not describe it as a decision.
+```
+
+Two rules keep it conservative. **Silence is not a decision**: a passage with no
+vote language is discussion, never adopted, because the cost of under-claiming
+is an assistant that says "the record does not show a vote", and the cost of
+over-claiming is an assistant that invents one. And **every classification keeps
+its evidence**, so a maintainer reviewing a wrong answer can see the phrase that
+triggered it.
+
+A bare "4-1" is not treated as a tally unless something nearby says it is a
+vote. Dates, cost ranges and scores look identical.
+
+---
+
+## 8c. Precomputed answers
+
+A town's questions have a long head. "When is trash day" is asked constantly,
+costs thirty seconds of local GPU every time, and the answer has not changed
+since yesterday.
+
+A scheduled pass answers the common questions overnight, when the hardware is
+idle. The interesting part is **when a cached answer stops being valid**. The
+key covers four things, and any of them changing invalidates the entry:
+
+| | Why |
+| --- | --- |
+| The corpus fingerprint | A new meeting can change the answer |
+| The constitution hash | Amended rules can change what the answer may say |
+| The model and provider | A different model is a different answer |
+| The normalized question | Obviously |
+
+The constitution hash is the one worth dwelling on. Serving an answer produced
+under superseded rules would quietly undo the entire point of the ledger.
+
+An answer that found no sources is never cached. The archive may have the record
+tomorrow, and a cached "I do not have that" would outlive the gap it describes.
+
+Where the questions come from, honestly: a list the operator maintains. Mining
+them from request logs works only when a community has deliberately turned on
+question text logging, because otherwise the logs hold salted hashes and nothing
+else. That is the privacy promise working as designed, and it costs this feature
+its automation rather than costing residents their privacy.
+
+---
+
+## 8d. The second opinion
+
+Sometimes a frontier model is the right call. The question is who decides and
+whether the resident knows.
+
+**Not automatic routing.** Sending the hard questions to a frontier provider
+behind the resident's back would make this a proxy with extra steps, which is
+the property the project exists to avoid.
+
+Instead it is a button, and the button says where the question is going:
+
+```
+Answered locally by Gemma 4 26B.
+[ ask a frontier model too ]
+    This sends your question, and the community records retrieved for it,
+    outside your community.
+    [ send to Anthropic (claude-opus-5) ]  [ send to Google (gemini-3.1-pro) ]
+```
+
+The disclosure names the **company**, not the model. "Gemini" is a product;
+"Google" is who ends up holding the question.
+
+Two design choices: retrieval is reused rather than repeated, so the comparison
+is about the model rather than the search, and the constitution still applies,
+so a second opinion is not an escape hatch from governance. The comparison that
+follows is mechanical and renders no verdict, because an automated judgment of
+which answer is better would be a third model's opinion presented as fact.
+
+---
+
+## 8e. Several communities on one deployment
+
+Density is not the point. The point is that each community keeps its own
+constitution, corpus, evaluation set, ratifiers and release history while
+sharing infrastructure. Brookline and Cambridge can disagree about what the
+assistant should do and both be right.
+
+So the rule is stricter than ordinary multi-tenancy: **nothing is shared by
+default except the code**. A community's constitution falls back to the
+deployment's only until they adopt their own, and while it does, the system says
+so rather than letting a resident believe they are reading their own town's
+rules.
+
+A request finds its community by explicit id, project id, hostname, or path
+prefix, in that order. Hostname is what matters in practice. If several
+communities are configured and nothing matches, the request resolves to nothing
+rather than to a default, because guessing which town a resident meant is worse
+than asking.
+
+Isolation raises rather than returns false:
+
+```python
+tenant.assert_contains(path)   # IsolationError if outside
+```
+
+Returning a boolean invites a caller to forget the check, and reading another
+community's municipal archive is not a recoverable mistake.
+
+If you run one community, none of this needs configuring. Every project
+directory is its own tenant automatically. `TENANCY.md` covers the rest.
+
+---
+
 ## 9. Where things live
 
 ```
 constitution/     the rules, versioned, plus governance and cards
-community/        loads and renders the constitution
-knowledge/        record schemas and the source inventory
+community/        constitution loading and the signed ledger
+knowledge/        record schemas, the source inventory, record-status classification
 rag/              bm25 · hybrid retrieval · reranking · citations · pipeline
 tools/            web search · fetch · archive search · the tool loop
 collectors/       youtube · websites · pdfs · channel sync · title parsing
 api/              gateway · auth · privacy-aware logging
-evals/            the frozen set and its runner
+stores/           the pluggable vector backend
+cloud/            optional Google Cloud adapters
+evals/            the frozen set, its runner, and provider comparison
 training/         phase-3 scaffolding; nothing runs yet
 scripts/          bootstrap a community from YAML
-tests/            254 assertions, no GPU or network required
+deploy/           Cloud Run
+tests/            no GPU, no database, no network required
 providers.py      the five model backends
 scheduler.py      periodic archive sync
+tenancy.py        several communities on one deployment
+precompute.py     answers to the questions everyone asks
+second_opinion.py asking a frontier model, in the open
 ```
 
 Data, which is not in git:
@@ -408,6 +550,8 @@ data/<project_id>/
 | What "good" means | `evals/*.jsonl` | next eval run |
 | How often the archive syncs | `COMMUNITY_SYNC_INTERVAL_MINUTES` | restart |
 | Which search engine the tools use | `web_search_backend` | next question |
+| Which communities this server hosts | `tenants.yaml` | restart |
+| Which questions get precomputed | `data/<project>/common_questions.json` | next pass |
 
 The first row is the important one. Most complaints about an AI system's
 behavior are arguments about rules, and here the rules are a file a resident can

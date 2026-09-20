@@ -27,6 +27,11 @@ Two things are deliberate:
   the gateway, not at LM Studio.
 * **The hardcoded model lists are a fallback.** Lineups move faster than this
   file. :func:`discover_models` asks a provider what it actually serves.
+* **A key can be a reference instead of a value.** An API key or a tunnel
+  credential written as ``sm://projects/.../versions/latest`` is resolved
+  through Secret Manager on the way in, so it never sits in ``config.json``.
+  Anything else is used exactly as written, which is what a community keeping
+  its key in an environment variable on its own machine wants.
 """
 
 from __future__ import annotations
@@ -35,6 +40,8 @@ import json
 import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+from cloud.secrets import resolve_env, resolve_secret
 
 # --- endpoints ------------------------------------------------------------
 
@@ -357,7 +364,7 @@ class OpenAIProvider(OpenAICompatibleProvider):
     def __init__(self, settings: GenerationSettings, api_key: Optional[str] = None,
                  base_url: Optional[str] = None) -> None:
         super().__init__(settings, base_url=base_url,
-                         api_key=api_key or os.getenv("OPENAI_API_KEY"))
+                         api_key=api_key or resolve_env("OPENAI_API_KEY"))
 
     def health(self) -> Dict[str, Any]:
         if not self.api_key:
@@ -384,7 +391,7 @@ class GeminiProvider(OpenAICompatibleProvider):
         super().__init__(
             settings,
             base_url=base_url or GEMINI_BASE_URL,
-            api_key=api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"),
+            api_key=api_key or resolve_env("GEMINI_API_KEY") or resolve_env("GOOGLE_API_KEY"),
         )
 
     def health(self) -> Dict[str, Any]:
@@ -496,7 +503,7 @@ class AnthropicProvider(BaseProvider):
 
     def __init__(self, settings: GenerationSettings, api_key: Optional[str] = None) -> None:
         super().__init__(settings)
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = api_key or resolve_env("ANTHROPIC_API_KEY")
         self._client = None
 
     @property
@@ -683,6 +690,11 @@ def build_provider(
     verify_tls: bool = True,
 ) -> BaseProvider:
     """Construct the provider for a project's configuration."""
+    # Resolved here, once, for every provider: this is the single place a
+    # configured credential turns into a credential in use.
+    api_key = resolve_secret(api_key)
+    auth_header = resolve_secret(auth_header)
+
     settings = GenerationSettings(
         model=model or DEFAULT_LOCAL_MODEL,
         temperature=temperature,
@@ -738,12 +750,14 @@ def discover_models(provider: str, base_url: Optional[str] = None,
     needs when a model name does not match.
     """
     provider = (provider or "").lower()
+    api_key = resolve_secret(api_key)
+    auth_header = resolve_secret(auth_header)
 
     endpoints = {
         "lmstudio": (base_url or LM_STUDIO_BASE_URL, api_key or LM_STUDIO_API_KEY),
-        "openai": ("https://api.openai.com/v1", api_key or os.getenv("OPENAI_API_KEY")),
+        "openai": ("https://api.openai.com/v1", api_key or resolve_env("OPENAI_API_KEY")),
         "gemini": (base_url or GEMINI_BASE_URL,
-                   api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
+                   api_key or resolve_env("GEMINI_API_KEY") or resolve_env("GOOGLE_API_KEY")),
     }
 
     if provider == "ollama":
@@ -767,7 +781,7 @@ def discover_models(provider: str, base_url: Optional[str] = None,
         # registry is a fine answer when there is no key to spend.
         try:
             from anthropic import Anthropic
-            key = api_key or os.getenv("ANTHROPIC_API_KEY")
+            key = api_key or resolve_env("ANTHROPIC_API_KEY")
             if not key:
                 raise ProviderError("no API key")
             listed = Anthropic(api_key=key).models.list()

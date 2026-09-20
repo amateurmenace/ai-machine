@@ -317,7 +317,7 @@ tests.test_app_wiring   #  24  routes, imports, OpenAPI schema
 tests.test_end_to_end   #  36  the real agent path, model and database stubbed
 ```
 
-The last suite runs the production path: `NeighborhoodAgent.chat()` through the
+The last suite runs the production path: `CivicAgent.chat()` through the
 pipeline, the hybrid retriever, citation verification and provenance, with only
 Qdrant and the language model replaced.
 

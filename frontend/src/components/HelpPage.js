@@ -69,7 +69,7 @@ function HelpPage() {
       <Section title="# getting_started" icon={CommandLineIcon} iconColor="text-green-400">
         <div className="space-y-4 text-sm text-gray-300">
           <p>
-            Neighborhood AI creates local AI assistants that can answer questions about your community,
+            Civic AI Engine creates local AI assistants that can answer questions about your community,
             municipality, or organization using your own data sources.
           </p>
 
@@ -117,7 +117,7 @@ function HelpPage() {
             <pre className="bg-gray-900 p-3 rounded overflow-x-auto">
               <code className="text-green-400">ollama serve</code>
             </pre>
-            <p className="text-gray-500 text-xs mt-2">Keep this terminal open while using Neighborhood AI.</p>
+            <p className="text-gray-500 text-xs mt-2">Keep this terminal open while using Civic AI Engine.</p>
           </div>
 
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -259,7 +259,7 @@ function HelpPage() {
       <Section title="# how_it_works" icon={CircleStackIcon} iconColor="text-cyan-400">
         <div className="space-y-4 text-sm text-gray-300">
           <p>
-            Neighborhood AI uses RAG (Retrieval-Augmented Generation) to answer questions
+            Civic AI Engine uses RAG (Retrieval-Augmented Generation) to answer questions
             based on your data.
           </p>
 
