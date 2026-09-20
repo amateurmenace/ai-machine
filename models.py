@@ -100,6 +100,9 @@ FRONTIER_PROVIDERS = ("anthropic", "openai", "gemini")
 
 
 class DataSourceType(str, Enum):
+    # A whole channel, scanned repeatedly: the shape a public-access station's
+    # meeting archive actually takes. Backfills once, then syncs what is new.
+    YOUTUBE_CHANNEL = "youtube_channel"
     YOUTUBE_PLAYLIST = "youtube_playlist"
     YOUTUBE_VIDEO = "youtube_video"
     WEBSITE = "website"

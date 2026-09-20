@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api, { apiBaseUrl } from '../api';
+import MeetingPlayer from './MeetingPlayer';
 import {
   PaperAirplaneIcon, LinkIcon, SparklesIcon, ArrowLeftIcon,
   InformationCircleIcon, ExclamationTriangleIcon, DocumentTextIcon,
   VideoCameraIcon, ChevronDownIcon, ChevronRightIcon,
+  GlobeAltIcon, WrenchScrewdriverIcon, PlayCircleIcon,
 } from '@heroicons/react/24/outline';
 
 // Operational facts about one answer, per section 14 of the community-owned AI
@@ -38,6 +40,8 @@ function ProvenancePanel({ provenance }) {
   ].filter(([, value]) => value !== null && value !== undefined && value !== '');
 
   const notes = [...(provenance.warnings || []), ...(retrieval.notes || [])];
+  const tools = provenance.tools || {};
+  const invocations = tools.invocations || [];
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-700">
@@ -63,6 +67,34 @@ function ProvenancePanel({ provenance }) {
             ))}
           </dl>
 
+          {invocations.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-gray-800">
+              <p className="text-xs font-mono text-gray-500 mb-1">
+                tools used ({tools.iterations} round{tools.iterations === 1 ? '' : 's'})
+              </p>
+              {invocations.map((call, idx) => (
+                <p key={idx} className="text-xs font-mono text-gray-400 flex items-start">
+                  {call.external
+                    ? <GlobeAltIcon className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0 text-amber-500/80" />
+                    : <WrenchScrewdriverIcon className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0 text-gray-600" />}
+                  <span>
+                    {call.tool}
+                    {call.arguments && call.arguments.query
+                      ? ` "${String(call.arguments.query).slice(0, 48)}"` : ''}
+                    <span className={call.ok ? 'text-gray-600' : 'text-red-400'}>
+                      {' '}— {call.summary}
+                    </span>
+                  </span>
+                </p>
+              ))}
+              {tools.external_calls > 0 && (
+                <p className="mt-1 text-xs font-mono text-amber-500/70">
+                  This answer used sources outside the community's records.
+                </p>
+              )}
+            </div>
+          )}
+
           {notes.length > 0 && (
             <div className="mt-3 pt-2 border-t border-gray-800">
               {notes.map((note, idx) => (
@@ -83,33 +115,70 @@ function ProvenancePanel({ provenance }) {
   );
 }
 
-// One citation, with a link that lands on the exact page or timestamp rather
-// than the top of a 300-page PDF (Principle 20, Verifiability).
+// One citation. Links land on the exact page or timestamp rather than the top
+// of a 300-page PDF (Principle 20, Verifiability), and a meeting citation can
+// open its own player so the resident can watch the board say the thing.
 function SourceCitation({ source, index }) {
+  const [showPlayer, setShowPlayer] = useState(false);
+
   const isMeeting = source.source_type === 'meeting_transcript';
-  const Icon = isMeeting ? VideoCameraIcon : DocumentTextIcon;
+  const isWeb = source.source_type === 'web' || source.source_type === 'page';
+  const Icon = isMeeting ? VideoCameraIcon : isWeb ? GlobeAltIcon : DocumentTextIcon;
   const label = source.label || source.title || 'Source';
   const number = source.number != null ? source.number : index + 1;
+  const canPlay = Boolean(source.embed && source.embed.embed_url);
 
   return (
     <div className={`text-xs font-mono ${source.used === false ? 'opacity-50' : ''}`}>
-      <a
-        href={source.url || '#'}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-start text-cyan-400 hover:text-cyan-300 transition-colors"
-      >
+      <div className="flex items-start">
         <span className="text-gray-600 mr-1 flex-shrink-0">[{number}]</span>
-        <Icon className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0" />
-        <span className="break-words">{label}</span>
-        {source.url && <LinkIcon className="h-3 w-3 ml-1 mt-0.5 flex-shrink-0 opacity-60" />}
-      </a>
+        <Icon className="h-3 w-3 mr-1 mt-0.5 flex-shrink-0 text-gray-500" />
+        <a
+          href={source.url || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-cyan-400 hover:text-cyan-300 transition-colors break-words"
+        >
+          {label}
+          {source.url && <LinkIcon className="h-3 w-3 ml-1 inline-block opacity-60" />}
+        </a>
+      </div>
+
       {(source.attribution || source.agenda_item || source.status) && (
         <p className="ml-6 text-gray-600">
           {[source.attribution, source.agenda_item && `on ${source.agenda_item}`, source.status]
             .filter(Boolean)
             .join(' · ')}
         </p>
+      )}
+
+      {isWeb && (
+        <p className="ml-6 text-amber-500/70">
+          from the web, not this community's records
+        </p>
+      )}
+
+      {canPlay && (
+        <div className="ml-6 mt-1">
+          <button
+            onClick={() => setShowPlayer(!showPlayer)}
+            className="flex items-center text-gray-500 hover:text-green-400 transition-colors"
+          >
+            <PlayCircleIcon className="h-3.5 w-3.5 mr-1" />
+            {showPlayer ? 'hide video' : `watch this moment${
+              source.embed.start_label ? ` (${source.embed.start_label})` : ''}`}
+          </button>
+          {showPlayer && (
+            <MeetingPlayer
+              embed={source.embed}
+              label={label}
+              speaker={source.speaker}
+              agendaItem={source.agenda_item}
+              onClose={() => setShowPlayer(false)}
+              autoOpen
+            />
+          )}
+        </div>
       )}
     </div>
   );

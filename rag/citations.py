@@ -125,6 +125,52 @@ def deep_link(chunk: CivicChunk) -> str:
     return base
 
 
+def embed_info(chunk: CivicChunk) -> Optional[Dict[str, Any]]:
+    """Everything the app needs to play this moment of the meeting in place.
+
+    Section 14's "watch meeting" link is better as a player than a link out: a
+    resident reading an answer about a zoning vote should be able to watch the
+    vote happen without losing the answer.
+
+    youtube-nocookie.com is used deliberately. It is YouTube's privacy-enhanced
+    embed, which does not set tracking cookies until playback starts. A town
+    telling residents their questions stay local should not hand Google a
+    profile of who watched which meeting.
+    """
+    if chunk.source_type != SourceType.MEETING_TRANSCRIPT:
+        return None
+
+    base = chunk.video_url or chunk.url
+    video_id = _youtube_video_id(base)
+    if not video_id:
+        return None
+
+    try:
+        start = max(0, int(float(chunk.start_time))) if chunk.start_time is not None else 0
+    except (TypeError, ValueError):
+        start = 0
+
+    end = None
+    if chunk.end_time is not None:
+        try:
+            end = max(start + 1, int(float(chunk.end_time)))
+        except (TypeError, ValueError):
+            end = None
+
+    embed = f"https://www.youtube-nocookie.com/embed/{video_id}?start={start}&rel=0"
+    return {
+        "platform": "youtube",
+        "video_id": video_id,
+        "embed_url": embed,
+        "watch_url": f"https://www.youtube.com/watch?v={video_id}&t={start}s",
+        "thumbnail_url": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+        "start_seconds": start,
+        "end_seconds": end,
+        "start_label": format_timestamp(start),
+        "privacy_note": "youtube-nocookie.com: no tracking cookies until you press play",
+    }
+
+
 def citation_label(chunk: CivicChunk) -> str:
     """A human-readable citation, in the style of the guide's examples.
 
@@ -200,6 +246,8 @@ class Citation:
     retrieval_path: str = ""
     used: bool = False
     excerpt: str = ""
+    # Present only for meeting passages that can be played in the app.
+    embed: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -222,6 +270,7 @@ class Citation:
             "retrieval_path": self.retrieval_path,
             "used": self.used,
             "excerpt": self.excerpt,
+            "embed": self.embed,
         }
 
 
@@ -255,6 +304,7 @@ def build_citations(retrieved: Sequence[Any]) -> List[Citation]:
                 relevance_score=round(float(score), 4) if score is not None else None,
                 retrieval_path=getattr(item, "retrieval_path", ""),
                 excerpt=chunk.text[:300],
+                embed=embed_info(chunk),
             )
         )
     return citations

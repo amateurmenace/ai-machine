@@ -23,6 +23,9 @@ from collectors.youtube_collector import YouTubeCollector
 from collectors.website_collector import WebsiteCollector
 from collectors.pdf_collector import PDFCollector
 from collectors.source_discovery import SourceDiscovery
+from collectors.youtube_channel import (
+    DEFAULT_SCAN_LIMIT, advance_cursor, load_state, plan_sync, save_state,
+)
 
 from api.auth import ALL_SCOPES, DEFAULT_SCOPES, new_client_record
 from api.gateway import GatewayContext, configure_gateway, router as community_router
@@ -142,6 +145,37 @@ def get_or_create_agent(project_id: str) -> NeighborhoodAgent:
     agent = NeighborhoodAgent(project, vector_store=vector_stores[project_id])
     agents[project_id] = agent
     return agent
+
+
+@app.on_event("startup")
+async def start_archive_sync():
+    """Begin scanning channel sources for new meetings on an interval."""
+    import scheduler
+
+    scheduler.start(
+        list_project_ids=list_project_ids,
+        load_project=load_project,
+        ingest=ingest_source_background,
+    )
+
+
+@app.on_event("shutdown")
+async def stop_archive_sync():
+    import scheduler
+
+    scheduler.shutdown()
+
+
+@app.get("/api/admin/sync-runs")
+async def list_sync_runs():
+    """What the last scheduled archive sync did, per project."""
+    import scheduler
+
+    return {
+        "enabled": scheduler.SYNC_ENABLED,
+        "interval_minutes": scheduler.SYNC_INTERVAL_MINUTES,
+        "last_runs": scheduler.last_runs(),
+    }
 
 
 # The Community AI gateway: OpenAI-compatible /v1 endpoints plus the civic
@@ -413,6 +447,85 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                     collection_method=collection_method,
                 ):
                     documents.append({'text': chunk.text, 'metadata': chunk.to_payload()})
+
+        elif source.type == DataSourceType.YOUTUBE_CHANNEL:
+            # A channel is scanned, not downloaded: figure out which meetings
+            # are new, then pull a transcript for each one. State on disk is
+            # what makes the second run cheap and the hundredth run free.
+            collection_method = "youtube_channel_sync"
+            meta = source.metadata or {}
+            state = load_state(project.project_id, source.id, source.url)
+
+            plan = plan_sync(
+                source.url,
+                state,
+                api_key=os.getenv("YOUTUBE_API_KEY"),
+                limit=int(meta.get("scan_limit") or DEFAULT_SCAN_LIMIT),
+                incremental=bool(meta.get("incremental", True)),
+                min_confidence=float(meta.get("min_confidence") or 0.0),
+                meetings_only=bool(meta.get("meetings_only", True)),
+                body_override=meta.get("body", ""),
+            )
+
+            if plan.error:
+                job.status = "failed"
+                job.error = f"channel scan failed: {plan.error}"
+                job.completed_at = datetime.now()
+                return
+
+            job.total_items = len(plan.new_videos)
+            collector = YouTubeCollector()
+
+            for index, video in enumerate(plan.new_videos):
+                job.processed_items = index
+                job.progress = (index / max(len(plan.new_videos), 1)) * 50
+
+                try:
+                    result = collector.collect_video(video.url)
+                except Exception as exc:
+                    state.errors.append({"video_id": video.video_id,
+                                         "error": f"{type(exc).__name__}: {exc}"})
+                    state.mark_skipped(video.video_id, "transcript error")
+                    continue
+
+                if not result or not result.get("transcript"):
+                    # A meeting with captions disabled is a real gap in the
+                    # archive. Recording it means the data card can say so
+                    # rather than the absence looking like the meeting never
+                    # happened.
+                    state.errors.append({"video_id": video.video_id,
+                                         "error": "no transcript available"})
+                    state.mark_skipped(video.video_id, "no transcript")
+                    continue
+
+                for chunk in meeting_chunks(
+                    result["transcript"]["segments"],
+                    community=project.municipality_name,
+                    body=video.body or _source_body(source),
+                    meeting_date=video.meeting_date or video.published_at,
+                    video_url=video.url,
+                    title=video.title,
+                    source=source.name,
+                    collection_method=collection_method,
+                ):
+                    payload = chunk.to_payload()
+                    payload["video_id"] = video.video_id
+                    payload["date_source"] = video.date_source
+                    documents.append({"text": chunk.text, "metadata": payload})
+
+                state.mark_ingested(video.video_id)
+
+            for video in plan.skipped_not_meetings + plan.skipped_low_confidence:
+                state.mark_skipped(video.video_id, "not classified as a meeting")
+
+            advance_cursor(state, plan.new_videos)
+            save_state(project.project_id, state)
+
+            source.metadata = {**meta, "last_sync": state.last_synced_at,
+                               "videos_ingested": len(state.ingested_video_ids),
+                               "videos_skipped": len(state.skipped_video_ids),
+                               "scan_errors": len(state.errors)}
+            job.processed_items = len(plan.new_videos)
 
         elif source.type == DataSourceType.YOUTUBE_VIDEO:
             collection_method = "youtube_transcript_api"
@@ -753,6 +866,110 @@ async def generate_personality(
         return {"personality": personality}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/projects/{project_id}/sources/{source_id}/preview-scan")
+async def preview_channel_scan(project_id: str, source_id: str,
+                               limit: int = 100, incremental: bool = False):
+    """Show what a channel sync would ingest, without ingesting anything.
+
+    A backfill of a decade of meetings is hours of work. Looking at the plan
+    first, how many videos were found, which boards were recognized, what would
+    be skipped and why, costs one scan and prevents a bad ingestion of
+    thousands of records with the wrong board attached.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    source = next((s for s in project.data_sources if s.id == source_id), None)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    meta = source.metadata or {}
+    state = load_state(project_id, source_id, source.url)
+    plan = plan_sync(
+        source.url,
+        state,
+        api_key=os.getenv("YOUTUBE_API_KEY"),
+        limit=limit,
+        incremental=incremental,
+        min_confidence=float(meta.get("min_confidence") or 0.0),
+        meetings_only=bool(meta.get("meetings_only", True)),
+        body_override=meta.get("body", ""),
+    )
+
+    if plan.error:
+        raise HTTPException(status_code=502, detail=plan.error)
+
+    return {
+        "source": {"id": source.id, "name": source.name, "url": source.url},
+        "summary": plan.summary(),
+        "would_ingest": [v.to_dict() for v in plan.new_videos[:50]],
+        "would_skip": [
+            {**v.to_dict(), "reason": "not classified as a meeting"}
+            for v in plan.skipped_not_meetings[:20]
+        ] + [
+            {**v.to_dict(), "reason": "below the confidence threshold"}
+            for v in plan.skipped_low_confidence[:20]
+        ],
+        "state": {
+            "last_synced_at": state.last_synced_at,
+            "last_published_at": state.last_published_at,
+            "already_ingested": len(state.ingested_video_ids),
+        },
+    }
+
+
+@app.get("/api/projects/{project_id}/sources/{source_id}/sync-state")
+async def get_sync_state(project_id: str, source_id: str):
+    """What previous scans of this channel have already handled."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    state = load_state(project_id, source_id)
+    return {
+        "source_id": source_id,
+        "last_synced_at": state.last_synced_at,
+        "last_published_at": state.last_published_at,
+        "videos_ingested": len(state.ingested_video_ids),
+        "videos_skipped": len(state.skipped_video_ids),
+        "total_scanned": state.total_scanned,
+        # Gaps in the archive belong in the data card, so they are surfaced
+        # rather than buried: a meeting with captions disabled is missing
+        # evidence, not a missing meeting.
+        "errors": state.errors[-50:],
+        "error_count": len(state.errors),
+    }
+
+
+@app.post("/api/projects/{project_id}/sync-all")
+async def sync_all_channels(project_id: str, background_tasks: BackgroundTasks):
+    """Run an incremental sync of every channel source in this project.
+
+    This is what a scheduler calls. It ingests only what is new, so running it
+    every few hours costs one listing request per channel when nothing changed.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    channels = [s for s in project.data_sources
+                if s.type == DataSourceType.YOUTUBE_CHANNEL and s.enabled]
+    if not channels:
+        return {"started": 0, "message": "No enabled channel sources in this project."}
+
+    jobs = []
+    for source in channels:
+        job = DataIngestionJob(
+            job_id=str(uuid.uuid4()), project_id=project_id,
+            source_id=source.id, status="pending",
+        )
+        background_tasks.add_task(ingest_source_background, job, project)
+        jobs.append({"job_id": job.job_id, "source": source.name})
+
+    return {"started": len(jobs), "jobs": jobs}
 
 
 @app.get("/api/projects/{project_id}/constitution")
