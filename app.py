@@ -31,7 +31,10 @@ from community.constitution import (
     load_constitution,
     resolve_for_project,
 )
-from providers import LM_STUDIO_BASE_URL, list_lmstudio_models
+from providers import (
+    LM_STUDIO_BASE_URL, PROVIDER_LABELS, build_provider_for, discover_models,
+    list_lmstudio_models,
+)
 from knowledge.schemas import (
     RecordStatus, SourceType, document_chunks, meeting_chunks,
 )
@@ -638,14 +641,81 @@ async def list_ollama_models():
 
 
 @app.get("/api/lmstudio/models")
-async def list_lm_studio_models(base_url: Optional[str] = None):
-    """List models loaded in a local LM Studio server.
+async def list_lm_studio_models(base_url: Optional[str] = None,
+                                auth_header: Optional[str] = None):
+    """List models loaded in an LM Studio server, local or tunneled."""
+    return list_lmstudio_models(base_url, auth_header)
 
-    Section 12 of the community-owned AI guide runs inference on a local LM
-    Studio instance. This asks that server what it actually has loaded, so the
-    setup wizard can offer real choices instead of a hardcoded list.
+
+@app.get("/api/providers")
+async def list_providers():
+    """Every provider this deployment can use, local ones first.
+
+    The ordering is the product statement: a community runs its own model, and
+    reaches for someone else's only when it chooses to.
     """
-    return list_lmstudio_models(base_url)
+    from models import AVAILABLE_MODELS, FRONTIER_PROVIDERS, LOCAL_PROVIDERS
+    from providers import PROVIDER_LABELS
+
+    def describe(key: str, local: bool) -> Dict:
+        return {
+            "provider": key,
+            "label": PROVIDER_LABELS.get(key, key),
+            "local": local,
+            "needs_api_key": not local,
+            "models": AVAILABLE_MODELS.get(key, []),
+        }
+
+    return {
+        "local": [describe(p, True) for p in LOCAL_PROVIDERS],
+        "frontier": [describe(p, False) for p in FRONTIER_PROVIDERS],
+        "default": "lmstudio",
+        "note": (
+            "Local providers run on hardware the community controls; a question "
+            "answered locally never leaves the building. Frontier providers send "
+            "the question and the retrieved records to that company's servers."
+        ),
+    }
+
+
+@app.get("/api/providers/{provider}/discover")
+async def discover_provider_models(provider: str, base_url: Optional[str] = None,
+                                   api_key: Optional[str] = None,
+                                   auth_header: Optional[str] = None):
+    """Ask a provider what models it actually serves right now.
+
+    The hardcoded registry goes stale; this does not. For a local server it
+    reports what is loaded this minute, which is what an operator needs when a
+    configured model name does not match.
+    """
+    return discover_models(provider, base_url=base_url, api_key=api_key,
+                           auth_header=auth_header)
+
+
+@app.post("/api/projects/{project_id}/test-connection")
+async def test_provider_connection(project_id: str):
+    """Check that this project's configured model server answers.
+
+    Returns the operator-facing remedy when it does not, rather than a stack
+    trace: a stopped LM Studio and an unreachable tunnel look identical from the
+    outside and need different fixes.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    try:
+        provider = build_provider_for(project)
+    except Exception as exc:
+        return {"reachable": False, "detail": str(exc)}
+
+    health = provider.health()
+    health["provider_label"] = PROVIDER_LABELS.get(provider.name, provider.name)
+    health["tools_supported"] = provider.supports_tools
+    health["tools_enabled"] = (
+        list(project.enabled_tools) if getattr(project, "enable_tools", False) else []
+    )
+    return health
 
 
 @app.get("/api/models/{provider}")

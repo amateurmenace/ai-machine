@@ -9,51 +9,94 @@ class AIProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     # A local LM Studio server, the deployment the community-owned AI guide is
-    # written around. Speaks the OpenAI protocol on localhost:1234 by default.
+    # written around. Speaks the OpenAI protocol on localhost:1234 by default,
+    # or over a tunnel to a server the community runs elsewhere.
     LMSTUDIO = "lmstudio"
+    GEMINI = "gemini"
 
 
 # Model presets for easy selection
+# Model presets per provider.
+#
+# These are starting points shown in the setup wizard, not a whitelist: every
+# provider also accepts a custom identifier, and the app can query a provider's
+# own /models endpoint at runtime (see providers.discover_models). Model
+# lineups move faster than this file will, so live discovery is the reliable
+# path and this table is the offline fallback.
+#
+# Checked against provider documentation: September 2026.
 AVAILABLE_MODELS = {
+    # --- Local, and the point of the project ---------------------------
     "lmstudio": [
         {"name": "gemma-4-26b-a4b", "display": "Gemma 4 26B-A4B (Recommended)",
-         "description": "The local deployment the community AI guide is built around"},
+         "description": "The local deployment the community AI guide is built around",
+         "tools": True},
         {"name": "gemma-4-12b", "display": "Gemma 4 12B",
-         "description": "Smaller Gemma, lower memory footprint"},
+         "description": "Smaller Gemma, lower memory footprint", "tools": True},
         {"name": "qwen3-30b-a3b", "display": "Qwen 3 30B-A3B",
-         "description": "Mixture-of-experts alternative with a large context window"},
+         "description": "Mixture of experts, strong tool calling, large context",
+         "tools": True},
         {"name": "llama-3.3-70b", "display": "Llama 3.3 70B",
-         "description": "Larger open model, needs substantial VRAM"},
+         "description": "Larger open model, needs substantial VRAM", "tools": True},
+        {"name": "mistral-small-3.2-24b", "display": "Mistral Small 3.2 24B",
+         "description": "Efficient, reliable function calling", "tools": True},
         {"name": "custom", "display": "Custom Model...",
          "description": "Any model identifier loaded in LM Studio"},
     ],
     "ollama": [
-        {"name": "llama3.1:8b", "display": "Llama 3.1 8B (Recommended)", "description": "Fast and efficient, 8GB RAM"},
-        {"name": "llama3.1:70b", "display": "Llama 3.1 70B", "description": "Best quality, needs GPU"},
-        {"name": "llama3.2:3b", "display": "Llama 3.2 3B", "description": "Lightweight, 4GB RAM"},
-        {"name": "olmo3:8b", "display": "OLMo 3 8B", "description": "Allen AI's open model, research-focused"},
-        {"name": "olmo3:13b", "display": "OLMo 3 13B", "description": "Allen AI's larger open model"},
-        {"name": "mistral:7b", "display": "Mistral 7B", "description": "Fast inference"},
-        {"name": "mixtral:8x7b", "display": "Mixtral 8x7B", "description": "High quality"},
-        {"name": "phi3:medium", "display": "Phi-3 Medium", "description": "Microsoft's efficient model"},
+        {"name": "llama3.3:70b", "display": "Llama 3.3 70B", "description": "Best open quality, needs a GPU", "tools": True},
+        {"name": "llama3.1:8b", "display": "Llama 3.1 8B (Recommended)", "description": "Fast and efficient, 8GB RAM", "tools": True},
+        {"name": "qwen3:30b-a3b", "display": "Qwen 3 30B-A3B", "description": "Mixture of experts, strong tool calling", "tools": True},
+        {"name": "gemma3:27b", "display": "Gemma 3 27B", "description": "Google's open model", "tools": False},
+        {"name": "mistral-small:24b", "display": "Mistral Small 24B", "description": "Reliable function calling", "tools": True},
+        {"name": "olmo3:13b", "display": "OLMo 3 13B", "description": "Allen AI, fully open training data", "tools": False},
+        {"name": "phi4:14b", "display": "Phi-4 14B", "description": "Microsoft's efficient model", "tools": True},
         {"name": "custom", "display": "Custom Model...", "description": "Enter any Ollama model name"},
     ],
+
+    # --- Frontier, for comparison and for tasks a local model cannot do ---
+    "anthropic": [
+        {"name": "claude-opus-5", "display": "Claude Opus 5 (Recommended)",
+         "description": "Anthropic's balance of capability and cost", "tools": True},
+        {"name": "claude-sonnet-5", "display": "Claude Sonnet 5",
+         "description": "Cheaper, still strong on civic summarization", "tools": True},
+        {"name": "claude-haiku-4-5", "display": "Claude Haiku 4.5",
+         "description": "Fastest and cheapest, good for bulk extraction", "tools": True},
+        {"name": "claude-fable-5-1", "display": "Claude Fable 5.1",
+         "description": "Most capable, priced well above Opus", "tools": True},
+        {"name": "custom", "display": "Custom Model...", "description": "Enter any Anthropic model name"},
+    ],
     "openai": [
-        {"name": "gpt-5.2", "display": "GPT-5.2 (Latest)", "description": "OpenAI's most advanced model"},
-        {"name": "gpt-4o", "display": "GPT-4o (Recommended)", "description": "Best quality, multimodal"},
-        {"name": "gpt-4o-mini", "display": "GPT-4o Mini", "description": "Fast and affordable"},
-        {"name": "gpt-4-turbo", "display": "GPT-4 Turbo", "description": "Previous generation"},
-        {"name": "gpt-3.5-turbo", "display": "GPT-3.5 Turbo", "description": "Fast and cheap"},
+        {"name": "gpt-5.5", "display": "GPT-5.5 (Recommended)",
+         "description": "OpenAI's production model for the Chat Completions API",
+         "tools": True},
+        {"name": "gpt-6-astra", "display": "GPT-6 Astra",
+         "description": "Most capable. Tool calling needs the Responses API, so "
+                        "web search is unavailable on this model here",
+         "tools": False},
+        {"name": "gpt-5.5-pro", "display": "GPT-5.5 Pro",
+         "description": "Higher accuracy, higher cost", "tools": True},
         {"name": "custom", "display": "Custom Model...", "description": "Enter any OpenAI model name"},
     ],
-    "anthropic": [
-        {"name": "claude-opus-4-20250514", "display": "Claude Opus 4.5 (Recommended)", "description": "Highest intelligence"},
-        {"name": "claude-sonnet-4-20250514", "display": "Claude Sonnet 4.5", "description": "Best balance"},
-        {"name": "claude-haiku-4-20250514", "display": "Claude Haiku 4", "description": "Fast and affordable"},
-        {"name": "claude-3-5-sonnet-20241022", "display": "Claude 3.5 Sonnet", "description": "Previous generation"},
-        {"name": "custom", "display": "Custom Model...", "description": "Enter any Anthropic model name"},
-    ]
+    "gemini": [
+        {"name": "gemini-3.1-pro", "display": "Gemini 3.1 Pro (Recommended)",
+         "description": "Google's flagship for hard reasoning and multimodal work",
+         "tools": True},
+        {"name": "gemini-3.8-flash", "display": "Gemini 3.8 Flash",
+         "description": "Fast and inexpensive, newest Flash generation", "tools": True},
+        {"name": "gemini-3.5-flash", "display": "Gemini 3.5 Flash",
+         "description": "Google's general default model", "tools": True},
+        {"name": "gemini-3.1-flash-lite", "display": "Gemini 3.1 Flash-Lite",
+         "description": "Cheapest, for bulk classification and extraction", "tools": True},
+        {"name": "custom", "display": "Custom Model...", "description": "Enter any Gemini model name"},
+    ],
 }
+
+# Providers that run on hardware the community controls. The distinction drives
+# the setup wizard's ordering and the privacy language shown to residents: a
+# question answered locally never leaves the building.
+LOCAL_PROVIDERS = ("lmstudio", "ollama")
+FRONTIER_PROVIDERS = ("anthropic", "openai", "gemini")
 
 
 class DataSourceType(str, Enum):
@@ -134,6 +177,8 @@ class ProjectConfig(BaseModel):
             self.model_name = "claude-opus-4-20250514"
         elif self.ai_provider == AIProvider.LMSTUDIO and self.model_name == "llama3.1:8b":
             self.model_name = "gemma-4-26b-a4b"
+        elif self.ai_provider == AIProvider.GEMINI and self.model_name == "llama3.1:8b":
+            self.model_name = "gemini-3.1-pro"
     
     # Personality & Behavior
     system_prompt: str = ""
@@ -178,7 +223,26 @@ class ProjectConfig(BaseModel):
     log_retention_days: int = Field(default=30, ge=0, le=3650)
 
     # Local inference, per section 12.
+    #
+    # Points at LM Studio. For a server on the community's own network this is
+    # a private address; for a server reached through a Cloudflare tunnel or
+    # similar it is the public hostname, and `local_auth_header` carries
+    # whatever the tunnel requires. The tunnel is what makes a machine in a
+    # closet serve a whole town without a static IP or an open port.
     lmstudio_base_url: Optional[str] = None
+    local_auth_header: Optional[str] = None   # e.g. "Authorization: Bearer ..."
+    local_verify_tls: bool = True
+
+    # Tools the assistant may use while answering (see tools/).
+    #
+    # Local models have no built-in web access and a fixed knowledge cutoff, so
+    # tools are how a community model answers anything outside its archive.
+    enable_tools: bool = False
+    enabled_tools: List[str] = ["search_community_records", "web_search", "fetch_url"]
+    max_tool_iterations: int = Field(default=4, ge=1, le=10)
+    web_search_backend: str = "duckduckgo"    # duckduckgo | searxng | brave | tavily
+    web_search_base_url: Optional[str] = None  # for a self-hosted SearXNG
+    web_search_api_key: Optional[str] = None
 
     # Data Sources
     data_sources: List[DataSource] = []

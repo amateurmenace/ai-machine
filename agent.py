@@ -24,7 +24,8 @@ from typing import Any, Dict, List, Optional
 
 from community.constitution import Constitution, corpus_freshness, resolve_for_project
 from models import ChatMessage, ProjectConfig
-from providers import PROVIDER_LABELS, ProviderError, build_provider
+from providers import PROVIDER_LABELS, ProviderError, build_provider_for
+from tools import build_registry
 from rag.hybrid import HybridRetriever, RetrievalFilters
 from rag.pipeline import CommunityPipeline, PromptBundle
 from vector_store import VectorStore
@@ -62,17 +63,13 @@ class NeighborhoodAgent:
             keyword_weight=1.0,
         )
 
-        self.provider = build_provider(
-            provider=str(config.ai_provider.value if hasattr(config.ai_provider, "value")
-                         else config.ai_provider),
-            model=config.model_name,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            context_window=config.context_window,
-            api_key=config.api_key,
-            base_url=getattr(config, "lmstudio_base_url", None),
-        )
+        self.provider = build_provider_for(config)
         self.client_type = self.provider.name
+
+        # Tools are opt-in per project. With them off, the assistant answers
+        # only from the community's own archive, which is a legitimate choice
+        # for a public-facing civic service rather than a missing feature.
+        self.tools = build_registry(config, retriever=self.retriever)
 
         self.pipeline = CommunityPipeline(
             retriever=self.retriever,
@@ -164,6 +161,9 @@ class NeighborhoodAgent:
                 use_reranker=getattr(self.config, "enable_reranking", True),
                 enforce_citations=getattr(self.config, "require_citations", True),
                 expand=getattr(self.config, "enable_query_expansion", True),
+                tool_registry=self.tools,
+                provider=self.provider,
+                max_tool_iterations=getattr(self.config, "max_tool_iterations", 4),
             )
         except ProviderError as exc:
             # A misconfigured or stopped local server is the most common failure
@@ -231,6 +231,9 @@ class NeighborhoodAgent:
             "constitution_principles": len(self.constitution.principles),
             "system_version": SYSTEM_VERSION,
             "knowledge_updated": corpus_freshness(self.config.project_id),
+            "tools_enabled": self.tools.names(),
+            "provider_supports_tools": self.provider.supports_tools,
+            "local_inference": self.client_type in ("lmstudio", "ollama"),
         }
 
     def provider_health(self) -> Dict:

@@ -53,9 +53,14 @@ class PromptBundle:
     context_block: str
     question: str
     history: List[Dict[str, str]] = field(default_factory=list)
+    tool_instructions: str = ""
 
     def system_blocks(self) -> List[str]:
-        return [b for b in (self.identity, self.constitution_text, self.context_block) if b]
+        return [
+            b for b in (self.identity, self.constitution_text, self.context_block,
+                        self.tool_instructions)
+            if b
+        ]
 
     def as_openai_messages(self) -> List[Dict[str, str]]:
         """Multiple system messages, which OpenAI-compatible APIs accept."""
@@ -100,6 +105,11 @@ class AnswerProvenance:
     retrieval: Dict[str, Any] = field(default_factory=dict)
     query: Dict[str, Any] = field(default_factory=dict)
     citation_check: Dict[str, Any] = field(default_factory=dict)
+    # What the assistant did beyond the first retrieval: searched the web, read
+    # a page, searched the archive again. Section 14 asks the transparency panel
+    # to name "relevant tools invoked", and a resident deserves to know when an
+    # answer left the community's own records.
+    tools: Dict[str, Any] = field(default_factory=dict)
     warnings: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -145,6 +155,31 @@ How to answer questions about this community:
 - Give dates when they change the meaning of the answer.
 
 For general questions with no community dimension, answer normally and helpfully. You do not need to cite community records for a question about Python, algebra, or a cover letter."""
+
+
+def _anthropic_messages(prompt: "PromptBundle") -> List[Dict[str, Any]]:
+    """Flatten a prompt for a provider that wants one system string."""
+    system, turns = prompt.as_anthropic_messages()
+    return [{"role": "system", "content": system}] + list(turns)
+
+
+def _tool_citations(tool_citations: Sequence[Any], offset: int) -> List[Citation]:
+    """Turn sources a tool produced into numbered citations."""
+    out: List[Citation] = []
+    for i, tc in enumerate(tool_citations, start=offset + 1):
+        out.append(Citation(
+            number=i,
+            chunk_id=f"tool:{i}",
+            label=tc.title or tc.url,
+            url=tc.url,
+            source_type=tc.kind,
+            title=tc.title or tc.url,
+            date=tc.retrieved_at,
+            attribution=("retrieved from the web during this answer"
+                         if tc.kind in ("web", "page") else ""),
+            excerpt=tc.snippet,
+        ))
+    return out
 
 
 class CommunityPipeline:
@@ -212,6 +247,7 @@ class CommunityPipeline:
         retrieval: RetrievalResult,
         citations: Sequence[Citation],
         history: Optional[Sequence[Dict[str, str]]] = None,
+        tool_instructions: str = "",
     ) -> PromptBundle:
         context = build_context_block(retrieval.chunks, citations)
 
@@ -231,6 +267,7 @@ class CommunityPipeline:
             context_block=context,
             question=question,
             history=[dict(h) for h in (history or [])],
+            tool_instructions=tool_instructions,
         )
 
     def answer(
@@ -244,14 +281,33 @@ class CommunityPipeline:
         use_reranker: bool = True,
         enforce_citations: bool = True,
         expand: bool = True,
+        tool_registry: Any = None,
+        provider: Any = None,
+        max_tool_iterations: int = 4,
     ) -> CommunityAnswer:
-        """Retrieve, generate, and verify one answer."""
+        """Retrieve, generate, and verify one answer.
+
+        When ``tool_registry`` holds tools and ``provider`` can drive them, the
+        model may call tools mid-answer instead of answering from the first
+        retrieval alone. Everything after generation is unchanged: the citation
+        check, the provenance record, and the constitution all apply the same
+        way whether the evidence arrived up front or was fetched on the way.
+        """
         prepared, retrieval = self.retrieve(
             question, filters=filters, rewriter=rewriter,
             top_k=top_k, use_reranker=use_reranker, expand=expand,
         )
         citations = build_citations(retrieval.chunks)
-        prompt = self.build_prompt(question, retrieval, citations, history=history)
+
+        use_tools = bool(tool_registry) and provider is not None \
+            and getattr(provider, "supports_tools", False)
+        tool_instructions = ""
+        if use_tools:
+            from tools.base import TOOL_SYSTEM_PROMPT
+            tool_instructions = TOOL_SYSTEM_PROMPT
+
+        prompt = self.build_prompt(question, retrieval, citations, history=history,
+                                   tool_instructions=tool_instructions)
 
         provenance = AnswerProvenance(
             sources_retrieved=len(citations),
@@ -266,18 +322,50 @@ class CommunityPipeline:
             query=prepared.diagnostics(),
         )
 
-        try:
-            raw_answer = generate(prompt)
-        except Exception as exc:
-            provenance.warnings.append(f"generation failed: {type(exc).__name__}")
-            return CommunityAnswer(
-                answer="",
-                citations=citations,
-                provenance=provenance,
-                prompt=prompt,
-                retrieval=retrieval,
-                error=str(exc),
+        if use_tools:
+            from tools.runner import run_tool_loop
+
+            loop = run_tool_loop(
+                provider,
+                prompt.as_openai_messages()
+                if provider.protocol != "anthropic"
+                else _anthropic_messages(prompt),
+                tool_registry,
+                max_iterations=max_tool_iterations,
+                max_tokens=None,
             )
+            provenance.tools = loop.diagnostics()
+
+            if loop.error:
+                provenance.warnings.append(f"generation failed: {loop.error}")
+                return CommunityAnswer(
+                    answer="", citations=citations, provenance=provenance,
+                    prompt=prompt, retrieval=retrieval, error=loop.error,
+                )
+
+            raw_answer = loop.text
+            if loop.hit_limit:
+                provenance.warnings.append(
+                    f"reached the limit of {max_tool_iterations} tool rounds; the "
+                    f"answer uses what was found by then"
+                )
+            # Sources a tool produced are citable too, numbered after the
+            # passages that arrived with the question.
+            citations = citations + _tool_citations(loop.citations, len(citations))
+            provenance.sources_retrieved = len(citations)
+        else:
+            try:
+                raw_answer = generate(prompt)
+            except Exception as exc:
+                provenance.warnings.append(f"generation failed: {type(exc).__name__}")
+                return CommunityAnswer(
+                    answer="",
+                    citations=citations,
+                    provenance=provenance,
+                    prompt=prompt,
+                    retrieval=retrieval,
+                    error=str(exc),
+                )
 
         raw_answer = (raw_answer or "").strip()
         check: CitationCheck = verify_citations(raw_answer, citations)
