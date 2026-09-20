@@ -93,8 +93,10 @@ public-information service, not just a locally running chatbot.
 - **LM Studio support**, for running Gemma locally on hardware the community
   owns.
 
-Start here: **[COMMUNITY_AI_SETUP.md](COMMUNITY_AI_SETUP.md)**
-What's built and what's left: **[COMMUNITY_AI_SCOPE.md](COMMUNITY_AI_SCOPE.md)**
+**[SYSTEM_GUIDE.md](SYSTEM_GUIDE.md)** — how the whole thing works
+**[COMMUNITY_AI_SETUP.md](COMMUNITY_AI_SETUP.md)** — install and run it
+**[ROADMAP.md](ROADMAP.md)** — where it goes next, Google Cloud, and the database decision
+**[COMMUNITY_AI_SCOPE.md](COMMUNITY_AI_SCOPE.md)** — what's built and what's left
 
 ```bash
 cp community.example.yaml community.yaml       # name your community

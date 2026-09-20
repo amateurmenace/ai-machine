@@ -155,6 +155,155 @@ source, drops an ingested corpus, or revokes a key.
 
 ---
 
+## 4b. Choose a provider
+
+Five are available. Local is the default and the point.
+
+```yaml
+model:
+  provider: "lmstudio"        # lmstudio | ollama | anthropic | openai | gemini
+  name: "gemma-4-26b-a4b"
+  base_url: "http://localhost:1234/v1"
+```
+
+Ask a provider what it actually serves, rather than trusting the preset list:
+
+```bash
+curl "http://localhost:8000/api/providers"
+curl "http://localhost:8000/api/providers/lmstudio/discover"
+curl -X POST "http://localhost:8000/api/projects/brookline-ma/test-connection"
+```
+
+The last one distinguishes a stopped LM Studio from an unreachable tunnel and
+names the fix. From the outside they look the same and need different remedies.
+
+### Running the model somewhere else
+
+LM Studio can live on a machine at your office and serve a public website. Put
+the tunnel's public hostname in `base_url` and the tunnel's credential in the
+project's `local_auth_header`, as one `Name: value` line:
+
+```yaml
+model:
+  provider: "lmstudio"
+  base_url: "https://ai-server.yourtown.org/v1"
+```
+
+```bash
+curl -X PUT http://localhost:8000/api/projects/brookline-ma   -H 'Content-Type: application/json'   -d '{"local_auth_header": "CF-Access-Client-Id: ...\nCF-Access-Client-Secret: ..."}'
+```
+
+A Cloudflare tunnel needs no static IP and no inbound port. `TUNNEL_SETUP.md`
+has the cloudflared side.
+
+> **The tunnel must terminate at the gateway, not at LM Studio.** LM Studio has
+> no authentication, no rate limits and no logging. Anything that can reach it
+> can use your GPU and read every prompt.
+
+### Frontier providers
+
+Set an API key in Settings, or in the environment: `ANTHROPIC_API_KEY`,
+`OPENAI_API_KEY`, `GEMINI_API_KEY`.
+
+One caveat the app will tell you about: OpenAI moved tool calling to its
+Responses API for the newest models, so `gpt-6-astra` answers normally but
+cannot use web search here. `gpt-5.5` can.
+
+---
+
+## 4c. Turn on tools, if you want them
+
+Off by default. An assistant bound to the community's own public record is a
+legitimate choice.
+
+```yaml
+retrieval:
+  # ...
+tools:
+  enabled: true
+  allowed: ["search_community_records", "web_search", "fetch_url"]
+  max_iterations: 4
+  web_search_backend: "duckduckgo"   # searxng | brave | tavily | duckduckgo
+```
+
+Or per project:
+
+```bash
+curl -X PUT http://localhost:8000/api/projects/brookline-ma   -H 'Content-Type: application/json'   -d '{"enable_tools": true, "enabled_tools": ["search_community_records", "web_search"]}'
+```
+
+**Pick a search backend deliberately.** The keyless DuckDuckGo parser is fine
+for trying this out and is genuinely fragile: it is unofficial and breaks when
+the markup changes. For anything residents depend on, run a **SearXNG** instance
+so no third party sees their queries, or pay for Brave or Tavily.
+
+```yaml
+web_search_backend: "searxng"
+web_search_base_url: "https://search.yourtown.org"
+```
+
+Tools cannot reach private addresses. Every fetch resolves the hostname first
+and refuses loopback, private, link-local and cloud-metadata addresses, after
+every redirect. That guard is why this is safe to run on a cloud instance.
+
+---
+
+## 4d. Add the meeting archive
+
+A whole channel, scanned repeatedly, is the shape a public-access archive
+actually takes:
+
+```yaml
+sources:
+  - name: "BIG Meeting Archive"
+    type: youtube_channel
+    url: "https://www.youtube.com/@YourStation"
+```
+
+Set `body` when a source is one board's playlist; the override beats anything
+guessed from a title:
+
+```yaml
+  - name: "Select Board Meetings"
+    type: youtube_playlist
+    url: "https://www.youtube.com/playlist?list=..."
+    body: "Select Board"
+```
+
+**Look at the plan before a backfill.** A decade of meetings is hours of work:
+
+```bash
+curl -X POST "http://localhost:8000/api/projects/brookline-ma/sources/<source-id>/preview-scan?limit=200"
+```
+
+It reports how many videos were found, which boards were recognized, what would
+be skipped and why. If boards are coming back empty, add your community's own
+body names rather than letting a thousand records index with no board attached.
+
+Then ingest, and check what happened:
+
+```bash
+curl -X POST "http://localhost:8000/api/projects/brookline-ma/sources/<source-id>/ingest"
+curl "http://localhost:8000/api/projects/brookline-ma/sources/<source-id>/sync-state"
+```
+
+The sync state lists meetings whose captions were disabled. Those are real gaps
+in the public record: copy them into `constitution/data-card.md`, because
+Principle 18 requires the assistant to be able to say what it does not have.
+
+After the backfill, new meetings arrive on their own:
+
+```bash
+COMMUNITY_SYNC_ENABLED=true
+COMMUNITY_SYNC_INTERVAL_MINUTES=360
+```
+
+A run that finds nothing new costs one listing request. Set a YouTube Data API
+key (`YOUTUBE_API_KEY`) for exact publish dates and faster paging; without one
+it falls back to yt-dlp, which needs no key.
+
+---
+
 ## 5. Ingest a proof-of-concept corpus
 
 Start small. The guide suggests roughly 100 documents and 20 meeting
@@ -425,6 +574,8 @@ python3 -m tests.test_rag          # retrieval, citations, pipeline
 python3 -m tests.test_gateway      # auth, scopes, rate limits, HTTP behavior
 python3 -m tests.test_app_wiring   # routes, imports, OpenAPI schema
 python3 -m tests.test_end_to_end   # the real agent path, stubs only at the edges
+python3 -m tests.test_tools        # URL guard, tool loop, failure paths
+python3 -m tests.test_archive      # meeting titles, channel sync, video embeds
 ```
 
 None need a GPU, a vector database, or a model, so they run in CI.
@@ -438,11 +589,15 @@ constitution/     the rules, versioned, with governance and cards
 community/        loads and renders the constitution
 knowledge/        record schemas and the source inventory
 rag/              bm25, hybrid retrieval, reranking, citations, pipeline
+tools/            web search, fetch, archive search, the tool loop
+collectors/       youtube, websites, pdfs, channel sync, title parsing
 api/              gateway, auth, privacy-aware logging
 evals/            the frozen set and its runner
 training/         phase 3 scaffolding, nothing runs at v0.1
 scripts/          bootstrap a community from YAML
-tests/            143 assertions, no GPU required
+tests/            254 assertions, no GPU or network required
 ```
 
+`SYSTEM_GUIDE.md` explains how it all works. `ROADMAP.md` covers where it goes
+next, including the Google Cloud move and the database decision.
 `COMMUNITY_AI_SCOPE.md` says what is built, what is partial, and what is left.
