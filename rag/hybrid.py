@@ -332,7 +332,9 @@ class HybridRetriever:
                 chunk=chunk,
                 chunk_id=str(hit.get("id", chunk.chunk_id())),
                 dense_rank=hit.get("dense_rank"),
+                dense_score=hit.get("dense_score"),
                 sparse_rank=hit.get("sparse_rank"),
+                sparse_score=hit.get("sparse_score"),
                 fused_score=float(hit.get("score") or 0.0),
             )
             candidates.append(entry)

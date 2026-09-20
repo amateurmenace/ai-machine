@@ -36,6 +36,9 @@ from community.constitution import (
     load_constitution,
     resolve_for_project,
 )
+import precompute as precompute_module
+import second_opinion as second_opinion_module
+from tenancy import TenancyError, load_registry, scaffold_tenant, tenant_constitution, tenant_eval_files
 from providers import (
     LM_STUDIO_BASE_URL, PROVIDER_LABELS, build_provider_for, discover_models,
     list_lmstudio_models,
@@ -723,13 +726,26 @@ async def get_job_status(job_id: str):
 async def chat(request: ChatRequest):
     """Chat with the AI agent"""
     agent = get_or_create_agent(request.project_id)
-    
+    project = load_project(request.project_id)
+
     try:
+        # A precomputed answer is served only when the corpus, the constitution,
+        # the model and the question all still match what produced it, and only
+        # for a fresh question with no conversation behind it, since a follow-up
+        # depends on what was said before. The answer says it was prepared
+        # earlier; hiding that would be a small dishonesty this project cannot
+        # afford.
+        if (project and getattr(project, "serve_precomputed", False)
+                and not request.conversation_history):
+            cached = precompute_module.lookup(request.project_id, request.message, agent)
+            if cached is not None:
+                return cached
+
         response = agent.chat(
             message=request.message,
             conversation_history=request.conversation_history
         )
-        
+
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1005,6 +1021,185 @@ async def sync_all_channels(project_id: str, background_tasks: BackgroundTasks):
         jobs.append({"job_id": job.job_id, "source": source.name})
 
     return {"started": len(jobs), "jobs": jobs}
+
+
+# --- several communities on one deployment (TENANCY.md) --------------------
+
+
+def _registry():
+    """Rebuilt per request: a community added on disk should appear without a
+    restart, and the registry is cheap to construct."""
+    return load_registry()
+
+
+@app.get("/api/tenants")
+async def list_tenants():
+    """Every community this deployment serves."""
+    return _registry().to_public()
+
+
+@app.get("/api/tenants/{tenant_id}/governance")
+async def tenant_governance(tenant_id: str):
+    """Whose rules govern this community, and whether they are its own.
+
+    A community running on shared infrastructure under someone else's
+    constitution is a fact its residents are entitled to, so this answers the
+    question directly rather than leaving it to be inferred.
+    """
+    registry = _registry()
+    tenant = registry.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="No such community.")
+
+    constitution = tenant_constitution(tenant, data_root=registry.data_root)
+    return {
+        "tenant": tenant.to_public(registry.data_root),
+        "constitution": {
+            **constitution.summary(),
+            "is_their_own": tenant.has_own_constitution(registry.data_root),
+        },
+        "evaluation_set": {
+            "is_their_own": tenant.has_own_evals(registry.data_root),
+            "files": [os.path.basename(f)
+                      for f in tenant_eval_files(tenant, registry.data_root)],
+        },
+    }
+
+
+@app.post("/api/tenants/{tenant_id}/scaffold")
+async def create_tenant_governance(tenant_id: str):
+    """Give a community its own constitution and evaluation set."""
+    registry = _registry()
+    tenant = registry.get(tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="No such community.")
+
+    try:
+        result = scaffold_tenant(tenant, registry.data_root)
+    except TenancyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    agents.pop(tenant.project_id, None)
+    return result
+
+
+# --- a second opinion, asked for and disclosed (roadmap 1.3) ---------------
+
+
+@app.get("/api/projects/{project_id}/second-opinion/options")
+async def list_second_opinions(project_id: str):
+    """Which frontier models a resident could choose to ask, and who receives
+    the question if they do."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    options = second_opinion_module.available_options(project)
+    return {
+        "options": [o.to_dict() for o in options],
+        "note": (
+            "Asking one of these sends the resident's question, and the "
+            "community records retrieved for it, to that company. It is never "
+            "automatic."
+        ),
+    }
+
+
+@app.post("/api/projects/{project_id}/second-opinion")
+async def request_second_opinion(project_id: str, payload: Dict):
+    """Answer the same question with a different provider, on the same evidence."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    question = str(payload.get("question") or "").strip()
+    provider = str(payload.get("provider") or "").strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="A question is required.")
+    if not provider:
+        raise HTTPException(status_code=400, detail="A provider is required.")
+
+    agent = get_or_create_agent(project_id)
+    opinion = second_opinion_module.ask(
+        project, agent, question, provider,
+        model=str(payload.get("model") or ""),
+        history=payload.get("history") or [],
+    )
+
+    response = opinion.to_dict()
+    if not opinion.error and payload.get("local_answer"):
+        response["comparison"] = second_opinion_module.compare(
+            payload["local_answer"], opinion
+        )
+    return response
+
+
+# --- precomputed answers (roadmap 1.4) -------------------------------------
+
+
+@app.post("/api/projects/{project_id}/precompute")
+async def run_precompute_pass(project_id: str, payload: Optional[Dict] = None):
+    """Answer the common questions now and store the results.
+
+    Intended for an overnight schedule, when the hardware is idle anyway.
+    """
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    payload = payload or {}
+    agent = get_or_create_agent(project_id)
+    result = precompute_module.run_precompute(
+        project_id, agent,
+        questions=payload.get("questions"),
+        max_questions=int(payload.get("max_questions", 50)),
+    )
+    return result.to_dict()
+
+
+@app.get("/api/projects/{project_id}/precompute")
+async def precompute_status(project_id: str):
+    """What is cached, and which questions would be precomputed next."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    questions, source = precompute_module.question_list(project_id)
+    cache = precompute_module.AnswerCache(project_id)
+    return {
+        "serving_precomputed": getattr(project, "serve_precomputed", False),
+        "cache": cache.stats(),
+        "questions": questions,
+        "question_source": source,
+        "mined_from_logs": [
+            {"question": q, "times_asked": n}
+            for q, n in precompute_module.mine_questions_from_logs(project_id)[:20]
+        ],
+    }
+
+
+@app.put("/api/projects/{project_id}/common-questions")
+async def set_common_questions(project_id: str, payload: Dict):
+    """Set the questions worth precomputing for this community."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    questions = [str(q).strip() for q in (payload.get("questions") or []) if str(q).strip()]
+    if not questions:
+        raise HTTPException(status_code=400, detail="At least one question is required.")
+
+    path = precompute_module.save_question_list(project_id, questions)
+    return {"saved": str(path), "questions": len(questions)}
+
+
+@app.delete("/api/projects/{project_id}/precompute")
+async def clear_precomputed(project_id: str):
+    """Drop every cached answer for this community."""
+    project = load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return {"cleared": precompute_module.AnswerCache(project_id).clear()}
 
 
 @app.get("/api/projects/{project_id}/constitution")

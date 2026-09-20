@@ -243,6 +243,12 @@ class ProjectConfig(BaseModel):
     log_question_text: bool = False
     log_retention_days: int = Field(default=30, ge=0, le=3650)
 
+    # Serve precomputed answers to common questions when one is still valid
+    # for this exact corpus, constitution, model and question. Off by default:
+    # a community should choose to serve a prepared answer, and the answer says
+    # so when it does.
+    serve_precomputed: bool = False
+
     # Local inference, per section 12.
     #
     # Points at LM Studio. For a server on the community's own network this is

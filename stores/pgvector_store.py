@@ -550,7 +550,8 @@ def hybrid_sql(project_id: str, query: str, query_vector: Sequence[float],
 
     sql = f"""
         WITH dense AS (
-            SELECT id, RANK() OVER (ORDER BY distance) AS rank, 'dense' AS half
+            SELECT id, RANK() OVER (ORDER BY distance) AS rank,
+                   'dense' AS half, 1 - distance AS half_score
             FROM (
                 SELECT id, embedding <=> %(q_vec)s::vector AS distance
                 FROM chunks
@@ -561,7 +562,8 @@ def hybrid_sql(project_id: str, query: str, query_vector: Sequence[float],
             ) dense_pool
         ),
         sparse AS (
-            SELECT id, RANK() OVER (ORDER BY relevance DESC) AS rank, 'sparse' AS half
+            SELECT id, RANK() OVER (ORDER BY relevance DESC) AS rank,
+                   'sparse' AS half, relevance AS half_score
             FROM (
                 SELECT id,
                        ts_rank_cd(tsv, websearch_to_tsquery('{TEXT_SEARCH_CONFIG}', %(q)s)) AS relevance
@@ -576,11 +578,14 @@ def hybrid_sql(project_id: str, query: str, query_vector: Sequence[float],
             SELECT id,
                    SUM(1.0 / ({RRF_K} + rank)) AS score,
                    MIN(rank) FILTER (WHERE half = 'dense') AS dense_rank,
-                   MIN(rank) FILTER (WHERE half = 'sparse') AS sparse_rank
+                   MIN(rank) FILTER (WHERE half = 'sparse') AS sparse_rank,
+                   MAX(half_score) FILTER (WHERE half = 'dense') AS dense_score,
+                   MAX(half_score) FILTER (WHERE half = 'sparse') AS sparse_score
             FROM (SELECT * FROM dense UNION ALL SELECT * FROM sparse) both_halves
             GROUP BY id
         )
         SELECT c.id, f.score, f.dense_rank, f.sparse_rank,
+               f.dense_score, f.sparse_score,
                {_selected_columns('c')}, c.payload
         FROM fused f
         JOIN chunks c ON c.project_id = %(project)s AND c.id = f.id
@@ -778,7 +783,12 @@ class PgVectorStore:
     # --- schema -----------------------------------------------------------
 
     def ensure_schema(self) -> None:
-        """Create the table and indexes. Called by the migration, not by a request."""
+        """Create the table and indexes. Called by the migration, not by a request.
+
+        The whole file goes in one call, which psycopg allows only because no
+        parameters are bound: with parameters it would use the extended
+        protocol, which takes one statement at a time.
+        """
         self._execute(render_schema(self.vector_size), None)
 
     def check_dimension(self) -> None:
@@ -878,9 +888,14 @@ class PgVectorStore:
             'date': payload.get('date', ''),
             'metadata': payload,
         }
+        # Only hybrid_search returns these. The panel reports how a passage was
+        # found, so the ranks and the raw half scores come back with it.
         for key in ('dense_rank', 'sparse_rank'):
             if row.get(key) is not None:
                 hit[key] = int(row[key])
+        for key in ('dense_score', 'sparse_score'):
+            if row.get(key) is not None:
+                hit[key] = float(row[key])
         return hit
 
     def search(self, query: str, top_k: int = 5,

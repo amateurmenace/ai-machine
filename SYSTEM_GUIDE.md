@@ -521,6 +521,33 @@ directory is its own tenant automatically. `TENANCY.md` covers the rest.
 
 ---
 
+## 8f. Where the archive lives
+
+Two backends behind one interface.
+
+**Qdrant, embedded**, is the default and is right for one community on one
+machine. It writes to a directory beside the process.
+
+**PostgreSQL with pgvector** is what Google Cloud needs, and it replaces three
+things rather than one: the vector store, the Python metadata filtering, and the
+in-memory keyword index that is the piece actually pinning the app to a single
+instance. One query does the whole hybrid retrieval, fusing a dense ranking and
+a full-text ranking by reciprocal rank, the same algebra the Python path uses.
+
+One detail worth knowing, because the obvious version of that query is slow: the
+ranking has to happen *inside* an already-limited subquery. Computing a window
+function in the same select that carries the limit ranks every matching row in
+the corpus first, and the vector index cannot help. The roadmap's original
+sketch had this wrong.
+
+Switching is `COMMUNITY_DB_URL` plus a migration that copies the existing
+collection across, resumable if it is interrupted. A configured Postgres that
+cannot be opened **raises rather than falling back to Qdrant**, which is the one
+place in this codebase that does not degrade quietly: answering residents from a
+different or empty archive without saying so would be worse than an error page.
+
+---
+
 ## 9. Where things live
 
 ```
@@ -531,7 +558,7 @@ rag/              bm25 · hybrid retrieval · reranking · citations · pipeline
 tools/            web search · fetch · archive search · the tool loop
 collectors/       youtube · websites · pdfs · channel sync · title parsing
 api/              gateway · auth · privacy-aware logging
-stores/           the pluggable vector backend
+stores/           the pluggable vector backend: Qdrant or Postgres
 cloud/            optional Google Cloud adapters
 evals/            the frozen set, its runner, and provider comparison
 training/         phase-3 scaffolding; nothing runs yet

@@ -124,6 +124,22 @@ def main() -> int:
     ]:
         check(f"{path} registered", path in routes)
 
+    print("\nplatform endpoints")
+    for path in [
+        "/api/tenants",
+        "/api/tenants/{tenant_id}/governance",
+        "/api/tenants/{tenant_id}/scaffold",
+        "/api/projects/{project_id}/second-opinion",
+        "/api/projects/{project_id}/second-opinion/options",
+        "/api/projects/{project_id}/precompute",
+        "/api/projects/{project_id}/common-questions",
+        "/api/constitution/ledger",
+        "/api/constitution/seal",
+        "/api/admin/cloud-status",
+        "/api/providers",
+    ]:
+        check(f"{path} registered", path in routes)
+
     print("\nmanagement endpoints")
     for path in [
         "/api/lmstudio/models",

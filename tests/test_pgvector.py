@@ -142,8 +142,9 @@ class NativeHybridStore(FakeVectorStore):
         self.hybrid_calls.append((query, query_vector, top_k, filters))
         return [
             {"id": "doc-1", "score": 0.0325, "dense_rank": 2, "sparse_rank": 1,
+             "dense_score": 0.71, "sparse_score": 2.91,
              "text": self.payloads[1]["text"], "metadata": self.payloads[1]},
-            {"id": "doc-0", "score": 0.0161, "dense_rank": 1,
+            {"id": "doc-0", "score": 0.0161, "dense_rank": 1, "dense_score": 0.74,
              "text": self.payloads[0]["text"], "metadata": self.payloads[0]},
         ]
 
@@ -397,6 +398,8 @@ def test_hybrid_sql_is_the_fusion_query_from_the_roadmap() -> None:
 
     check("each hit can report which half found it",
           "dense_rank" in sql and "sparse_rank" in sql)
+    check("and what each half scored it, which the panel prints",
+          "dense_score" in sql and "sparse_score" in sql)
     check("the payload columns come back with the ranking",
           'c."text"' in sql and "c.payload" in sql)
 
@@ -618,6 +621,10 @@ def test_the_retriever_prefers_a_store_that_fuses_for_itself() -> None:
     check("both halves are counted for the transparency panel",
           result.dense_hits == 2 and result.sparse_hits == 1,
           f"dense={result.dense_hits} sparse={result.sparse_hits}")
+    check("and each half's own score survives into the diagnostics",
+          result.chunks[0].to_dict()["dense_score"] == 0.71
+          and result.chunks[0].sparse_score == 2.91,
+          str(result.chunks[0].to_dict()))
     check("corpus size is asked for rather than counted",
           result.corpus_size == 2, str(result.corpus_size))
 
