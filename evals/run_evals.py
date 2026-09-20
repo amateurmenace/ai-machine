@@ -102,6 +102,22 @@ def load_cases(category: Optional[str] = None,
     return cases
 
 
+def load_project(project_id: str) -> Any:
+    """Load one project's configuration.
+
+    Separate from :func:`run` so that other runners over the same frozen set,
+    such as the provider comparison, read the project exactly the same way
+    instead of growing their own idea of where a project lives.
+    """
+    sys.path.insert(0, str(EVAL_DIR.parent))
+    from models import ProjectConfig
+
+    config_path = Path("./data") / project_id / "config.json"
+    if not config_path.is_file():
+        raise SystemExit(f"No project at {config_path}. Create it first.")
+    return ProjectConfig(**json.loads(config_path.read_text(encoding="utf-8")))
+
+
 def _source_text(citation: Dict[str, Any], chunk_text: str = "") -> str:
     return " ".join(str(citation.get(k, "")) for k in
                     ("title", "label", "url", "body", "speaker", "agenda_item")) + " " + chunk_text
@@ -127,14 +143,23 @@ def score_retrieval(case: Dict[str, Any], citations: List[Dict[str, Any]],
     ]
 
 
-def score_generation(case: Dict[str, Any], answer: str,
-                     has_citations: bool) -> tuple[bool, Optional[bool], List[str]]:
-    """Did the answer follow the constitution given what it was shown?"""
-    checks_present = any(
+def scores_generation(case: Dict[str, Any]) -> bool:
+    """Does this case say anything about the answer, as opposed to the search?
+
+    A caller deciding whether a generation is worth paying for needs the same
+    answer this module uses when scoring one, and a second copy of the rule
+    would eventually disagree with this one.
+    """
+    return any(
         key in case for key in
         ("must_include", "must_not_include", "must_abstain", "must_cite")
     )
-    if not checks_present:
+
+
+def score_generation(case: Dict[str, Any], answer: str,
+                     has_citations: bool) -> tuple[bool, Optional[bool], List[str]]:
+    """Did the answer follow the constitution given what it was shown?"""
+    if not scores_generation(case):
         return False, None, []
 
     failures: List[str] = []
@@ -158,23 +183,58 @@ def score_generation(case: Dict[str, Any], answer: str,
     return True, not failures, failures
 
 
+def score_case(case: Dict[str, Any], citations: List[Dict[str, Any]],
+               texts: List[str], answer: Optional[str] = None) -> CaseResult:
+    """Score one case against what retrieval found and, optionally, an answer.
+
+    ``answer=None`` is a retrieval-only case: generation is not scored and not
+    claimed to have been. Lifted out of :func:`run` so that every runner over
+    this set, including the cross-provider comparison, scores through this
+    function rather than a copy of it. Two runs scored by two copies of a rule
+    that has since drifted are not comparable, which defeats the only reason to
+    freeze the set.
+    """
+    from rag.citations import extract_citation_numbers
+
+    result = CaseResult(
+        id=case["id"],
+        category=case.get("category", "uncategorized"),
+        question=case["question"],
+        principles=case.get("principles", []),
+        sources_retrieved=len(citations),
+        answer=answer or "",
+    )
+
+    scored, passed, failures = score_retrieval(case, citations, texts)
+    result.retrieval_scored, result.retrieval_passed = scored, passed
+    result.failures.extend(failures)
+
+    if answer is not None:
+        cited = extract_citation_numbers(result.answer)
+        marked_used = sum(1 for c in citations if c.get("used"))
+        scored, passed, failures = score_generation(
+            case, result.answer, bool(cited) or marked_used > 0)
+        result.generation_scored, result.generation_passed = scored, passed
+        result.failures.extend(failures)
+        # A caller that verified the citations itself has already marked them;
+        # one holding only the answer text is counted from its markers.
+        result.sources_used = marked_used or sum(
+            1 for n in cited if 1 <= n <= len(citations))
+
+    return result
+
+
 def run(project_id: str, category: Optional[str] = None,
         retrieval_only: bool = False, top_k: int = 8,
         limit: Optional[int] = None, verbose: bool = False) -> Dict[str, Any]:
     """Run the set against one project."""
     # Imported here so --help works without the inference stack installed.
     sys.path.insert(0, str(EVAL_DIR.parent))
-    from agent import NeighborhoodAgent
-    from rag.citations import build_citations, extract_citation_numbers
+    from agent import CivicAgent
+    from rag.citations import build_citations
 
-    config_path = Path("./data") / project_id / "config.json"
-    if not config_path.is_file():
-        raise SystemExit(f"No project at {config_path}. Create it first.")
-
-    from models import ProjectConfig
-
-    project = ProjectConfig(**json.loads(config_path.read_text(encoding="utf-8")))
-    agent = NeighborhoodAgent(project)
+    project = load_project(project_id)
+    agent = CivicAgent(project)
 
     cases = load_cases(category=category)
     if limit:
@@ -194,12 +254,6 @@ def run(project_id: str, category: Optional[str] = None,
 
     for case in cases:
         started = time.perf_counter()
-        result = CaseResult(
-            id=case["id"],
-            category=case.get("category", "uncategorized"),
-            question=case["question"],
-            principles=case.get("principles", []),
-        )
 
         if retrieval_only:
             retrieval = agent.retriever.retrieve(
@@ -208,26 +262,16 @@ def run(project_id: str, category: Optional[str] = None,
             )
             citations = [c.to_dict() for c in build_citations(retrieval.chunks)]
             texts = [c.chunk.text for c in retrieval.chunks]
-            result.sources_retrieved = len(citations)
+            result = score_case(case, citations, texts)
         else:
             response = agent.chat(case["question"])
             citations = response.get("sources", [])
             texts = [c.get("excerpt", "") for c in citations]
-            result.answer = response.get("answer", "")
+            result = score_case(case, citations, texts,
+                                answer=response.get("answer", ""))
             provenance = response.get("provenance", {}) or {}
             result.sources_retrieved = provenance.get("sources_retrieved", len(citations))
-            result.sources_used = provenance.get("sources_used", 0)
-
-        scored, passed, failures = score_retrieval(case, citations, texts)
-        result.retrieval_scored, result.retrieval_passed = scored, passed
-        result.failures.extend(failures)
-
-        if not retrieval_only:
-            has_citations = bool(extract_citation_numbers(result.answer)) or \
-                any(c.get("used") for c in citations)
-            scored, passed, failures = score_generation(case, result.answer, has_citations)
-            result.generation_scored, result.generation_passed = scored, passed
-            result.failures.extend(failures)
+            result.sources_used = provenance.get("sources_used", result.sources_used)
 
         result.elapsed_ms = (time.perf_counter() - started) * 1000
         results.append(result)

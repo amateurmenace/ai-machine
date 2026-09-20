@@ -31,7 +31,30 @@ shrink it, and how to know whether it is shrinking.
 
 ### 1.1 Measure the gap instead of arguing about it
 
-**This is the highest-value next piece of work, and it is not a big one.**
+**Built.** `python3 -m evals.compare_providers`. Four things this section assumed
+turned out to be wrong, and they are worth recording rather than quietly fixing:
+
+- **The general-capability row could not be produced.** Only one of seven cases
+  in that category declared a scorable check, so the headline comparison this
+  section is built around would have printed a dash for its most important row.
+  The cases have since been rewritten to check the regression that is actually
+  scorable: a civic fine-tune teaching the model to refuse work outside the
+  town. Substrings cannot judge whether a grant proposal is good; they can
+  detect "I can only answer questions about this community", which is the
+  failure mode that matters. A scope-refusing model now fails all nine.
+- **Retrieval is only provider-independent when the model-backed query rewrite
+  is off**, because that rewrite puts a model in front of retrieval. The
+  comparison forces it off, which is correct but was not obvious.
+- **The five-point parity margin is finer than the seed set can resolve.**
+  Categories hold one to eleven cases, so a single case moves a category by
+  nine to a hundred points. The margin means something only once the set
+  reaches the 200 to 500 questions the guide asks for. Published today, the
+  table is noise.
+- **One API key per project cannot fund a comparison.** Comparing three
+  providers needs three credentials, so every non-project column reads its key
+  from the environment.
+
+### 1.1b The original plan, for reference
 
 The evaluation harness already runs a frozen question set and scores retrieval
 separately from generation. Add a mode that runs the same set against several
@@ -71,13 +94,21 @@ The categories that lag are predictable, and each has a fix that is not "get a
 bigger model":
 
 - **Discussion versus adopted action** (`ambiguous`) is the classic civic
-  failure and the most damaging. The fix is structural: record status on
-  ingestion, so a chunk knows whether it is discussion, a proposal, or adopted
-  text, and the model is not inferring it from prose. The schema already has the
-  field; the ingestion path does not populate it yet. **2-3 days.**
+  failure and the most damaging. **Built**, in `knowledge/status.py`. A meeting
+  announces its own state in a small conventional vocabulary, so this is read at
+  ingestion rather than inferred at answer time, and every retrieved passage now
+  carries a line naming what it is. Found a bug doing it: the meeting record
+  type defaulted to "discussion", which silently prevented the classifier from
+  ever detecting a vote. Six new evaluation cases.
 - **Conflicting evidence** improves when the retriever deliberately fetches
   *both* sides rather than the top-k most similar passages, which tend to agree
-  with each other. A diversity pass over the reranked candidates. **2 days.**
+  with each other. A diversity pass over the reranked candidates. **Built**, in
+  `rag/diversity.py`, off by default. Two corrections to this section's
+  assumptions: the diversity pass and the existing adaptive context window are
+  in conflict rather than independent, since that window stops adding passages
+  right where a dissenting one sits, so diversity replaces it rather than
+  following it. And the category it is meant to improve holds two cases, so the
+  harness in 1.1 cannot yet measure whether it worked.
 - **General capability** lags because a small model is a small model. Do not fix
   this with a civic fine-tune; that is how you make it worse. Fix it by routing
   (below).

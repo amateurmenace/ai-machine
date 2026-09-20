@@ -89,6 +89,46 @@ python3 -m evals.run_evals --project brookline-ma --json results/after.json
 python3 -m evals.compare results/before.json results/after.json
 ```
 
+## Comparing providers
+
+Roadmap 1.1: measure the gap between the local model and a frontier one instead
+of arguing about it.
+
+```bash
+python3 -m evals.compare_providers --project brookline-ma \
+    --providers lmstudio:gemma-4-26b-a4b anthropic:claude-opus-5 gemini:gemini-3.1-pro
+```
+
+```
+                            local    Claude    Gemini
+local factual                 92%       94%       93%   <- at parity
+ambiguous (vote vs talk)      71%       89%       85%   <- 18 pts behind Claude
+general capability            74%       96%       94%   <- 22 pts behind Claude
+```
+
+Retrieval runs **once** and every provider is shown the same passages, because
+searching the archive does not involve the model. That makes the comparison
+fairer as well as cheaper, and it is why the retrieval score is printed once on
+its own rather than once per column.
+
+A category where the local model is within `--margin` points of the best
+frontier column (5 by default) is reported as at parity. The usual finding is
+parity on source-grounded civic questions and a real gap on general capability,
+which are different problems with different fixes.
+
+This spends money on every frontier provider listed, so it says what it will
+spend before it spends it:
+
+```bash
+python3 -m evals.compare_providers --project brookline-ma \
+    --providers lmstudio:gemma-4-26b-a4b anthropic:claude-opus-5 --dry-run
+python3 -m evals.compare_providers ... --limit 5      # try a few cases first
+python3 -m evals.compare_providers ... --json results/providers-v0.3.json
+```
+
+Publish the table per release. "We use an open model and here is exactly what it
+costs us" is a stronger civic position than either claim it replaces.
+
 ## Growing the set
 
 The files here are a **seed**, not the frozen set. The guide asks for 200 to 500

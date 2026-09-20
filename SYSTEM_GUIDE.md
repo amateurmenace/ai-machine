@@ -95,6 +95,14 @@ and reorders them. This is where "right topic, wrong year" gets caught. If the
 reranker cannot load, the system says so in the transparency panel and uses the
 merged order rather than failing the question.
 
+An optional diversity pass (`rag/diversity.py`) sits after the reranker and is
+off by default. Ranking by relevance alone tends to return the same claim three
+times, which is the right answer to most questions and the wrong one when the
+records disagree. With it on, a passage competes on how much it adds as well as
+how relevant it is, and a different board, date or document status counts as
+adding a lot. A community whose archive keeps returning one side of an argument
+turns it on with `enable_retrieval_diversity`.
+
 **Step 5 — Assemble the request.** Four blocks, in order:
 
 1. Who the assistant is and how it should behave.
@@ -355,6 +363,18 @@ python3 -m evals.compare before.json after.json                      # did it he
 ```
 
 `--retrieval-only` costs no inference, so it belongs in continuous integration.
+
+The same set runs against several providers at once, which is how the claim that
+a local model is good enough gets settled rather than argued:
+
+```bash
+python3 -m evals.compare_providers --project brookline-ma \
+    --providers lmstudio:gemma-4-26b-a4b anthropic:claude-opus-5 --dry-run
+```
+
+Retrieval runs once and every provider is shown the same passages, so the
+columns differ only where the models do. `--dry-run` prints the number of model
+calls first, because the frontier columns cost money.
 
 The 32 shipped cases are a seed. The real set is 200 to 500 questions written
 against your own corpus, and it cannot be written by someone who has not read

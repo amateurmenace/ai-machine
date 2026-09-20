@@ -24,6 +24,14 @@ Two things here are worth more than the ranking algebra:
 The BM25 half indexes the corpus in memory. For a single community's archive
 that is cheap; ``max_corpus_chunks`` caps it so a runaway ingestion cannot
 exhaust the server's memory on a request path.
+
+It is also the piece that pins the whole app to one instance, which is why a
+store may offer to do the work itself. When ``vector_store`` provides
+``hybrid_search``, both halves and their fusion run where the data lives, and
+no corpus is walked or held in memory at all. :class:`stores.pgvector_store.PgVectorStore`
+does; the embedded Qdrant store does not. Nothing above this module learns
+which one answered, and a store that offers the method but fails on the day
+falls back to the in-process path rather than failing the question.
 """
 
 from __future__ import annotations
@@ -35,6 +43,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 
 from knowledge.schemas import CivicChunk, SourceType, normalize_payload
 from rag.bm25 import BM25Index, reciprocal_rank_fusion
+from rag.diversity import select_diverse
 from rag.reranker import DEFAULT_RERANK_MODEL, rerank, rerank_status, select_context_window
 
 # Rebuild the keyword index if the corpus changed or the index is older than
@@ -164,6 +173,7 @@ class RetrievalResult:
     filters: Dict[str, str] = field(default_factory=dict)
     reranked: bool = False
     rerank_model: Optional[str] = None
+    diversity: float = 0.0
     corpus_size: int = 0
     elapsed_ms: float = 0.0
     notes: List[str] = field(default_factory=list)
@@ -179,6 +189,7 @@ class RetrievalResult:
             "filters": self.filters,
             "reranked": self.reranked,
             "rerank_model": self.rerank_model,
+            "diversity": self.diversity,
             "elapsed_ms": round(self.elapsed_ms, 1),
             "notes": self.notes,
         }
@@ -210,6 +221,13 @@ class HybridRetriever:
       * ``get_stats() -> dict`` containing ``total_documents``
 
     ``VectorStore`` satisfies this. Tests pass a stand-in.
+
+    It may also provide, and this one is preferred when present:
+      * ``hybrid_search(query, query_vector, top_k, filters) -> list[dict]``
+
+    ``PgVectorStore`` does. Each hit it returns carries ``dense_rank`` and
+    ``sparse_rank`` so the transparency panel can still report how a passage
+    was found.
     """
 
     _caches: Dict[str, _CorpusIndex] = {}
@@ -279,21 +297,67 @@ class HybridRetriever:
         with cls._lock:
             cls._caches.clear()
 
-    # --- retrieval -------------------------------------------------------
+    # --- candidates ------------------------------------------------------
 
-    def retrieve(
+    def _database_candidates(
         self,
         query: str,
-        top_k: int = 8,
-        filters: Optional[RetrievalFilters] = None,
-        candidate_pool: int = 24,
-        use_reranker: bool = True,
-        adaptive_window: bool = True,
-    ) -> RetrievalResult:
-        started = time.perf_counter()
-        filters = filters or RetrievalFilters()
-        result = RetrievalResult(query=query, filters=filters.describe())
+        result: RetrievalResult,
+        filters: RetrievalFilters,
+        candidate_pool: int,
+    ) -> Optional[List[RetrievedChunk]]:
+        """Let the store run both halves and the fusion itself.
 
+        Returns ``None`` when the store could not answer, which sends the
+        caller back to the in-process path. A database that is briefly
+        unreachable should cost a slower answer, not a failed one.
+        """
+        try:
+            hits = self.vector_store.hybrid_search(
+                query, None, candidate_pool, filters
+            )
+        except Exception as exc:
+            result.notes.append(
+                f"database hybrid search unavailable: {type(exc).__name__}"
+            )
+            return None
+
+        candidates: List[RetrievedChunk] = []
+        for hit in hits:
+            payload = hit.get("metadata") or hit
+            chunk = normalize_payload(payload)
+            if not chunk.text:
+                continue
+            entry = RetrievedChunk(
+                chunk=chunk,
+                chunk_id=str(hit.get("id", chunk.chunk_id())),
+                dense_rank=hit.get("dense_rank"),
+                sparse_rank=hit.get("sparse_rank"),
+                fused_score=float(hit.get("score") or 0.0),
+            )
+            candidates.append(entry)
+
+        result.dense_hits = sum(1 for c in candidates if c.dense_rank is not None)
+        result.sparse_hits = sum(1 for c in candidates if c.sparse_rank is not None)
+        # No corpus was walked, so the size has to be asked for rather than
+        # counted. The transparency panel reports it either way.
+        try:
+            result.corpus_size = int(
+                self.vector_store.get_stats().get("total_documents", 0)
+            )
+        except Exception:
+            result.corpus_size = 0
+        result.notes.append("hybrid search ran in the database")
+        return candidates
+
+    def _fused_candidates(
+        self,
+        query: str,
+        result: RetrievalResult,
+        filters: RetrievalFilters,
+        candidate_pool: int,
+    ) -> Tuple[Dict[str, RetrievedChunk], List[RetrievedChunk]]:
+        """Dense search from the store, keyword search from the in-memory index."""
         corpus = self._get_corpus()
         result.corpus_size = len(corpus.chunks) if corpus else 0
 
@@ -357,8 +421,7 @@ class HybridRetriever:
         result.sparse_hits = len(sparse_order)
 
         if not by_id:
-            result.elapsed_ms = (time.perf_counter() - started) * 1000
-            return result
+            return {}, []
 
         # --- fuse ---
         fused = reciprocal_rank_fusion(
@@ -369,7 +432,44 @@ class HybridRetriever:
             if chunk_id in by_id:
                 by_id[chunk_id].fused_score = score
 
-        candidates = [by_id[cid] for cid, _ in fused if cid in by_id]
+        return by_id, [by_id[cid] for cid, _ in fused if cid in by_id]
+
+    # --- retrieval -------------------------------------------------------
+
+    def retrieve(
+        self,
+        query: str,
+        top_k: int = 8,
+        filters: Optional[RetrievalFilters] = None,
+        candidate_pool: int = 24,
+        use_reranker: bool = True,
+        adaptive_window: bool = True,
+        diversity: float = 0.0,
+    ) -> RetrievalResult:
+        started = time.perf_counter()
+        filters = filters or RetrievalFilters()
+        result = RetrievalResult(query=query, filters=filters.describe())
+
+        # A store that can fuse both halves itself is preferred: it needs no
+        # in-memory keyword index, which is what keeps this app on one instance.
+        candidates: Optional[List[RetrievedChunk]] = None
+        by_id: Dict[str, RetrievedChunk] = {}
+        if hasattr(self.vector_store, "hybrid_search"):
+            candidates = self._database_candidates(
+                query, result, filters, candidate_pool
+            )
+            if candidates is not None:
+                by_id = {c.chunk_id: c for c in candidates}
+
+        if candidates is None:
+            by_id, candidates = self._fused_candidates(
+                query, result, filters, candidate_pool
+            )
+
+        if not by_id:
+            result.elapsed_ms = (time.perf_counter() - started) * 1000
+            return result
+
         result.candidates_considered = len(candidates)
 
         # --- rerank ---
@@ -397,7 +497,18 @@ class HybridRetriever:
                 result.notes.append(f"reranker inactive ({status['reason']})")
 
         # --- select the context window ---
-        if adaptive_window and result.reranked:
+        if diversity > 0 and candidates:
+            # Opt-in, and it replaces the adaptive window rather than following
+            # it: that window keeps only passages scoring near the best one,
+            # which is precisely how the dissenting passage gets dropped. See
+            # rag/diversity.py for why this matters on conflicting evidence.
+            result.chunks = select_diverse(candidates, top_k=top_k, diversity=diversity)
+            result.diversity = float(diversity)
+            result.notes.append(
+                f"diversity pass at {diversity:.2f}; passages chosen for "
+                f"difference as well as relevance"
+            )
+        elif adaptive_window and result.reranked:
             chosen_dicts = select_context_window(
                 [
                     {"text": c.chunk.text, "rerank_score": c.rerank_score, "_id": c.chunk_id}

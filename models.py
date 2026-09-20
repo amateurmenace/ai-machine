@@ -214,6 +214,24 @@ class ProjectConfig(BaseModel):
     # the free rule-based expansion is the default and this is opt-in.
     enable_model_query_rewrite: bool = False
 
+    # Retrieval diversity (see rag/diversity.py). Off by default because the
+    # top-k most relevant passages are the right answer to most questions, and
+    # trading relevance for difference would cost accuracy to solve a problem
+    # that question does not have. A community whose records genuinely disagree
+    # with each other, where the assistant keeps returning one side of an
+    # argument three times, turns it on.
+    enable_retrieval_diversity: bool = False
+    retrieval_diversity: float = Field(default=0.3, ge=0.0, le=1.0)
+
+    # Where this project's archive lives (see stores/). Empty means the
+    # embedded Qdrant index under data/<project_id>/qdrant, which is the right
+    # answer for a community serving itself from its own machine. A PostgreSQL
+    # DSN moves it to Cloud SQL, which is what ROADMAP.md section 2.3 argues
+    # for on Google Cloud and what multi-community hosting needs. Setting it
+    # per project rather than only per deployment is how a migration actually
+    # gets done: one town, verified, then the rest.
+    community_db_url: Optional[str] = None
+
     # Provenance, per section 6.
     require_citations: bool = True
 

@@ -28,7 +28,7 @@ from providers import PROVIDER_LABELS, ProviderError, build_provider_for
 from tools import build_registry
 from rag.hybrid import HybridRetriever, RetrievalFilters
 from rag.pipeline import CommunityPipeline, PromptBundle
-from vector_store import VectorStore
+from stores import build_store
 
 SYSTEM_VERSION = os.getenv("COMMUNITY_AI_VERSION", "0.3")
 
@@ -36,16 +36,12 @@ SYSTEM_VERSION = os.getenv("COMMUNITY_AI_VERSION", "0.3")
 class CivicAgent:
     """AI agent that answers questions from the community's public record."""
 
-    def __init__(self, config: ProjectConfig, vector_store: Optional[VectorStore] = None):
+    def __init__(self, config: ProjectConfig, vector_store: Optional[Any] = None):
         self.config = config
 
-        if vector_store:
-            self.vector_store = vector_store
-        else:
-            self.vector_store = VectorStore(
-                path=f"./data/{config.project_id}/qdrant",
-                collection_name=config.project_id,
-            )
+        # Which archive this is, Qdrant or Postgres, is a configuration
+        # decision made in stores/. Nothing below this line depends on it.
+        self.vector_store = vector_store or build_store(config)
 
         # The constitution that governs this project. A file in source control
         # wins over an inline one; see community/constitution.py.
