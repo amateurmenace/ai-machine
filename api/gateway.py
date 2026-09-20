@@ -604,6 +604,50 @@ async def community_constitution(project_id: str):
     }
 
 
+@router.get("/community/{project_id}/constitution/ledger")
+async def community_ledger(project_id: str):
+    """The signed hash chain of adopted constitution versions. Public.
+
+    A resident can read this, take any block's hash, and check it against the
+    repository, the signatures, and whatever external witness the community
+    anchored it to. That is the point: the claim "these are the rules we
+    adopted" is verifiable by someone who does not trust the operator.
+    """
+    project = ctx().load_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    from community.ledger import load_ledger
+
+    ledger = load_ledger()
+    payload = ledger.to_public()
+    payload["project_id"] = project_id
+    payload["community"] = project.municipality_name
+    payload["explanation"] = {
+        "what_this_is": (
+            "Each adopted version of the community constitution is a block. "
+            "Every block records the hash of its own text and the hash of the "
+            "block before it, so the versions form a chain from the genesis "
+            "block onward. Ratification is an N-of-M multi-signature by named "
+            "officials, verified here rather than asserted."
+        ),
+        "what_it_guarantees": (
+            "Tampering is detectable. Editing an adopted version breaks its "
+            "hash, and the system refuses to present it as the adopted text."
+        ),
+        "what_it_does_not_guarantee": (
+            "This is not a distributed ledger. There is no consensus, no "
+            "mining and no token. One operator runs one server, so the chain "
+            "makes changes visible rather than impossible. Anchors are what "
+            "add an independent witness to when a block existed."
+        ),
+        "how_to_verify_yourself": (
+            "Clone the repository and run: python3 -m community.ledger verify"
+        ),
+    }
+    return payload
+
+
 @router.get("/community/{project_id}/stats")
 async def community_stats(project_id: str):
     """Public system facts: versions, corpus size, freshness.
@@ -626,6 +670,10 @@ async def community_stats(project_id: str):
         "embedding_model": stats.get("embedding_model"),
         "constitution_version": stats.get("constitution_version"),
         "constitution_status": stats.get("constitution_status"),
+        "constitution_hash": stats.get("constitution_hash"),
+        "constitution_hash_short": stats.get("constitution_hash_short"),
+        "constitution_ratified": stats.get("constitution_ratified"),
+        "constitution_ledger_ok": stats.get("constitution_ledger_ok"),
         "constitution_principles": stats.get("constitution_principles"),
         "total_passages": stats.get("total_documents"),
         "knowledge_updated": stats.get("knowledge_updated"),

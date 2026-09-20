@@ -73,9 +73,10 @@ cd frontend && npm start
 The app now implements the *Community-Owned AI* guide: a locally governed
 public-information service, not just a locally running chatbot.
 
-- **A constitution in source control.** Twenty versioned principles, injected as
-  their own system message on every request. Amend a file and behavior changes
-  on the next question, no retraining.
+- **A constitution on a signed hash chain.** Twenty versioned principles,
+  injected on every request. Each adopted version is a block carrying the hash
+  of its text and the block before it, ratified by a threshold of named
+  officials. Every answer records which exact rules produced it.
 - **Hybrid retrieval.** Dense search plus keyword search, fused and reranked.
   Asked about Article 8.4, dense-only search returns Article 8.1; keyword search
   does not.
@@ -94,6 +95,8 @@ public-information service, not just a locally running chatbot.
   owns.
 
 **[SYSTEM_GUIDE.md](SYSTEM_GUIDE.md)** — how the whole thing works
+**[LEDGER.md](LEDGER.md)** — the signed hash chain over the constitution
+**[deploy/README.md](deploy/README.md)** — putting it on Google Cloud
 **[COMMUNITY_AI_SETUP.md](COMMUNITY_AI_SETUP.md)** — install and run it
 **[ROADMAP.md](ROADMAP.md)** — where it goes next, Google Cloud, and the database decision
 **[COMMUNITY_AI_SCOPE.md](COMMUNITY_AI_SCOPE.md)** — what's built and what's left

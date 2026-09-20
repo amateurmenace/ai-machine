@@ -1,0 +1,6 @@
+{
+  "$schema": "community-ai/constitution-signers/v1",
+  "description": "Who may ratify a constitution version. Each entry pairs a name with the Ed25519 public key that person signs with. Changing this file is itself a commit, so the roster is part of the public record. Generate a key with: python3 -m community.ledger keygen",
+  "note": "This is a TEMPLATE. Replace these entries with your community's actual ratifiers before adopting anything. The keys below are placeholders and no private key for them exists.",
+  "signers": []
+}

@@ -99,6 +99,12 @@ class AnswerProvenance:
     knowledge_updated: Optional[str] = None
     constitution_version: str = "none"
     constitution_status: str = "unknown"
+    # The hash is the binding claim. A version string can stay "1.0" while the
+    # text changes; a hash cannot. This is what makes "these rules produced this
+    # answer" checkable a year later.
+    constitution_hash: str = ""
+    constitution_ratified: bool = False
+    constitution_ledger_ok: Optional[bool] = None
     model: str = ""
     provider: str = ""
     system_version: str = "0.1"
@@ -315,6 +321,9 @@ class CommunityPipeline:
             knowledge_updated=self.knowledge_updated,
             constitution_version=self.constitution.version,
             constitution_status=self.constitution.status,
+            constitution_hash=self.constitution.content_hash,
+            constitution_ratified=self.constitution.ratified,
+            constitution_ledger_ok=self.constitution.ledger_verified,
             model=self.model,
             provider=self.provider,
             system_version=self.system_version,
@@ -382,6 +391,12 @@ class CommunityPipeline:
                 + ", ".join(str(n) for n in check.invalid_numbers)
             )
             check = verify_citations(final_answer, citations)
+
+        if self.constitution.ledger_verified is False:
+            provenance.warnings.append(
+                "the constitution ledger does not verify; the rules governing "
+                "this answer may not be the rules that were adopted"
+            )
 
         if citations and not check.has_citations:
             provenance.warnings.append(

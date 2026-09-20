@@ -22,7 +22,9 @@ import {
   ChatBubbleLeftIcon,
   GlobeAmericasIcon,
   WrenchScrewdriverIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  CubeIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import Footer from './Footer';
 
@@ -208,767 +210,577 @@ brooklineAI.ask("What are the rules for block parties?");
         </svg>
       </div>
 
-      {/* Header */}
-      <header className="relative z-10 bg-gray-900/95 backdrop-blur-sm border-b border-green-500/30 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+      {/* ================= NAV ================= */}
+      <nav className="relative z-20 border-b border-gray-200/60 bg-white/70 backdrop-blur-md sticky top-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-green-400 font-mono text-lg animate-pulse">&gt;</span>
-                <h1 className="text-2xl md:text-3xl font-bold text-white font-mono tracking-tight">
-                  neighborhood<span className="text-green-400">_</span>ai
-                </h1>
+              <div className="p-2 bg-gray-900 rounded-lg">
+                <CpuChipIcon className="h-5 w-5 text-green-400" />
               </div>
-              <span className="hidden sm:inline-block px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-mono rounded border border-green-500/30">
-                v1.0.0
-              </span>
+              <h1 className="text-xl md:text-2xl font-bold text-gray-900 font-mono tracking-tight">
+                Neighborhood AI
+              </h1>
             </div>
-
-            <nav className="flex items-center space-x-4">
-              <a href="#why" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">why</a>
-              <a href="#how" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">how</a>
-              <a href="#values" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">values</a>
+            <div className="flex items-center space-x-4 md:space-x-6">
+              <a href="#how" className="text-gray-600 hover:text-gray-900 text-sm font-mono transition-colors hidden sm:inline">how</a>
+              <a href="#archive" className="text-gray-600 hover:text-gray-900 text-sm font-mono transition-colors hidden md:inline">archive</a>
+              <a href="#ledger" className="text-gray-600 hover:text-gray-900 text-sm font-mono transition-colors hidden md:inline">ledger</a>
+              <a href="#api" className="text-gray-600 hover:text-gray-900 text-sm font-mono transition-colors hidden md:inline">api</a>
               {projects.length > 0 && (
-                <a href="#projects" className="text-gray-400 hover:text-green-400 text-sm font-mono transition-colors hidden sm:inline">projects</a>
+                <a href="#projects" className="text-gray-600 hover:text-gray-900 text-sm font-mono transition-colors hidden sm:inline">live</a>
               )}
-              <Link
-                to="/about"
-                className="text-gray-400 hover:text-orange-400 text-sm font-mono transition-colors hidden sm:inline"
-              >
-                about
-              </Link>
-              <Link
-                to="/guide"
-                className="text-purple-400 hover:text-purple-300 px-3 py-2 font-mono text-sm transition-colors border border-purple-500/30 rounded hover:bg-purple-500/10"
-              >
-                guide
-              </Link>
               <button
                 onClick={handleNavigateToConsole}
-                className="bg-green-500 text-gray-900 px-4 py-2 rounded font-mono text-sm font-semibold hover:bg-green-400 transition-colors flex items-center space-x-1"
+                className="px-4 py-2 bg-gray-900 text-green-400 rounded-lg font-mono text-sm hover:bg-gray-800 transition-colors"
               >
-                <span>./console</span>
-                <span className="animate-pulse">_</span>
+                open console
               </button>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section - Bold with rich content */}
-      <div className="relative pt-20 pb-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            {/* Main headline */}
-            <h1 className="text-6xl md:text-7xl font-black mb-6 text-gray-900 tracking-tight">
-              AI for <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-rose-500">Us</span>
-            </h1>
-
-            {/* Subheadline - more informative */}
-            <p className="text-xl md:text-2xl text-gray-600 mb-6 max-w-3xl mx-auto leading-relaxed">
-              Build a custom AI assistant for your town, neighborhood, or community organization.
-              Fine-tuned with local knowledge. Governed by community values. Run on your own hardware.
-            </p>
-
-            <p className="text-lg text-gray-500 mb-10 max-w-2xl mx-auto">
-              Every community deserves an AI that knows its streets, understands its history,
-              and respects its values. Neighborhood AI makes this possible—affordably and privately.
-            </p>
-
-            {/* CTA buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <button
-                onClick={handleNavigateToConsole}
-                className="group px-10 py-5 bg-gray-900 text-white rounded-full font-bold text-lg hover:bg-gray-800 transition-all duration-300 flex items-center space-x-3 shadow-xl hover:shadow-2xl"
-              >
-                <span>Get Started</span>
-                <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              <Link
-                to="/guide"
-                className="px-10 py-5 bg-white text-gray-900 rounded-full font-bold text-lg border-2 border-gray-200 hover:border-gray-300 transition-all duration-300 flex items-center space-x-2"
-              >
-                <span>Read the Guide</span>
-              </Link>
-            </div>
-
-            {/* Key stats - horizontal strip */}
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12 text-center">
-              <div>
-                <div className="text-3xl md:text-4xl font-black text-green-600">Local</div>
-                <div className="text-sm text-gray-500 mt-1">runs on your hardware</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black text-orange-500">$0</div>
-                <div className="text-sm text-gray-500 mt-1">per month</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black text-blue-600">100%</div>
-                <div className="text-sm text-gray-500 mt-1">private</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black text-purple-600">CC</div>
-                <div className="text-sm text-gray-500 mt-1">open source</div>
-              </div>
             </div>
           </div>
         </div>
-      </div>
+      </nav>
 
-      {/* Code Demo - Standalone section */}
-      <div className="relative pb-24">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
-            <div className="flex items-center space-x-2 px-4 py-3 bg-gray-800/50 border-b border-gray-700/50">
-              <div className="flex space-x-2">
+      {/* ================= HERO ================= */}
+      <section className="relative z-10 pt-20 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto text-center">
+          <div className="inline-flex items-center px-4 py-1.5 mb-8 rounded-full bg-gray-900 text-green-400 font-mono text-xs">
+            <ServerIcon className="h-3.5 w-3.5 mr-2" />
+            runs on hardware your community owns
+          </div>
+
+          <h1 className="text-5xl md:text-7xl font-black mb-6 text-gray-900 tracking-tight leading-[1.05]">
+            Your town's AI,<br />
+            <span className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
+              governed by your town
+            </span>
+          </h1>
+
+          <p className="text-xl md:text-2xl text-gray-700 mb-4 max-w-3xl mx-auto leading-relaxed">
+            A public-information service that happens to use a language model.
+            It answers from your community's own record, cites the meeting and
+            the timestamp, and follows rules your community wrote and can amend.
+          </p>
+
+          <p className="text-base text-gray-500 mb-10 max-w-2xl mx-auto font-mono">
+            Not a chatbot with your logo on it.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+            <button
+              onClick={handleNavigateToConsole}
+              className="px-8 py-4 bg-gray-900 text-green-400 rounded-xl font-mono font-semibold hover:bg-gray-800 transition-all inline-flex items-center justify-center group"
+            >
+              build one for your community
+              <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <a
+              href="#how"
+              className="px-8 py-4 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-mono font-semibold hover:bg-gray-50 transition-all inline-flex items-center justify-center"
+            >
+              see how it works
+            </a>
+          </div>
+
+          {/* What the community owns */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto">
+            {[
+              { icon: DocumentTextIcon, label: 'the rules', sub: 'a constitution' },
+              { icon: VideoCameraIcon, label: 'the record', sub: 'your archive' },
+              { icon: SparklesIcon, label: 'the finding', sub: 'retrieval' },
+              { icon: LockClosedIcon, label: 'the proof', sub: 'citations' },
+              { icon: CheckCircleIcon, label: 'the test', sub: 'evaluations' },
+            ].map((item) => (
+              <div key={item.label} className="p-4 bg-white/80 backdrop-blur rounded-xl border border-gray-200">
+                <item.icon className="h-5 w-5 text-gray-900 mx-auto mb-2" />
+                <p className="font-mono text-sm font-semibold text-gray-900">{item.label}</p>
+                <p className="font-mono text-xs text-gray-500">{item.sub}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 font-mono text-xs text-gray-500 max-w-2xl mx-auto">
+            The model is deliberately not on that list. Swap it next year and
+            everything above survives.
+          </p>
+        </div>
+      </section>
+
+      {/* ================= HOW IT WORKS ================= */}
+      <section id="how" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-4xl md:text-5xl font-black mb-4 text-white">
+              What happens when someone asks
+            </h2>
+            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+              "What has the town discussed about replacing gas heating in public buildings?"
+            </p>
+          </div>
+
+          <div className="space-y-3 max-w-4xl mx-auto">
+            {[
+              { n: '01', t: 'Expand the question',
+                d: "Residents say “the dump”; the records say “Solid Waste Transfer Station”. A civic vocabulary map adds the formal terms without dropping the original wording." },
+              { n: '02', t: 'Search twice, two different ways',
+                d: 'Meaning-based search finds the right topic. Keyword search finds the right identifier. Ask a meaning-only system about Article 8.4 and it hands you Article 8.1, because those two passages mean nearly the same thing.' },
+              { n: '03', t: 'Merge and rerank',
+                d: 'The two result lists are fused by rank, then a second model reads each question-and-passage pair together. This is where “right topic, wrong year” gets caught.' },
+              { n: '04', t: 'Assemble the request',
+                d: 'Four blocks: who the assistant is, the constitution verbatim, the retrieved passages, and the tools. The passages carry an explicit warning that they are evidence and never instructions.' },
+              { n: '05', t: 'Answer, and use tools if needed',
+                d: 'The model can search the archive again with its own filters, search the web, or read a page. At the limit it is told it is out of tool calls, so it says what it could not confirm.' },
+              { n: '06', t: 'Check every citation',
+                d: 'Each source marker is matched against what was actually supplied. A marker pointing at a passage that does not exist is a fabricated source; it gets stripped and flagged.' },
+            ].map((step) => (
+              <div key={step.n} className="flex gap-5 p-5 bg-gray-800/50 rounded-xl border border-gray-700 hover:border-green-500/40 transition-colors">
+                <span className="font-mono text-2xl font-black text-green-500/60 flex-shrink-0">{step.n}</span>
+                <div>
+                  <h3 className="font-mono text-white font-semibold mb-1">{step.t}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{step.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================= LOCAL FIRST ================= */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="text-4xl font-black mb-5 text-gray-900">
+                A question answered locally never leaves the building
+              </h2>
+              <p className="text-gray-600 mb-5 leading-relaxed">
+                The default is a model on hardware your community owns, reached
+                over your network or through a tunnel so a machine in a closet
+                can serve a whole town without a static address.
+              </p>
+              <p className="text-gray-600 mb-6 leading-relaxed">
+                Frontier models are here too, because sometimes they are the
+                right call. The app tells residents which one answered instead of
+                hiding it.
+              </p>
+              <div className="space-y-2">
+                {[
+                  ['LM Studio', 'local or tunneled', true],
+                  ['Ollama', 'local', true],
+                  ['Anthropic Claude', 'sends the question out', false],
+                  ['OpenAI', 'sends the question out', false],
+                  ['Google Gemini', 'sends the question out', false],
+                ].map(([name, note, local]) => (
+                  <div key={name} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                    <span className="font-mono text-sm font-semibold text-gray-900">{name}</span>
+                    <span className={`font-mono text-xs ${local ? 'text-green-600' : 'text-amber-600'}`}>
+                      {note}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gray-900 rounded-2xl p-6 border border-gray-700">
+              <div className="flex items-center space-x-2 mb-4">
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
                 <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span className="text-gray-500 text-xs font-mono ml-3">what a local model costs</span>
               </div>
-              <span className="text-gray-500 text-sm font-mono ml-4">neighborhood-ai.js</span>
-            </div>
-            <pre className="p-6 overflow-x-auto">
-              <code className="text-sm font-mono text-green-400 whitespace-pre">
-                {codeSnippet}
-              </code>
-            </pre>
-          </div>
-        </div>
-      </div>
-
-      {/* Why Local Section - Five Key Benefits */}
-      <div id="why" className="relative py-24 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black mb-6 text-gray-900">
-              Why Local AI?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Running AI on your own hardware gives your community control, privacy, and sustainability
-              that cloud-based solutions can never match.
-            </p>
-          </div>
-
-          {/* Five Benefits Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-16">
-            {/* Context */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center mb-5">
-                <CpuChipIcon className="h-7 w-7 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Local Context</h3>
-              <p className="text-gray-600">
-                Train your AI with local knowledge—town bylaws, meeting minutes, community history.
-                It knows your streets, your issues, your people.
-              </p>
-            </div>
-
-            {/* Environmental Impact */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center mb-5">
-                <BoltIcon className="h-7 w-7 text-green-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Less Impact</h3>
-              <p className="text-gray-600">
-                Local AI uses significantly less energy than cloud datacenters.
-                A Mac Mini running Llama uses roughly the same power as a phone charger.
-              </p>
-            </div>
-
-            {/* Community Ownership */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-xl bg-orange-100 flex items-center justify-center mb-5">
-                <UserGroupIcon className="h-7 w-7 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Community Owned</h3>
-              <p className="text-gray-600">
-                Your community owns the data, the hardware, and the model. No vendor lock-in.
-                No corporate interests. Run by libraries, community centers, local government.
-              </p>
-            </div>
-
-            {/* Privacy & Security */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center mb-5">
-                <LockClosedIcon className="h-7 w-7 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Privacy & Security</h3>
-              <p className="text-gray-600">
-                Data never leaves your server. Safe for young people, seniors, and everyone.
-                No surveillance, no data harvesting, no third-party access.
-              </p>
-            </div>
-
-            {/* Local Employment */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="w-14 h-14 rounded-xl bg-rose-100 flex items-center justify-center mb-5">
-                <WrenchScrewdriverIcon className="h-7 w-7 text-rose-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Local Jobs</h3>
-              <p className="text-gray-600">
-                Create local employment: technicians to maintain hardware, educators to train models,
-                coordinators to gather community input. Keep money in your community.
-              </p>
-            </div>
-
-            {/* Zero Cost */}
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 shadow-lg text-white">
-              <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center mb-5">
-                <CheckCircleIcon className="h-7 w-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">$0 Per Month</h3>
-              <p className="text-green-100">
-                After initial hardware setup, there are no recurring API costs, subscription fees,
-                or per-query charges. Truly free to operate forever.
-              </p>
-            </div>
-          </div>
-
-          {/* Comparison strip */}
-          <div className="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <CloudIcon className="h-6 w-6 text-gray-400" />
-                  <span className="font-semibold text-gray-900">Cloud AI</span>
-                </div>
-                <ul className="space-y-2 text-gray-600 text-sm">
-                  <li className="flex items-center space-x-2">
-                    <span className="text-red-500">-</span>
-                    <span>$20-100+/month in API costs</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-red-500">-</span>
-                    <span>Data sent to corporate servers</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-red-500">-</span>
-                    <span>Generic, one-size-fits-all</span>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <ServerIcon className="h-6 w-6 text-green-600" />
-                  <span className="font-semibold text-gray-900">Local AI</span>
-                </div>
-                <ul className="space-y-2 text-gray-600 text-sm">
-                  <li className="flex items-center space-x-2">
-                    <span className="text-green-500">+</span>
-                    <span>$0/month after hardware</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-green-500">+</span>
-                    <span>100% private, on your hardware</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <span className="text-green-500">+</span>
-                    <span>Customized for your community</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right Tool Section - With Community Constitution */}
-      <div className="py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-black mb-6 text-gray-900">
-              Right Tool, Right Job
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Frontier models are powerful for general tasks. But for community knowledge,
-              a locally-trained AI—shaped by your residents—is the right choice.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6 mb-16">
-            <div className="text-center p-8 bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-blue-100 flex items-center justify-center">
-                <CloudIcon className="h-8 w-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Frontier AI</h3>
-              <p className="text-gray-500 text-sm">
-                General knowledge, complex reasoning, creative work, multimodal tasks, research
-              </p>
-            </div>
-
-            <div className="text-center p-8 bg-gradient-to-b from-orange-50 to-white rounded-2xl border-2 border-orange-200 shadow-sm">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-orange-500 flex items-center justify-center">
-                <ServerIcon className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Neighborhood AI</h3>
-              <p className="text-gray-500 text-sm">
-                Local questions, community-specific knowledge, privacy, efficiency, custom values
-              </p>
-            </div>
-
-            <div className="text-center p-8 bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-rose-100 flex items-center justify-center">
-                <HeartIcon className="h-8 w-8 text-rose-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Use Both</h3>
-              <p className="text-gray-500 text-sm">
-                Pro-appropriate-technology. Use frontier models for complexity, local AI for community.
-              </p>
-            </div>
-          </div>
-
-          {/* Community Constitution Feature */}
-          <div className="bg-gradient-to-r from-orange-50 to-rose-50 rounded-3xl p-8 md:p-12 border border-orange-200">
-            <div className="grid md:grid-cols-2 gap-8 items-center">
-              <div>
-                <div className="inline-flex items-center space-x-2 bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-semibold mb-4">
-                  <SparklesIcon className="h-4 w-4" />
-                  <span>Special Feature</span>
-                </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                  Community Constitution
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Every community has unique values, ethics, and concerns. Through workshops with residents,
-                  you can create a <strong>Community Constitution</strong>—a set of rules and values that shape
-                  how your AI behaves.
-                </p>
-                <p className="text-gray-600">
-                  This means every local instance can be truly unique: an AI that reflects the character
-                  and priorities of the people it serves. Not a generic chatbot, but <em>your</em> community's AI.
-                </p>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
-                <p className="text-sm font-mono text-gray-500 mb-3"># example_constitution.yaml</p>
-                <div className="space-y-2 text-sm font-mono">
-                  <p className="text-gray-700">- <span className="text-green-600">Always recommend contacting town hall</span></p>
-                  <p className="text-gray-700">- <span className="text-green-600">Never provide legal advice</span></p>
-                  <p className="text-gray-700">- <span className="text-green-600">Encourage civic participation</span></p>
-                  <p className="text-gray-700">- <span className="text-green-600">Respect resident privacy</span></p>
-                  <p className="text-gray-700">- <span className="text-green-600">Cite sources when available</span></p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* How It Works - Four Steps with Discovery Wizard */}
-      <div id="how" className="relative py-24 bg-gray-900 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-5xl font-black mb-6">
-              Four Steps
-            </h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-4">
-              Our Discovery Wizard guides you through building a custom AI for your community.
-              It automatically finds and ingests local sources to create a knowledgeable assistant.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-4 mb-12">
-            {[
-              { step: '01', title: 'Discover', desc: 'AI-powered wizard finds your local sources: meeting videos, town PDFs, community forums, nonprofit sites' },
-              { step: '02', title: 'Ingest', desc: 'Transcribe videos, parse documents, scrape websites. All data stays on your machine.' },
-              { step: '03', title: 'Customize', desc: 'Add your Community Constitution. Define values, ethics, and constraints.' },
-              { step: '04', title: 'Serve', desc: 'Your AI answers questions with citations, respects your rules, knows your town.' }
-            ].map((item, idx) => (
-              <div key={idx} className="relative group">
-                <div className="bg-gray-800 rounded-2xl p-6 border border-gray-700 hover:border-green-500/50 transition-all duration-300 h-full">
-                  <div className="text-5xl font-black text-green-500 mb-3">{item.step}</div>
-                  <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">{item.desc}</p>
-                </div>
-                {idx < 3 && (
-                  <div className="hidden md:block absolute top-1/2 -right-2 transform -translate-y-1/2 z-10">
-                    <ArrowRightIcon className="h-4 w-4 text-gray-600" />
+              <div className="space-y-3 font-mono text-sm">
+                {[
+                  ['Mac Studio, 64GB', '$3,500 once', 'runs Gemma 4 26B'],
+                  ['Used RTX 3090', '$1,500 once', 'same class, faster'],
+                  ['Cloud GPU', '$500/month forever', 'and defeats the purpose'],
+                ].map(([what, cost, note]) => (
+                  <div key={what} className="p-3 bg-gray-800 rounded-lg">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-white">{what}</span>
+                      <span className={cost.includes('month') ? 'text-amber-400' : 'text-green-400'}>{cost}</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-1">{note}</p>
                   </div>
-                )}
+                ))}
+              </div>
+              <p className="mt-4 text-gray-400 text-xs font-mono leading-relaxed">
+                A one-time purchase beats the subscription inside a year, and
+                keeps the property that matters.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= ARCHIVE ================= */}
+      <section id="archive" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-teal-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-4xl md:text-5xl font-black mb-4 text-gray-900">
+              Every meeting, searchable to the second
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Point it at your public-access channel. It reads the board and the
+              date out of each title, pulls the transcript, and keeps the
+              timestamp of the moment each passage starts.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-5 mb-10">
+            {[
+              { icon: VideoCameraIcon, t: 'Backfill the archive',
+                d: 'Walks years of meetings oldest-first, so an interrupted run leaves a contiguous record rather than a scatter.' },
+              { icon: BoltIcon, t: 'Then it keeps itself current',
+                d: 'A cursor means later runs list only what is new. A scan that finds nothing costs one request and writes nothing.' },
+              { icon: CheckCircleIcon, t: 'Gaps are recorded, not hidden',
+                d: 'A meeting with captions disabled is logged as a gap in the public record, because the assistant has to be able to say what it does not have.' },
+            ].map((f) => (
+              <div key={f.t} className="p-6 bg-white rounded-xl border border-gray-200">
+                <f.icon className="h-6 w-6 text-blue-600 mb-3" />
+                <h3 className="font-mono font-semibold text-gray-900 mb-2">{f.t}</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{f.d}</p>
               </div>
             ))}
           </div>
 
-          {/* Data Sources Grid */}
-          <div className="bg-gray-800/50 rounded-2xl p-8 border border-gray-700 mb-12">
-            <h3 className="text-xl font-bold text-center mb-6">
-              Sources the Discovery Wizard can find and ingest
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="flex justify-center mb-2">
-                  <VideoCameraIcon className="h-8 w-8 text-red-400" />
+          <div className="bg-gray-900 rounded-2xl p-6 border border-gray-700 max-w-3xl mx-auto">
+            <p className="font-mono text-xs text-gray-500 mb-3"># an answer, with its evidence</p>
+            <p className="text-gray-200 text-sm mb-4 leading-relaxed">
+              The Select Board discussed the redesign on May 12 and several
+              members expressed support, but the record does not show a vote
+              approving it <span className="text-cyan-400">[1]</span>.
+            </p>
+            <div className="p-3 bg-gray-800 rounded-lg border border-gray-700">
+              <p className="font-mono text-xs text-cyan-400 flex items-center">
+                <VideoCameraIcon className="h-3.5 w-3.5 mr-1.5" />
+                [1] Select Board &bull; May 12, 2026 &bull; 1:13:42
+              </p>
+              <p className="font-mono text-xs text-gray-500 ml-5">
+                spoken by Jane Smith, Transportation Director
+              </p>
+              <p className="font-mono text-xs text-green-400 ml-5 mt-2">
+                &#9654; watch this moment (1:13:42)
+              </p>
+            </div>
+            <p className="font-mono text-xs text-gray-500 mt-3 leading-relaxed">
+              The video plays in the app at that second. Click to load, through
+              a privacy-enhanced embed, so opening an answer does not tell
+              anyone who watched which meeting.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= LEDGER ================= */}
+      <section id="ledger" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <div className="inline-flex items-center px-4 py-1.5 mb-5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-xs">
+              <CubeIcon className="h-3.5 w-3.5 mr-2" />
+              the part nobody else has
+            </div>
+            <h2 className="text-4xl md:text-5xl font-black mb-4 text-white">
+              The rules are a signed chain
+            </h2>
+            <p className="text-lg text-gray-400 max-w-3xl mx-auto">
+              Every adopted version of the community constitution is a block.
+              Each records the hash of its own text and of the block before it.
+              Ratification is an N-of-M multi-signature by named officials,
+              verified rather than asserted.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 items-start mb-10">
+            <div className="space-y-3">
+              {[
+                { h: 'block 1 · v1.1', s: 'ratified 2 of 3', c: 'f46eaefc', prev: '50c95a99', head: true },
+                { h: 'block 0 · v1.0', s: 'genesis', c: '50c95a99', prev: null, head: false },
+              ].map((b) => (
+                <div key={b.h} className={`p-4 rounded-xl border ${b.head ? 'bg-gray-800 border-green-500/40' : 'bg-gray-800/50 border-gray-700'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-sm text-white">{b.h}</span>
+                    <span className={`font-mono text-xs ${b.head ? 'text-green-400' : 'text-purple-400'}`}>{b.s}</span>
+                  </div>
+                  <div className="font-mono text-xs space-y-1">
+                    <p className="text-gray-500">content <span className="text-cyan-400">{b.c}</span></p>
+                    <p className="text-gray-500">
+                      previous {b.prev
+                        ? <span className="text-cyan-400">{b.prev}</span>
+                        : <span className="text-purple-400">genesis &bull; none</span>}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-300">Government Meeting Videos</p>
-                <p className="text-xs text-gray-500">Auto-transcribed</p>
+              ))}
+              <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/30">
+                <p className="font-mono text-xs text-green-300 flex items-start">
+                  <ShieldCheckIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+                  Chain verified. Every block links, every file matches its hash,
+                  every signature checks out.
+                </p>
               </div>
-              <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="flex justify-center mb-2">
-                  <DocumentTextIcon className="h-8 w-8 text-orange-400" />
-                </div>
-                <p className="text-sm text-gray-300">Town PDFs & Guides</p>
-                <p className="text-xs text-gray-500">Policies, forms, bylaws</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-5 bg-gray-800/50 rounded-xl border border-gray-700">
+                <h3 className="font-mono text-white font-semibold mb-2">Why it matters in practice</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Every answer records the hash of the rules that produced it,
+                  not just a version number. A version string can stay "1.0"
+                  while the text underneath changes. A hash cannot. So "these
+                  rules governed this answer" is a claim you can check a year
+                  later, in a dispute, when it matters.
+                </p>
               </div>
-              <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="flex justify-center mb-2">
-                  <ChatBubbleLeftIcon className="h-8 w-8 text-blue-400" />
-                </div>
-                <p className="text-sm text-gray-300">Community Forums</p>
-                <p className="text-xs text-gray-500">Reddit, local boards</p>
+              <div className="p-5 bg-gray-800/50 rounded-xl border border-gray-700">
+                <h3 className="font-mono text-white font-semibold mb-2">The best witness is your own minutes</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  When the board votes to ratify, the motion includes the block
+                  hash. It goes into the official minutes, held by the clerk,
+                  outside the operator's control. That is cryptographically sound
+                  and civically coherent at once, and it outlives this software.
+                </p>
               </div>
-              <div className="p-4 bg-gray-800 rounded-xl">
-                <div className="flex justify-center mb-2">
-                  <GlobeAmericasIcon className="h-8 w-8 text-green-400" />
-                </div>
-                <p className="text-sm text-gray-300">Local Websites</p>
-                <p className="text-xs text-gray-500">Schools, nonprofits, civic orgs</p>
+              <div className="p-5 bg-amber-500/5 rounded-xl border border-amber-500/30">
+                <h3 className="font-mono text-amber-300 font-semibold mb-2">What we do not claim</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  No consensus, no mining, no token, no decentralization. One
+                  operator runs one server. The chain makes tampering
+                  <span className="text-amber-300"> detectable</span>, not
+                  impossible. That is the guarantee that actually addresses the
+                  risk here, and overclaiming it would cost more trust than
+                  never claiming it.
+                </p>
               </div>
             </div>
           </div>
 
           <div className="text-center">
-            <button
-              onClick={handleNavigateToConsole}
-              className="group inline-flex items-center space-x-3 bg-green-500 hover:bg-green-400 text-gray-900 px-10 py-5 rounded-full font-bold text-lg transition-all duration-300"
-            >
-              <span>Start Building</span>
-              <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+            <code className="inline-block px-4 py-2 bg-gray-800 rounded-lg font-mono text-sm text-green-400 border border-gray-700">
+              python3 -m community.ledger verify
+            </code>
+            <p className="font-mono text-xs text-gray-500 mt-3">
+              Anyone can check it. That is the point.
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Architecture Diagram */}
-      <div id="architecture" className="py-20 bg-gradient-to-br from-slate-900 to-gray-900 relative overflow-hidden">
-        {/* Blueprint background for this section */}
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="blueprint-grid-arch" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
-                <line x1="0" y1="0" x2="50" y2="0" stroke="#3b82f6" strokeWidth="0.5" />
-                <line x1="0" y1="0" x2="0" y2="50" stroke="#3b82f6" strokeWidth="0.5" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#blueprint-grid-arch)" />
-          </svg>
-        </div>
-
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4 text-white font-mono">
-              <span className="text-blue-400">#</span> system_architecture
-            </h2>
-            <p className="text-xl text-gray-400">
-              How Neighborhood AI turns your data into answers
+      {/* ================= TRANSPARENCY ================= */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+          <div className="bg-gray-900 rounded-2xl p-6 border border-gray-700 order-2 md:order-1">
+            <p className="font-mono text-xs text-gray-500 mb-3">
+              &#9662; why did you answer this way?
+            </p>
+            <dl className="space-y-1.5">
+              {[
+                ['sources retrieved', '7'],
+                ['sources used', '3'],
+                ['knowledge base updated', 'September 19, 2026'],
+                ['model', 'gemma-4-26b-a4b'],
+                ['served by', 'LM Studio (local)'],
+                ['constitution', 'version 1.1 · f46eaefc · ratified'],
+                ['search', 'hybrid, reranked'],
+                ['retrieval time', '142 ms'],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between font-mono text-xs gap-4">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="text-gray-300 text-right">{v}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="font-mono text-xs text-gray-600 mt-4 pt-3 border-t border-gray-800">
+              This shows what the system did, not the model's private reasoning.
             </p>
           </div>
 
-          {/* Architecture Diagram as SVG */}
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl border-2 border-blue-500/30 p-8 shadow-2xl">
-            <svg viewBox="0 0 900 320" className="w-full h-auto" xmlns="http://www.w3.org/2000/svg">
-              {/* Connection lines */}
-              <defs>
-                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee" />
-                </marker>
-                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.3" />
-                  <stop offset="50%" stopColor="#22d3ee" stopOpacity="1" />
-                  <stop offset="100%" stopColor="#22d3ee" stopOpacity="0.3" />
-                </linearGradient>
-              </defs>
-
-              {/* Arrows connecting boxes */}
-              <line x1="155" y1="160" x2="225" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line" />
-              <line x1="365" y1="160" x2="435" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-1" />
-              <line x1="575" y1="160" x2="645" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-2" />
-              <line x1="785" y1="160" x2="855" y2="160" stroke="#22d3ee" strokeWidth="2" markerEnd="url(#arrowhead)" className="animate-flow-line animation-delay-3" />
-
-              {/* Box 1: Data Sources */}
-              <g transform="translate(20, 80)">
-                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#3b82f6" strokeWidth="2" />
-                <text x="65" y="30" textAnchor="middle" fill="#3b82f6" fontSize="12" fontFamily="monospace" fontWeight="bold">DATA SOURCES</text>
-                {/* Icons inside */}
-                <rect x="15" y="50" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
-                <text x="37" y="70" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">YouTube</text>
-                <rect x="70" y="50" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
-                <text x="92" y="70" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">Web</text>
-                <rect x="15" y="90" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
-                <text x="37" y="110" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">PDFs</text>
-                <rect x="70" y="90" width="45" height="30" rx="4" fill="#374151" stroke="#60a5fa" strokeWidth="1" />
-                <text x="92" y="110" textAnchor="middle" fill="#60a5fa" fontSize="10" fontFamily="monospace">RSS</text>
-                <text x="65" y="145" textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="monospace">Community Data</text>
-              </g>
-
-              {/* Box 2: Ingestion */}
-              <g transform="translate(230, 80)">
-                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#22c55e" strokeWidth="2" />
-                <text x="65" y="30" textAnchor="middle" fill="#22c55e" fontSize="12" fontFamily="monospace" fontWeight="bold">INGESTION</text>
-                {/* Process steps */}
-                <rect x="15" y="50" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
-                <text x="65" y="67" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Extract Text</text>
-                <rect x="15" y="85" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
-                <text x="65" y="102" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Chunk Content</text>
-                <rect x="15" y="120" width="100" height="25" rx="4" fill="#374151" stroke="#4ade80" strokeWidth="1" />
-                <text x="65" y="137" textAnchor="middle" fill="#4ade80" fontSize="10" fontFamily="monospace">Embed Vectors</text>
-              </g>
-
-              {/* Box 3: Vector Store */}
-              <g transform="translate(440, 80)">
-                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#a855f7" strokeWidth="2" />
-                <text x="65" y="30" textAnchor="middle" fill="#a855f7" fontSize="12" fontFamily="monospace" fontWeight="bold">VECTOR STORE</text>
-                {/* Database visualization */}
-                <ellipse cx="65" cy="70" rx="45" ry="15" fill="#374151" stroke="#c084fc" strokeWidth="1" />
-                <rect x="20" y="70" width="90" height="40" fill="#374151" stroke="#c084fc" strokeWidth="1" />
-                <ellipse cx="65" cy="110" rx="45" ry="15" fill="#374151" stroke="#c084fc" strokeWidth="1" />
-                <text x="65" y="95" textAnchor="middle" fill="#c084fc" fontSize="10" fontFamily="monospace">Qdrant</text>
-                <text x="65" y="145" textAnchor="middle" fill="#9ca3af" fontSize="9" fontFamily="monospace">Semantic Search</text>
-              </g>
-
-              {/* Box 4: RAG + LLM */}
-              <g transform="translate(650, 80)">
-                <rect x="0" y="0" width="130" height="160" rx="8" fill="#1e293b" stroke="#f97316" strokeWidth="2" />
-                <text x="65" y="30" textAnchor="middle" fill="#f97316" fontSize="12" fontFamily="monospace" fontWeight="bold">RAG + LLM</text>
-                {/* Query flow */}
-                <rect x="15" y="50" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
-                <text x="65" y="67" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Query Match</text>
-                <rect x="15" y="85" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
-                <text x="65" y="102" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Build Context</text>
-                <rect x="15" y="120" width="100" height="25" rx="4" fill="#374151" stroke="#fb923c" strokeWidth="1" />
-                <text x="65" y="137" textAnchor="middle" fill="#fb923c" fontSize="10" fontFamily="monospace">Ollama/Claude</text>
-              </g>
-
-              {/* Box 5: Response */}
-              <g transform="translate(820, 100)">
-                <rect x="0" y="0" width="70" height="120" rx="8" fill="#1e293b" stroke="#22d3ee" strokeWidth="2" />
-                <text x="35" y="25" textAnchor="middle" fill="#22d3ee" fontSize="11" fontFamily="monospace" fontWeight="bold">ANSWER</text>
-                {/* Chat bubble */}
-                <rect x="10" y="40" width="50" height="35" rx="6" fill="#374151" stroke="#67e8f9" strokeWidth="1" />
-                <line x1="20" y1="52" x2="50" y2="52" stroke="#67e8f9" strokeWidth="1" />
-                <line x1="20" y1="60" x2="45" y2="60" stroke="#67e8f9" strokeWidth="1" />
-                <line x1="20" y1="68" x2="40" y2="68" stroke="#67e8f9" strokeWidth="1" />
-                <text x="35" y="98" textAnchor="middle" fill="#9ca3af" fontSize="8" fontFamily="monospace">+ Sources</text>
-              </g>
-
-              {/* User icon at start */}
-              <g transform="translate(-15, 145)">
-                <circle cx="20" cy="15" r="10" fill="#374151" stroke="#60a5fa" strokeWidth="2" />
-                <text x="20" y="18" textAnchor="middle" fill="#60a5fa" fontSize="10">?</text>
-              </g>
-
-              {/* Labels below */}
-              <text x="85" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Collect</text>
-              <text x="295" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Process</text>
-              <text x="505" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Store</text>
-              <text x="715" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Generate</text>
-              <text x="855" y="270" textAnchor="middle" fill="#6b7280" fontSize="10" fontFamily="monospace">Respond</text>
-
-              {/* Flow description */}
-              <text x="450" y="305" textAnchor="middle" fill="#9ca3af" fontSize="11" fontFamily="monospace">
-                Question → Semantic Search → Relevant Context → LLM → Cited Answer
-              </text>
-            </svg>
-          </div>
-
-          <div className="mt-8 grid md:grid-cols-3 gap-6 text-center">
-            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
-              <div className="text-2xl font-bold text-blue-400 font-mono mb-1">Local</div>
-              <p className="text-gray-400 text-sm">All processing on your hardware</p>
-            </div>
-            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
-              <div className="text-2xl font-bold text-green-400 font-mono mb-1">2W</div>
-              <p className="text-gray-400 text-sm">Energy per query (vs 100W cloud)</p>
-            </div>
-            <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-700">
-              <div className="text-2xl font-bold text-purple-400 font-mono mb-1">Private</div>
-              <p className="text-gray-400 text-sm">Your data never leaves your server</p>
-            </div>
+          <div className="order-1 md:order-2">
+            <h2 className="text-4xl font-black mb-5 text-gray-900">
+              Every answer shows its work
+            </h2>
+            <p className="text-gray-600 mb-4 leading-relaxed">
+              Not a confidence score. Operational facts: what was retrieved, what
+              was actually used, how fresh the archive is, which model answered,
+              which version of the rules applied, and whether the assistant left
+              your records to search the web.
+            </p>
+            <p className="text-gray-600 leading-relaxed">
+              When something is wrong, this is what tells you whether the search
+              failed or the model did. Those are different problems with
+              different fixes, and conflating them wastes weeks.
+            </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Values */}
-      <div id="values" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4 text-gray-900">
-              Built on Principles
+      {/* ================= API ================= */}
+      <section id="api" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-900 to-gray-800">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-black mb-4 text-white">
+              Infrastructure, not a chatbot
             </h2>
+            <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+              The public record, with real filters, through an API every
+              application in your community can share.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-gray-950 rounded-xl p-5 border border-gray-700">
+              <p className="font-mono text-xs text-green-400 mb-3">
+                # switch an existing app by changing one line
+              </p>
+              <pre className="font-mono text-xs text-gray-300 overflow-x-auto leading-relaxed">
+{`client = OpenAI(
+  base_url="https://ai.yourtown.org/v1",
+  api_key="cai_..."
+)
+
+client.chat.completions.create(
+  model="community-ai",
+  messages=[{
+    "role": "user",
+    "content": "Summarize tonight's meeting."
+  }]
+)`}
+              </pre>
+            </div>
+
+            <div className="bg-gray-950 rounded-xl p-5 border border-gray-700">
+              <p className="font-mono text-xs text-green-400 mb-3">
+                # or query the record directly
+              </p>
+              <pre className="font-mono text-xs text-gray-300 overflow-x-auto leading-relaxed">
+{`POST /community/ask
+POST /community/search
+GET  /community/meetings
+GET  /community/documents
+GET  /community/sources/{id}
+
+# public, no key needed
+GET  /community/{town}/constitution
+GET  /community/{town}/stats
+GET  /community/{town}/constitution/ledger`}
+              </pre>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4 mt-6">
             {[
-              { icon: HeartIcon, title: 'Community-First', desc: 'Built for people, not profit. Open source, free to run.', color: 'rose' },
-              { icon: BoltIcon, title: 'Energy Efficient', desc: '1000x less energy than cloud models. Run on a Mac Mini.', color: 'yellow' },
-              { icon: UserGroupIcon, title: 'Civic-Minded', desc: 'Encourages participation. Cites sources. No hallucinations.', color: 'green' },
-              { icon: CpuChipIcon, title: 'Local-First', desc: 'Your data on your hardware. Cloud optional. Privacy by default.', color: 'indigo' },
-              { icon: CodeBracketIcon, title: 'Open Source', desc: 'MIT license. Fork it, improve it, share it.', color: 'purple' },
-              { icon: GlobeAltIcon, title: 'Community Owned', desc: 'Run by libraries, community centers, local government.', color: 'blue' }
-            ].map((value, idx) => (
-              <div key={idx} className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-6 hover:border-gray-300 hover:shadow-md transition-all">
-                <value.icon className={`h-10 w-10 mb-4 text-${value.color}-600`} />
-                <h3 className="text-xl font-bold mb-3 text-gray-900">{value.title}</h3>
-                <p className="text-gray-600">{value.desc}</p>
+              ['Per-application keys', 'Stored hashed, with scopes and rate limits. Revoke one app without breaking the rest.'],
+              ['Your prompt cannot override the rules', "An application can send a system prompt. The gateway drops it. The constitution is the service's policy."],
+              ['Questions are not logged', 'Operational metadata is. Question text is stored as a salted hash, so repeats stay countable without being readable.'],
+            ].map(([t, d]) => (
+              <div key={t} className="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+                <h3 className="font-mono text-sm text-white font-semibold mb-1.5">{t}</h3>
+                <p className="text-gray-400 text-xs leading-relaxed">{d}</p>
               </div>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Real Example */}
-      <div className="relative bg-gradient-to-br from-orange-50/50 to-rose-50/50 backdrop-blur-sm py-20 border-y border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white/80 backdrop-blur-sm border-2 border-orange-200 rounded-lg p-12 shadow-lg">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-4 text-gray-900">Real Example: Brookline AI</h2>
-              <p className="text-gray-600 text-lg">
-                Powered by Brookline Interactive Group, serving the community for 40+ years
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <div>
-                <h3 className="text-xl font-bold mb-4 text-orange-600">Data Sources</h3>
-                <ul className="space-y-2 text-gray-700">
-                  <li className="flex items-center space-x-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    <span>500+ hours of Select Board meetings</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    <span>Brookline.news archive</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    <span>Town website</span>
-                  </li>
-                  <li className="flex items-center space-x-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                    <span>Community discussions</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold mb-4 text-green-600">Example Questions</h3>
-                <div className="space-y-3">
-                  {["When is trash day?", "What did the Select Board decide?", "How do I get a dog license?"].map((q, i) => (
-                    <div key={i} className="bg-gray-50 rounded p-3 border border-gray-200">
-                      <p className="text-gray-900 font-mono text-sm">"{q}"</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 text-center">
-              <div className="inline-block bg-green-100 border-2 border-green-400 rounded-lg px-6 py-3">
-                <span className="text-gray-700">Cost: </span>
-                <span className="font-bold text-gray-900">$0.50 setup</span>
-                <span className="text-gray-700"> • Monthly: </span>
-                <span className="font-bold text-gray-900">$0</span>
-                <span className="text-gray-700"> • Energy: </span>
-                <span className="font-bold text-green-700">2W</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Projects Showcase */}
+      {/* ================= LIVE PROJECTS ================= */}
       {projects.length > 0 && (
-        <div id="projects" className="relative bg-gray-50 py-20 border-y border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4 text-gray-900">
-                Community AIs <span className="text-green-600">in Action</span>
-              </h2>
-              <p className="text-xl text-gray-600">
-                Try chatting with these neighborhood AI assistants
+        <section id="projects" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-black mb-4 text-gray-900">Running right now</h2>
+              <p className="text-lg text-gray-600">
+                Community assistants live on this server. Ask one something.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {projects.map((project) => {
                 const health = projectsHealth[project.project_id];
-                const isReady = health?.ready;
-
+                const ready = health?.ready;
                 return (
                   <div
                     key={project.project_id}
-                    className={`relative rounded-xl overflow-hidden border-2 transition-all duration-300 ${
-                      isReady
-                        ? 'bg-white border-green-300 hover:border-green-400 hover:shadow-lg cursor-pointer'
-                        : 'bg-gray-100 border-gray-300 opacity-60'
+                    className={`p-6 bg-white rounded-xl border-2 transition-all ${
+                      ready ? 'border-green-500/40 hover:border-green-500 cursor-pointer' : 'border-gray-200'
                     }`}
-                    onClick={() => isReady && openChat(project)}
+                    onClick={() => ready && openChat(project)}
                   >
-                    {/* Project Card Header */}
-                    <div className={`p-6 ${isReady ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-400'}`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-xl font-bold text-white">{project.project_name}</h3>
-                          <p className="text-green-100 text-sm">{project.municipality_name}</p>
-                        </div>
-                        <div className={`p-2 rounded-lg ${isReady ? 'bg-white/20' : 'bg-gray-500/30'}`}>
-                          <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
-                        </div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="min-w-0">
+                        <h3 className="font-mono font-bold text-gray-900 truncate">{project.project_name}</h3>
+                        <p className="font-mono text-xs text-gray-500 truncate">{project.municipality_name}</p>
                       </div>
+                      <span className={`flex-shrink-0 h-2.5 w-2.5 rounded-full mt-1.5 ${
+                        ready ? 'bg-green-500' : 'bg-gray-300'
+                      }`} />
                     </div>
-
-                    {/* Project Card Body */}
-                    <div className="p-6">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <span className={`w-2 h-2 rounded-full ${isReady ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                        <span className={`text-sm font-mono ${isReady ? 'text-green-600' : 'text-gray-500'}`}>
-                          {isReady ? 'online' : 'offline'}
-                        </span>
-                      </div>
-
-                      {!isReady && health?.issues && (
-                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <div className="flex items-start space-x-2">
-                            <ExclamationCircleIcon className="h-5 w-5 text-yellow-500 flex-shrink-0" />
-                            <div className="text-xs text-yellow-700">
-                              {health.issues.slice(0, 2).map((issue, i) => (
-                                <p key={i}>{issue}</p>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p><span className="text-gray-400">Model:</span> {project.model_name}</p>
-                        <p><span className="text-gray-400">Sources:</span> {project.data_sources?.length || 0}</p>
-                      </div>
-
-                      {isReady && (
-                        <button className="mt-4 w-full py-2 bg-green-500 text-white rounded-lg font-semibold text-sm hover:bg-green-600 transition-colors flex items-center justify-center space-x-2">
-                          <ChatBubbleLeftRightIcon className="h-4 w-4" />
-                          <span>Start Chat</span>
-                        </button>
-                      )}
-                    </div>
+                    {ready ? (
+                      <p className="font-mono text-xs text-green-600 flex items-center">
+                        <ChatBubbleLeftRightIcon className="h-3.5 w-3.5 mr-1.5" />
+                        ready &mdash; click to ask
+                      </p>
+                    ) : (
+                      <p className="font-mono text-xs text-gray-400">
+                        {health?.issues?.[0] || 'not configured yet'}
+                      </p>
+                    )}
                   </div>
                 );
               })}
             </div>
-
-            <div className="mt-12 text-center">
-              <button
-                onClick={() => navigate('/console/new')}
-                className="inline-flex items-center space-x-2 bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300"
-              >
-                <span>Create Your Own</span>
-                <ArrowRightIcon className="h-5 w-5" />
-              </button>
-            </div>
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Chat Modal */}
+      {/* ================= GET STARTED ================= */}
+      <section className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-gray-900">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-black mb-5 text-white">
+            Start with one board's meetings
+          </h2>
+          <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto">
+            Not the whole archive. One board, a hundred documents, and the
+            questions people actually ask at the counter. That is enough to find
+            the real problems before you commit a town to anything.
+          </p>
+
+          <div className="bg-gray-950 rounded-xl p-6 border border-gray-700 text-left mb-10 max-w-2xl mx-auto">
+            <pre className="font-mono text-sm text-gray-300 overflow-x-auto leading-relaxed">
+{`git clone https://github.com/amateurmenace/ai-machine
+cd ai-machine && pip install -r requirements.txt
+
+cp community.example.yaml community.yaml
+python3 -m scripts.bootstrap_community community.yaml
+
+# or put it on Google Cloud to try it
+./deploy/cloudrun.sh YOUR_PROJECT_ID`}
+            </pre>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleNavigateToConsole}
+              className="px-8 py-4 bg-green-500 text-gray-900 rounded-xl font-mono font-semibold hover:bg-green-400 transition-all inline-flex items-center justify-center group"
+            >
+              open the console
+              <ArrowRightIcon className="h-5 w-5 ml-2 group-hover:translate-x-1 transition-transform" />
+            </button>
+            <a
+              href="https://github.com/amateurmenace/ai-machine"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-8 py-4 bg-gray-800 text-white rounded-xl font-mono font-semibold hover:bg-gray-700 transition-all inline-flex items-center justify-center border border-gray-700"
+            >
+              <CodeBracketIcon className="h-5 w-5 mr-2" />
+              read the source
+            </a>
+          </div>
+
+          <p className="font-mono text-xs text-gray-600 mt-8">
+            MIT licensed. Built for Brookline Interactive Group and civic
+            technologists everywhere.
+          </p>
+        </div>
+      </section>
+
       {activeChat && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col border-2 border-green-500/50 shadow-2xl">
@@ -1067,137 +879,7 @@ brooklineAI.ask("What are the rules for block parties?");
         </div>
       )}
 
-      {/* Final CTA */}
-      <div className="bg-gradient-to-r from-orange-500 via-rose-500 to-pink-500 py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl font-bold mb-6 text-white">
-            Ready to Build AI for Your Community?
-          </h2>
-          <p className="text-xl mb-8 text-orange-50">
-            Open source. Free to run. 1000x more efficient. Yours to control.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={handleNavigateToConsole}
-              className="bg-white text-orange-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition-all duration-300 flex items-center justify-center space-x-2"
-            >
-              <span>Launch Console</span>
-              <ArrowRightIcon className="h-5 w-5" />
-            </button>
-            
-            <a
-              href="https://github.com/amateurmenace/ai-machine"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center space-x-2"
-            >
-              <CodeBracketIcon className="h-5 w-5" />
-              <span>View Source</span>
-            </a>
-          </div>
-
-          <div className="mt-8 text-sm text-orange-50">
-            MIT License • Community Owned • Energy Efficient
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
       <Footer />
-
-      {/* Custom CSS for animated background */}
-      <style>{`
-        @keyframes blob {
-          0%, 100% {
-            transform: translate(0, 0) scale(1);
-          }
-          25% {
-            transform: translate(20px, -20px) scale(1.1);
-          }
-          50% {
-            transform: translate(-20px, 20px) scale(0.9);
-          }
-          75% {
-            transform: translate(10px, 10px) scale(1.05);
-          }
-        }
-
-        .animate-blob {
-          animation: blob 20s ease-in-out infinite;
-        }
-
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-
-        .animation-delay-3000 {
-          animation-delay: 3s;
-        }
-
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-
-        .animation-delay-6000 {
-          animation-delay: 6s;
-        }
-
-        .animation-delay-1 {
-          animation-delay: 0.5s;
-        }
-
-        .animation-delay-2 {
-          animation-delay: 1s;
-        }
-
-        .animation-delay-3 {
-          animation-delay: 1.5s;
-        }
-
-        /* Blueprint grid pattern */
-        .blueprint-grid {
-          width: 100%;
-          height: 100%;
-          background-image:
-            linear-gradient(rgba(30, 64, 175, 0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(30, 64, 175, 0.3) 1px, transparent 1px),
-            linear-gradient(rgba(30, 64, 175, 0.15) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(30, 64, 175, 0.15) 1px, transparent 1px);
-          background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
-        }
-
-        /* Civic pattern animation */
-        @keyframes civic-drift {
-          0% {
-            transform: translate(0, 0);
-          }
-          100% {
-            transform: translate(40px, 40px);
-          }
-        }
-
-        .animate-civic-drift {
-          animation: civic-drift 60s linear infinite;
-        }
-
-        /* Flow line animation for architecture diagram */
-        @keyframes flow-pulse {
-          0%, 100% {
-            opacity: 0.5;
-            stroke-dashoffset: 0;
-          }
-          50% {
-            opacity: 1;
-            stroke-dashoffset: -10;
-          }
-        }
-
-        .animate-flow-line {
-          stroke-dasharray: 5 3;
-          animation: flow-pulse 2s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }

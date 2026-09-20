@@ -6,6 +6,7 @@ import SetupWizard from './components/SetupWizard';
 import Dashboard from './components/Dashboard';
 import DataManager from './components/DataManager';
 import ChatInterface from './components/ChatInterface';
+import ConstitutionLedger from './components/ConstitutionLedger';
 import ProjectList from './components/ProjectList';
 import Settings from './components/Settings';
 import AdminConsole from './components/AdminConsole';
@@ -81,6 +82,7 @@ function App() {
         <Route path="/console/new" element={<ConsoleLayout><SetupWizard /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId" element={<ConsoleLayout><Dashboard /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/data" element={<ConsoleLayout><DataManager /></ConsoleLayout>} />
+        <Route path="/console/projects/:projectId/ledger" element={<ConsoleLayout><ConstitutionLedger /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/chat" element={<ConsoleLayout><ChatInterface /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/settings" element={<ConsoleLayout><Settings /></ConsoleLayout>} />
         <Route path="/console/projects/:projectId/admin" element={<ConsoleLayout><AdminConsole /></ConsoleLayout>} />

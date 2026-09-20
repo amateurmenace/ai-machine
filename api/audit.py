@@ -122,6 +122,10 @@ def log_request(
         "model": provenance.get("model"),
         "provider": provenance.get("provider"),
         "constitution_version": provenance.get("constitution_version"),
+        # Which exact rules governed this answer. A version string is a label;
+        # this is the claim an auditor can check against the ledger.
+        "constitution_hash": provenance.get("constitution_hash"),
+        "constitution_ratified": provenance.get("constitution_ratified"),
         "system_version": provenance.get("system_version"),
         "sources_retrieved": provenance.get("sources_retrieved"),
         "sources_used": provenance.get("sources_used"),

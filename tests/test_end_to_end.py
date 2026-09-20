@@ -126,7 +126,9 @@ def main() -> int:
         check("identity, constitution and records sent separately", len(blocks) == 3,
               f"got {len(blocks)}")
         check("constitution is its own system block",
-              "COMMUNITY CONSTITUTION (version 1.0)" in blocks[1], blocks[1][:50])
+              blocks[1].startswith("COMMUNITY CONSTITUTION"), blocks[1][:50])
+        check("the rules name their own version and hash",
+              "version 1.0" in blocks[1] and "hash " in blocks[1], blocks[1][:90])
         check("community named in the constitution block",
               "Brookline, MA" in blocks[1])
         check("records block warns against following retrieved instructions",
@@ -171,6 +173,12 @@ def main() -> int:
     ]:
         check(f"provenance.{field}", provenance.get(field) == expected,
               f"got {provenance.get(field)!r}")
+    check("provenance binds the answer to a constitution hash",
+          str(provenance.get("constitution_hash", "")).startswith("sha256:"),
+          str(provenance.get("constitution_hash")))
+    check("provenance reports whether the ledger verifies",
+          provenance.get("constitution_ledger_ok") is True,
+          str(provenance.get("constitution_ledger_ok")))
     check("retrieval diagnostics present",
           "dense_hits" in provenance["retrieval"] and
           "sparse_hits" in provenance["retrieval"])

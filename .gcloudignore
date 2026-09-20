@@ -1,0 +1,16 @@
+.git
+.gitignore
+data/
+qdrant_data/
+**/node_modules
+frontend/build
+**/__pycache__
+**/*.pyc
+.venv
+venv
+.env
+.env.local
+*.log
+evals/results
+training/datasets
+training/adapters

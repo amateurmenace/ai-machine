@@ -1,0 +1,68 @@
+# Cloud Build: build, push, deploy.
+#
+# Connect this to a GitHub trigger to deploy on every push to main, or run it
+# by hand:
+#
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_REGION=us-central1,_SERVICE=community-ai
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE: community-ai
+
+options:
+  machineType: E2_HIGHCPU_8      # the React build and the model download benefit
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s
+
+images:
+  - 'gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/$_SERVICE:latest'
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/$_SERVICE:latest'
+      - '.'
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ['push', '--all-tags', 'gcr.io/$PROJECT_ID/$_SERVICE']
+
+  # The ledger is verified in the pipeline, not just at runtime. A commit that
+  # edits an adopted constitution version fails the build rather than reaching
+  # residents and being caught by a warning nobody reads.
+  - id: verify-constitution-ledger
+    name: 'gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA'
+    entrypoint: python3
+    args: ['-m', 'community.ledger', 'verify']
+
+  - id: tests
+    name: 'gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA'
+    entrypoint: bash
+    args: ['-c', './run_tests.sh']
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '$_SERVICE'
+      - '--image=gcr.io/$PROJECT_ID/$_SERVICE:$COMMIT_SHA'
+      - '--region=$_REGION'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=4Gi'
+      - '--cpu=2'
+      - '--timeout=600'
+      - '--concurrency=20'
+      - '--max-instances=1'
+      - '--quiet'

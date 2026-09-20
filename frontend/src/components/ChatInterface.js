@@ -29,8 +29,9 @@ function ProvenancePanel({ provenance }) {
     ['system version', provenance.system_version],
     ['constitution', provenance.constitution_version
       ? `version ${provenance.constitution_version}${
-          provenance.constitution_status && provenance.constitution_status !== 'unknown'
-            ? ` (${provenance.constitution_status})` : ''}`
+          provenance.constitution_hash
+            ? ` · ${String(provenance.constitution_hash).split(':').pop().slice(0, 8)}` : ''}${
+          provenance.constitution_ratified ? ' · ratified' : ''}`
       : 'none'],
     ['search', retrieval.reranked
       ? `hybrid, reranked (${retrieval.rerank_model || 'cross-encoder'})`
@@ -465,6 +466,13 @@ function ChatInterface() {
           {systemInfo?.constitution_version ? ` v${systemInfo.constitution_version}` : ''}
         </a>
         <span className="text-gray-700">•</span>
+        <Link
+          to={`/console/projects/${projectId}/ledger`}
+          className="hover:text-cyan-400 transition-colors"
+        >
+          amendment ledger
+        </Link>
+        <span className="text-gray-700">•</span>
         <a
           href={`${apiBaseUrl}/community/${projectId}/stats`}
           target="_blank"
@@ -498,6 +506,11 @@ function ChatInterface() {
         {systemInfo?.constitution_status === 'draft' && (
           <span className="text-amber-500/70">
             (constitution not yet ratified)
+          </span>
+        )}
+        {systemInfo?.constitution_ledger_ok === false && (
+          <span className="text-red-400">
+            (ledger does not verify — these may not be the adopted rules)
           </span>
         )}
       </div>

@@ -15,6 +15,7 @@ SUITES=(
   tests.test_end_to_end    # the real agent path, model and database stubbed
   tests.test_tools         # URL guard, tool loop, failure paths
   tests.test_archive       # meeting titles, channel sync, video embeds
+  tests.test_ledger        # hash chain, multi-sig ratification, tamper detection
 )
 
 failed=0

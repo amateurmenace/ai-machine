@@ -194,9 +194,33 @@ app.include_router(community_router)
 
 # API Routes
 
+@app.get("/api")
+async def api_root():
+    """API root. What used to live at `/` before the console shared this service."""
+    return {
+        "status": "healthy",
+        "service": "Neighborhood AI API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "community_api": "/community",
+        "openai_compatible": "/v1",
+    }
+
+
 @app.get("/")
 async def root():
-    """Health check"""
+    """The console when it is built into this service, the API status otherwise.
+
+    In a container the built console is served from here, so `/` is the app a
+    resident sees. In local development the console runs on its own port and
+    this returns the status JSON it always did.
+    """
+    index = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "frontend", "build", "index.html")
+    if os.path.isfile(index):
+        from fastapi.responses import FileResponse
+        return FileResponse(index)
+
     return {
         "status": "healthy",
         "service": "Neighborhood AI API",
@@ -1021,6 +1045,59 @@ async def set_project_constitution_version(project_id: str, payload: Dict):
     return {"project_id": project_id, "constitution_version": version}
 
 
+@app.get("/api/constitution/ledger")
+async def get_constitution_ledger():
+    """The chain, with full verification detail, for operators."""
+    from community.ledger import load_ledger
+
+    ledger = load_ledger()
+    payload = ledger.to_public()
+    payload["verify_command"] = "python3 -m community.ledger verify"
+    return payload
+
+
+@app.post("/api/constitution/seal")
+async def seal_constitution_version(payload: Dict):
+    """Add a constitution version to the chain.
+
+    Sealing records what the text is. Ratifying, which happens afterwards
+    through signatures, records that the community adopted it. The two are kept
+    separate because they are different acts and only one of them is technical.
+    """
+    from community.ledger import LedgerError, seal_version
+
+    version = str(payload.get("version") or "").strip()
+    if not version:
+        raise HTTPException(status_code=400, detail="A version is required.")
+
+    try:
+        block = seal_version(
+            version,
+            status=str(payload.get("status", "draft")),
+            adopted=str(payload.get("adopted", "")),
+            summary=str(payload.get("summary", "")),
+            threshold=int(payload.get("threshold", 0) or 0),
+        )
+    except LedgerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Clear cached constitutions so the next request reads the sealed state.
+    agents.clear()
+
+    return {
+        "index": block.index,
+        "version": block.version,
+        "content_hash": block.content_hash,
+        "prev_hash": block.prev_hash,
+        "block_hash": block.compute_hash(),
+        "next_step": (
+            "Ratifiers sign this block hash. Read the first eight characters "
+            f"({block.compute_hash().split(':')[-1][:8]}) into the meeting "
+            "minutes, so the town's own public record witnesses when it existed."
+        ),
+    }
+
+
 @app.get("/api/projects/{project_id}/api-clients")
 async def list_api_clients(project_id: str):
     """List the applications authorized to call this project's community API."""
@@ -1143,6 +1220,17 @@ async def revoke_api_key(project_id: str):
     save_project(project)
 
     return {"message": "API key revoked successfully"}
+
+
+@app.get("/healthz", include_in_schema=False)
+async def liveness():
+    """Cheap liveness probe.
+
+    Separate from /api/health on purpose: that one probes providers and the
+    filesystem, which is useful to an operator and far too expensive to run
+    every thirty seconds against a container.
+    """
+    return {"status": "ok"}
 
 
 @app.get("/api/health")
@@ -1581,6 +1669,45 @@ async def list_jobs():
     }
 
 
+# --- serving the console ---------------------------------------------------
+#
+# In a container the built React console is served by this same process. One
+# service is simpler to operate than two, and at a town's traffic the static
+# files cost nothing. In local development the console runs on its own port
+# under `npm start` and this block does nothing.
+
+_FRONTEND_BUILD = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "frontend", "build")
+
+if os.path.isdir(_FRONTEND_BUILD):
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount(
+        "/static",
+        StaticFiles(directory=os.path.join(_FRONTEND_BUILD, "static")),
+        name="static",
+    )
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_console(full_path: str):
+        """Serve the console, falling back to index.html for client routes.
+
+        Declared last so every API route matches first. A request for a file
+        that exists is served; anything else is a React Router path and gets
+        index.html, which is what makes a deep link like /console/projects/x
+        work on a fresh page load.
+        """
+        candidate = os.path.normpath(os.path.join(_FRONTEND_BUILD, full_path))
+        # Never serve outside the build directory, whatever the path contains.
+        if candidate.startswith(_FRONTEND_BUILD) and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(_FRONTEND_BUILD, "index.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    # Cloud Run sets PORT. Everywhere else keeps the historical default.
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -1,0 +1,18 @@
+{
+  "$schema": "community-ai/constitution-ledger/v1",
+  "description": "A hash chain of adopted constitution versions. Each block records the hash of its text and of the block before it. Ratification is an N-of-M multi-signature over the block header. Verify with: python3 -m community.ledger verify",
+  "blocks": [
+    {
+      "index": 0,
+      "version": "1.0",
+      "content_hash": "sha256:4054c683126f9d1fd24f0fdf090b6478888b5dc9c6bc629c08b21e1b701bfdf3",
+      "prev_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "adopted": "2026-09-20",
+      "status": "draft",
+      "summary": "Initial draft, adapted from the community-owned AI guide. Not ratified.",
+      "threshold": 0,
+      "signatures": [],
+      "anchors": []
+    }
+  ]
+}
