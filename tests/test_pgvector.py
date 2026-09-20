@@ -25,7 +25,7 @@ from typing import Any, Dict, List
 
 from knowledge.schemas import CivicChunk, SourceType, normalize_payload
 from rag.hybrid import HybridRetriever, RetrievalFilters
-from stores import PGVECTOR, QDRANT, build_store, select_backend
+from stores import PGVECTOR, SQLITE, build_store, select_backend
 from stores.pgvector_store import (
     COLUMNS, DEFAULT_VECTOR_DIMENSION, DIMENSION_TOKEN, SCHEMA_PATH,
     PgVectorStore, PgVectorUnavailable, by_id_sql, delete_by_source_sql,
@@ -548,16 +548,24 @@ def test_a_payload_survives_the_round_trip_through_a_row() -> None:
 
 def test_the_factory_picks_a_backend() -> None:
     print("\nwhich archive a project gets")
-    saved = os.environ.pop("COMMUNITY_DB_URL", None)
+    saved_url = os.environ.pop("COMMUNITY_DB_URL", None)
+    saved_path = os.environ.pop("COMMUNITY_DB_PATH", None)
     try:
         choice = select_backend(FakeProject("brookline-ma"))
-        check("with nothing configured it is still Qdrant",
-              choice.backend == QDRANT, choice.backend)
-        check("at the path the app has always used",
-              choice.path == "./data/brookline-ma/qdrant", choice.path)
+        check("with nothing configured the archive is one local file",
+              choice.backend == SQLITE, choice.backend)
+        check("in the project's own data directory",
+              choice.path == "./data/brookline-ma/archive.sqlite3", choice.path)
         check("the collection is the project id",
               choice.collection_name == "brookline-ma")
-        check("and it says why", "no COMMUNITY_DB_URL" in choice.reason, choice.reason)
+        check("and it says why", "one file" in choice.reason, choice.reason)
+
+        os.environ["COMMUNITY_DB_PATH"] = "/srv/civic/brookline.sqlite3"
+        choice = select_backend(FakeProject("brookline-ma"))
+        check("COMMUNITY_DB_PATH names the file directly",
+              choice.backend == SQLITE
+              and choice.path == "/srv/civic/brookline.sqlite3", choice.path)
+        os.environ.pop("COMMUNITY_DB_PATH")
 
         os.environ["COMMUNITY_DB_URL"] = "postgresql://civic@db/civic"
         choice = select_backend(FakeProject("brookline-ma"))
@@ -581,13 +589,16 @@ def test_the_factory_picks_a_backend() -> None:
               select_backend("brookline-ma").collection_name == "brookline-ma")
     finally:
         os.environ.pop("COMMUNITY_DB_URL", None)
-        if saved is not None:
-            os.environ["COMMUNITY_DB_URL"] = saved
+        os.environ.pop("COMMUNITY_DB_PATH", None)
+        if saved_url is not None:
+            os.environ["COMMUNITY_DB_URL"] = saved_url
+        if saved_path is not None:
+            os.environ["COMMUNITY_DB_PATH"] = saved_path
 
     # build_store itself is only exercised as far as the decision: opening
-    # either backend needs qdrant-client or psycopg, and this machine has
-    # neither.
-    check("neither backend is actually opened by these tests", True)
+    # Postgres needs psycopg and this machine has none. The SQLite branch is
+    # opened for real in tests/test_sqlite_store.py, where it costs nothing.
+    check("no Postgres is actually opened by these tests", True)
 
 
 def test_the_retriever_prefers_a_store_that_fuses_for_itself() -> None:

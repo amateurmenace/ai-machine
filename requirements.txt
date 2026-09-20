@@ -6,8 +6,18 @@ pydantic>=2.5.0,<3.0.0
 pydantic-settings>=2.1.0,<3.0.0
 
 # Database & Vector Store
+# The default archive is SQLite, which is in the standard library. qdrant-client
+# is only needed by deployments that already have an embedded index, and psycopg
+# only by multi-community deployments; neither is imported unless selected.
 qdrant-client>=1.7.0,<2.0.0
 sentence-transformers>=2.3.1,<3.0.0
+# Comes in with sentence-transformers anyway, listed because the SQLite store
+# uses it directly: without numpy the vector scan falls back to pure Python and
+# gets roughly twenty times slower on a large archive.
+numpy>=1.24
+# Optional. Install it if the archive passes a few hundred thousand passages and
+# the vector scan starts to show; the store loads it automatically when present.
+# sqlite-vec>=0.1.0
 
 # Data Collection
 youtube-transcript-api>=0.6.2

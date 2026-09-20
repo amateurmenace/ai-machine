@@ -20,6 +20,8 @@ SUITES=(
   tests.test_cloud         # cloud backends, and the local fallbacks they degrade to
   tests.test_evalcompare   # provider comparison table, parity, retrieval diversity
   tests.test_pgvector      # postgres archive: SQL, filters, row round trip, factory
+  tests.test_sqlite_store  # the one-file archive: fts5 triggers, fusion, backups
+  tests.test_backfill      # five hundred meetings: ordering, resume, recorded gaps
 )
 
 failed=0
