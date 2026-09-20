@@ -103,22 +103,57 @@ _TALLY_RE = re.compile(
     r"(?:\s*(?:-|to|–|—)\s*(?P<abstain>\d{1,2}))?\b"
 )
 
+# Minutes write "4-1". People say "four to one", and this archive is built out
+# of what people said. A classifier that only reads the written form misses
+# every tally in every transcript, which is most of the record.
+_NUMBER_WORDS = {
+    "zero": 0, "none": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+    "twelve": 12,
+}
+_WORD_TALLY_RE = re.compile(
+    r"\b(?P<yes>" + "|".join(_NUMBER_WORDS) + r")"
+    r"\s+(?:to|-)\s+"
+    r"(?P<no>" + "|".join(_NUMBER_WORDS) + r")"
+    r"(?:\s+(?:to|-|with)\s+(?P<abstain>" + "|".join(_NUMBER_WORDS) + r")"
+    r"\s+abstain(?:ing|ed|tions?)?)?\b",
+    re.I,
+)
+
 _UNANIMOUS_RE = re.compile(
     r"\b(?:unanimous(?:ly)?|all (?:those )?in favor|without objection|"
     r"nem(?:ine)?\.? con)\b", re.I
 )
 
+# Two things a chair says that an earlier version of this pattern missed, both
+# of which are the normal way to say it out loud:
+#
+#   "The motion to approve the minutes carries, five to zero."
+#       The subject and its verb are separated by the whole motion. So the
+#       gap is allowed, bounded, and not permitted to cross a sentence.
+#   "The committee voted unanimously to adopt the budget."
+#       An adverb sits between the verb and what was voted on.
+#
+# Both were classified as discussion, which is the failure this module exists
+# to prevent, pointing the other way: a real decision reported as mere talk.
+# The gap between a subject and its verb, bounded, not crossing a sentence, and
+# refusing to swallow a negation. Without the last part, "the motion to approve
+# the contract was not passed" reads as passed, which is the worst mistake this
+# file could make.
+_GAP = r"(?:(?!\b(?:not|never|fail(?:s|ed)?|defeat|reject|deny|withdraw)\b)[^.;?!]){0,60}?"
+
 _CARRIED_RE = re.compile(
-    r"\b(?:motion (?:carrie[sd]|passe[sd]|prevail(?:s|ed))|"
-    r"(?:the )?(?:motion|article|amendment|measure) (?:is )?(?:adopted|approved|passed)|"
+    r"\b(?:(?:motion|article|amendment|measure)\b" + _GAP +
+    r"\b(?:carrie[sd]|passe[sd]|prevail(?:s|ed)|adopted|approved)|"
     r"so (?:voted|ordered)|it (?:is |was )?(?:so )?voted|"
-    r"vote(?:d)? (?:to )?(?:approve|adopt|accept|authorize)|"
+    r"vote[sd]?(?:\s+\w+ly)? (?:to )?(?:approve|adopt|accept|authorize)|"
     r"(?:approve[sd]?|adopte[sd]?) (?:the |this )?(?:motion|article|plan|budget|bylaw))\b",
     re.I,
 )
 
 _FAILED_RE = re.compile(
-    r"\b(?:motion (?:fail(?:s|ed)|(?:is |was )?defeated|does not carry|dies)|"
+    r"\b(?:motion\b[^.;?!]{0,60}?\b(?:fail(?:s|ed)|(?:is |was )?defeated|"
+    r"does not carry|was not (?:adopted|approved|passed)|dies)|"
     r"(?:the )?(?:motion|article|amendment) (?:is |was )?(?:rejected|denied|defeated)|"
     r"vote(?:d)? (?:to )?(?:reject|deny|disapprove)|"
     r"fail(?:s|ed) for (?:the )?lack of a second)\b",
@@ -177,6 +212,22 @@ def _first(pattern: re.Pattern, text: str) -> str:
     return match.group(0).strip() if match else ""
 
 
+# "The board never voted to approve the plan" contains "voted to approve".
+# Reading that as an approval is the same error as reading discussion as a
+# decision, so the words immediately before a match get a look.
+_NEGATION_RE = re.compile(
+    r"\b(?:not|never|no|n't|declined to|refused to|failed to|voted against)\s*$", re.I)
+
+
+def _first_unnegated(pattern: re.Pattern, text: str, window: int = 24) -> str:
+    """The first match whose lead-in does not negate it."""
+    for match in pattern.finditer(text):
+        before = text[max(0, match.start() - window):match.start()]
+        if not _NEGATION_RE.search(before):
+            return match.group(0).strip()
+    return ""
+
+
 def detect_vote(text: str) -> VoteEvidence:
     """Read the parliamentary state out of a passage."""
     evidence = VoteEvidence()
@@ -197,20 +248,30 @@ def detect_vote(text: str) -> VoteEvidence:
     if second:
         evidence.seconded = True
 
-    carried = _first(_CARRIED_RE, text)
+    carried = _first_unnegated(_CARRIED_RE, text)
     failed = _first(_FAILED_RE, text)
     tabled = _first(_TABLED_RE, text)
     unanimous = _first(_UNANIMOUS_RE, text)
 
+    # Digits first, then the spoken form. A bare "4-1" or "four to one" is only
+    # a tally when something nearby says it is a vote: dates, scores, dollar
+    # ranges and ordinary sentences look identical.
     tally_match = _TALLY_RE.search(text)
-    # A bare "4-1" is only a tally when something nearby says it is a vote. Dates,
-    # scores and dollar ranges look identical.
-    tally_is_vote = bool(tally_match and (carried or failed or unanimous or motion))
-    if tally_is_vote and tally_match:
-        evidence.yes = int(tally_match.group("yes"))
-        evidence.no = int(tally_match.group("no"))
-        if tally_match.group("abstain") is not None:
-            evidence.abstain = int(tally_match.group("abstain"))
+    spoken = False
+    if tally_match is None:
+        tally_match = _WORD_TALLY_RE.search(text)
+        spoken = tally_match is not None
+
+    if tally_match and (carried or failed or unanimous or motion):
+        def value(name: str):
+            raw = tally_match.group(name)
+            if raw is None:
+                return None
+            return _NUMBER_WORDS[raw.lower()] if spoken else int(raw)
+
+        evidence.yes = value("yes")
+        evidence.no = value("no")
+        evidence.abstain = value("abstain")
         parts = [str(evidence.yes), str(evidence.no)]
         if evidence.abstain is not None:
             parts.append(str(evidence.abstain))
@@ -223,17 +284,17 @@ def detect_vote(text: str) -> VoteEvidence:
         evidence.phrases.insert(0, no_decision)
         return evidence
 
-    if carried:
+    if failed:
+        evidence.vote_taken = True
+        evidence.outcome = "failed"
+        evidence.phrases.append(failed)
+    elif carried:
         evidence.vote_taken = True
         evidence.outcome = "passed"
         evidence.phrases.append(carried)
         if unanimous and not evidence.tally:
             evidence.tally = "unanimous"
             evidence.phrases.append(unanimous)
-    elif failed:
-        evidence.vote_taken = True
-        evidence.outcome = "failed"
-        evidence.phrases.append(failed)
     elif tabled:
         evidence.vote_taken = False
         evidence.outcome = "tabled"

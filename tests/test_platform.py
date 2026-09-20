@@ -85,6 +85,66 @@ def test_votes_are_detected_with_their_tally() -> None:
     check("tabled is recorded", a.vote.outcome == "tabled", a.vote.outcome)
 
 
+def test_a_vote_said_out_loud_is_read_as_a_vote() -> None:
+    """Minutes write "4-1". Transcripts are people talking, and this archive
+    is mostly transcripts. Every case here was classified as discussion before
+    the patterns learned to hear a sentence rather than a phrase."""
+    print("\nvotes as spoken, not as written")
+
+    a = classify_status(
+        "The motion to approve the minutes carries, five to zero.", MEETING)
+    check("a subject separated from its verb is still a vote",
+          a.status == RecordStatus.ADOPTED, a.status)
+    check("and the spoken tally is read", a.vote.tally == "5-0", a.vote.tally)
+
+    a = classify_status(
+        "The committee voted unanimously to adopt the budget.", MEETING)
+    check("an adverb between the verb and the object does not hide the vote",
+          a.status == RecordStatus.ADOPTED, a.status)
+    check("recorded as unanimous", a.vote.tally == "unanimous", a.vote.tally)
+
+    a = classify_status("The motion to accept the gift was adopted unanimously.", MEETING)
+    check("adopted, with the motion spelled out in between",
+          a.status == RecordStatus.ADOPTED, a.status)
+
+    a = classify_status(
+        "The motion to rezone the parcel failed, two to three.", MEETING)
+    check("a failed vote is recorded as a vote", a.vote.vote_taken is True)
+    check("with its outcome", a.vote.outcome == "failed", a.vote.outcome)
+    check("and its spoken tally", a.vote.tally == "2-3", a.vote.tally)
+    check("but is not adopted", a.status != RecordStatus.ADOPTED, a.status)
+
+    a = classify_status(
+        "The motion carries, four to one with one abstaining.", MEETING)
+    check("an abstention is counted", a.vote.tally == "4-1-1", a.vote.tally)
+    check("and parsed", a.vote.abstain == 1, str(a.vote.abstain))
+
+
+def test_a_negated_vote_is_not_a_vote() -> None:
+    """The loosened patterns are the risk. A sentence that says a thing did
+    not happen must not read as the thing happening: that is the same failure
+    as reporting discussion as a decision, pointed the other way."""
+    print("\nnegation")
+
+    a = classify_status("The board never voted to approve the plan.", MEETING)
+    check("never voted to approve is not an approval",
+          a.status != RecordStatus.ADOPTED, a.status)
+    check("and no vote is recorded", a.vote.vote_taken is False)
+
+    a = classify_status("The motion to approve the contract was not passed.", MEETING)
+    check("was not passed is not passed", a.vote.outcome != "passed", a.vote.outcome)
+
+    a = classify_status("The board declined to approve the contract.", MEETING)
+    check("declined to approve is not adopted", a.status != RecordStatus.ADOPTED, a.status)
+
+    vote = detect_vote("The project will cost four to five million dollars.")
+    check("a spoken number range with no vote language is not a tally",
+          vote.tally == "" and vote.vote_taken is False, vote.tally)
+
+    vote = detect_vote("We met from four to six on Tuesday.")
+    check("nor is a time range", vote.tally == "", vote.tally)
+
+
 def test_a_bare_number_is_not_a_tally() -> None:
     print("\nnumbers that look like tallies")
     vote = detect_vote("The project runs from 2024-2026 and costs 4-5 million dollars.")
@@ -447,6 +507,8 @@ def main() -> int:
     for fn in [
         test_discussion_is_never_mistaken_for_a_decision,
         test_votes_are_detected_with_their_tally,
+        test_a_vote_said_out_loud_is_read_as_a_vote,
+        test_a_negated_vote_is_not_a_vote,
         test_a_bare_number_is_not_a_tally,
         test_document_type_decides_when_it_knows,
         test_classification_shows_its_evidence,
