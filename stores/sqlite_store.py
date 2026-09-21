@@ -35,7 +35,6 @@ sqlite-vec or move to Postgres.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
@@ -47,6 +46,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from knowledge.schemas import CivicChunk, normalize_payload
+from stores.ids import passage_id
 
 DEFAULT_EMBEDDING_MODEL = os.getenv("COMMUNITY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
@@ -262,8 +262,7 @@ class SqliteVectorStore:
         return list(self.encoder.encode(text))
 
     def generate_id(self, text: str, metadata: Dict) -> str:
-        basis = (metadata or {}).get("url", "") + text[:100]
-        return hashlib.md5(basis.encode("utf-8")).hexdigest()
+        return passage_id(text, metadata)
 
     # --- writing ---------------------------------------------------------
 

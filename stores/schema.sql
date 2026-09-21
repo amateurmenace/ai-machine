@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     vote_taken        boolean NOT NULL DEFAULT false,
     vote_outcome      text NOT NULL DEFAULT '',   -- passed | failed | tabled | none
     vote_tally        text NOT NULL DEFAULT '',   -- "4-1", "unanimous"
+    status_evidence   text NOT NULL DEFAULT '',   -- the words that decided the status
 
     -- Identifiers keyword search handles better than embeddings
     docket_number   text NOT NULL DEFAULT '',
@@ -117,6 +118,11 @@ CREATE TABLE IF NOT EXISTS chunks (
     -- same id, which is why the key is the pair.
     PRIMARY KEY (project_id, id)
 );
+
+-- Columns that arrived after the first release. CREATE TABLE IF NOT EXISTS
+-- leaves a table that already exists exactly as it was, so re-running this file
+-- on an older deployment only picks up a new column if the column asks.
+ALTER TABLE chunks ADD COLUMN IF NOT EXISTS status_evidence text NOT NULL DEFAULT '';
 
 
 -- Dense retrieval. HNSW rather than IVFFlat: it needs no training pass, so a

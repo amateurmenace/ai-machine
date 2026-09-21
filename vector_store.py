@@ -9,7 +9,6 @@ from sentence_transformers import SentenceTransformer
 from typing import Iterable, List, Dict, Optional, Tuple
 import os
 import uuid
-import hashlib
 
 
 # Global Qdrant client cache to avoid file locking issues
@@ -96,10 +95,10 @@ class VectorStore:
               f"({self.vector_size}d, {self.embedding_model})")
     
     def generate_id(self, text: str, metadata: Dict) -> str:
-        """Generate consistent ID for a document"""
-        # Use URL or source as unique identifier
-        unique_string = metadata.get('url', '') + text[:100]
-        return hashlib.md5(unique_string.encode()).hexdigest()
+        """Generate consistent ID for a document. See stores/ids.py."""
+        from stores.ids import passage_id
+
+        return passage_id(text, metadata)
     
     def add_document(self, text: str, metadata: Dict) -> str:
         """Add a single document to the vector store"""

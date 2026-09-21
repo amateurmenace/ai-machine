@@ -135,6 +135,8 @@ class CivicChunk:
     vote_taken: bool = False
     vote_outcome: str = ""       # passed | failed | tabled | none
     vote_tally: str = ""         # "4-1", "unanimous"
+    # The words that decided it, so a wrong label can be traced to its cause.
+    status_evidence: str = ""
 
     # Civic identifiers that keyword search handles better than embeddings
     docket_number: str = ""          # docket, warrant article, case number
@@ -370,6 +372,7 @@ def apply_status(chunk: "CivicChunk") -> "CivicChunk":
     chunk.vote_taken = assessment.vote.vote_taken
     chunk.vote_outcome = assessment.vote.outcome
     chunk.vote_tally = assessment.vote.tally
+    chunk.status_evidence = "; ".join(assessment.evidence[:3])
     return chunk
 
 
@@ -392,6 +395,18 @@ def _split_words(text: str, chunk_size: int, overlap: int) -> List[str]:
         if i + chunk_size >= len(words):
             break
     return chunks
+
+
+# Automatic captions record what was heard as well as what was said. A stream
+# that opens ten minutes before the gavel is ten minutes of "[music]", which
+# became a passage, got an embedding, and sat in the archive as a record of the
+# Select Board. A closed list and not "anything in brackets", because a person
+# captioning by hand writes "[Chair Wilson]" and that one is worth keeping.
+_SOUND_TAGS = re.compile(
+    r"\[\s*(music|applause|laughter|laughs|cheering|cheers|silence|noise|background noise|"
+    r"inaudible|crosstalk|coughs?|coughing|clears throat|sighs?|snorts?|_+)\s*\]",
+    re.I,
+)
 
 
 def meeting_chunks(
@@ -447,7 +462,7 @@ def meeting_chunks(
         buf_speaker = buf_role = buf_item = ""
 
     for segment in segments:
-        seg_text = _clean(segment.get("text"))
+        seg_text = _clean(_SOUND_TAGS.sub(" ", str(segment.get("text") or "")))
         if not seg_text:
             continue
         speaker = _clean(segment.get("speaker"))

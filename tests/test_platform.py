@@ -145,6 +145,91 @@ def test_a_negated_vote_is_not_a_vote() -> None:
     check("nor is a time range", vote.tally == "", vote.tally)
 
 
+def test_talk_about_a_vote_is_not_a_vote() -> None:
+    """Every sentence here was said at a Brookline meeting, is copied from the
+    automatic captions as they came, and was filed as "a vote was taken and it
+    passed". The earlier tests were written in the grammar of minutes. A
+    meeting is mostly the future and the conditional, and this is that."""
+    print("\nwhat boards actually say, from the first night of the real archive")
+
+    for said, why in [
+        ("I'm pleased to come in front of the board to ask that the board vote to accept "
+         "funding under the Charles Shannon grant", "asking for a vote"),
+        ("we recommend that this board vote to accept them as well", "recommending one"),
+        ("designed to operate such that article 5 would be passed that is the one that "
+         "presents the overall concept", "a vote that might happen"),
+        ("article 5 which has passed we think will really give the town the most effective "
+         "tool", "an article described in passing"),
+        ("and so warrant article 23 of 1946 of the laws passed by town meeting at the time "
+         "includes the agreement", "history"),
+        ("implement the warrant article if it's passed", "a condition"),
+        ("we have a second reading and vote tonight on the legislative priorities",
+         "a second reading is not a second"),
+        ("give me just a second to find the page all in favor of moving on",
+         "nor is just a second"),
+    ]:
+        a = classify_status(said, MEETING)
+        check(f"{why}: not adopted", a.status != RecordStatus.ADOPTED,
+              f"{a.status} on {a.evidence}")
+
+    print("\nand the votes among them, which are still votes")
+    a = classify_status("any other questions then I move that we approve the minutes of "
+                        "December 11th as amended all in favor please say aye selectman "
+                        "Daly aye selectman Mermell aye", MEETING)
+    check("the chair's motion and the vote on it", a.status == RecordStatus.ADOPTED, a.status)
+    check("without a tally nobody announced: a vote that was called is not thereby "
+          "unanimous", a.vote.tally == "", a.vote.tally)
+    check("and the words that decided it are kept", bool(a.evidence), str(a.evidence))
+
+    a = classify_status("Do we have a motion to accept the capital projects? So moved. "
+                        "Second. We have a second. All those in favor? Aye. That's unanimous.",
+                        MEETING)
+    check("unanimous when somebody says unanimous",
+          a.status == RecordStatus.ADOPTED and a.vote.tally == "unanimous",
+          f"{a.status} {a.vote.tally}")
+
+    for said, what in [
+        ("ready to vote I move that we award and execute contract number pw1 13-16 pavement "
+         "management system all in favor please say aye", "a contract number"),
+        ("I move that we approve amendment number four to contract PW 06-08 professional "
+         "design services all in favor please say aye", "another, which read as losing 6-8"),
+        ("I move that we grant the licence for liquor also 11 12 to9 Friday and Saturday "
+         "all in favor please say aye", "the hours on a liquor licence"),
+        ("I move that we correct this just by changing Monday to Sunday on the vote Sunday "
+         "would be 11 to9 and then 12 to 9 for the liquor all in favor please say aye",
+         "hours again, this time with the word vote nearby"),
+    ]:
+        a = classify_status(said, MEETING)
+        check(f"{what} is not a tally", a.vote.tally == "", a.vote.tally)
+        check("and the vote beside it is still a vote", a.status == RecordStatus.ADOPTED)
+    a = classify_status("I move that we approve the contract. The motion carries on a 3-2 "
+                        "vote.", MEETING)
+    check("a tally said beside the result is still read", a.vote.tally == "3-2", a.vote.tally)
+    for said, tally in [("The board voted 4 to 1 to approve the licence.", "4-1"),
+                        ("The motion passed by a vote of three to two.", "3-2"),
+                        ("The motion carries, as amended, four to one.", "4-1")]:
+        check(f"and so is {said[:38]!r}", detect_vote(said).tally == tally,
+              detect_vote(said).tally)
+
+    a = classify_status("the audit committee voted unanimously to accept the audit reports",
+                        MEETING)
+    check("a vote reported in the past tense is a vote", a.status == RecordStatus.ADOPTED)
+
+
+def test_the_words_that_decided_a_status_ride_along_on_the_passage() -> None:
+    print("\nevidence, which the guide promises and the chunk used to drop")
+    from knowledge.schemas import meeting_chunks
+
+    chunks = meeting_chunks(
+        [{"text": "I move that we approve the contract all in favor please say aye", "start": 12.0}],
+        community="Brookline, MA", body="Select Board", meeting_date="2013-01-15",
+        video_url="https://youtube.com/watch?v=x")
+    payload = chunks[0].to_payload()
+    check("the label", payload.get("status") == RecordStatus.ADOPTED, str(payload.get("status")))
+    check("and why", "move that" in payload.get("status_evidence", "").lower(),
+          str(payload.get("status_evidence")))
+
+
 def test_a_bare_number_is_not_a_tally() -> None:
     print("\nnumbers that look like tallies")
     vote = detect_vote("The project runs from 2024-2026 and costs 4-5 million dollars.")
@@ -509,6 +594,8 @@ def main() -> int:
         test_votes_are_detected_with_their_tally,
         test_a_vote_said_out_loud_is_read_as_a_vote,
         test_a_negated_vote_is_not_a_vote,
+        test_talk_about_a_vote_is_not_a_vote,
+        test_the_words_that_decided_a_status_ride_along_on_the_passage,
         test_a_bare_number_is_not_a_tally,
         test_document_type_decides_when_it_knows,
         test_classification_shows_its_evidence,

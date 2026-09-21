@@ -374,6 +374,45 @@ def test_overwriting_a_document_reaches_the_keyword_index() -> None:
         check("still findable", bool(store._keyword_candidates("culvert", 5, "", [])))
 
 
+def test_two_passages_of_one_meeting_that_open_alike_are_both_kept() -> None:
+    print("\npassage ids within a recording")
+    import hashlib
+
+    from stores.ids import passage_id
+    from stores.pgvector_store import PgVectorStore
+
+    video = "https://www.youtube.com/watch?v=-qBhj-2C4Pw"
+    music = "[music] " * 40      # what a stream sounds like before the gavel, and at the recess
+    with tempfile.TemporaryDirectory() as d:
+        store = TestStore(path=os.path.join(d, "archive.sqlite3"))
+        store.add_documents_batch([
+            {"text": music, "metadata": {"url": video, "start_time": 7.0, "source": "bigtv"}},
+            {"text": music, "metadata": {"url": video, "start_time": 5306.0, "source": "bigtv"}},
+        ])
+        check("the second did not overwrite the first",
+              len(list(store.iter_all_payloads())) == 2,
+              str(len(list(store.iter_all_payloads()))))
+
+        store.add_documents_batch([
+            {"text": music, "metadata": {"url": video, "start_time": 7.0, "source": "bigtv"}}])
+        check("and ingesting a passage again still replaces it",
+              len(list(store.iter_all_payloads())) == 2)
+
+    page = {"url": "https://example.org/zoning.pdf", "page": 84}
+    text = "Article 8.4 permits accessory dwelling units by right."
+    check("a passage with no start time keeps the id it always had",
+          passage_id(text, page) == hashlib.md5((page["url"] + text[:100]).encode()).hexdigest())
+
+    timed = {"url": video, "start_time": 754.2}
+    check("the backends agree, so a migrated archive does not double",
+          TestStore.generate_id(None, text, timed) == PgVectorStore.generate_id(None, text, timed)
+          == passage_id(text, timed))
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(root, "vector_store.py"), encoding="utf-8") as handle:
+        check("including the one that predates them",
+              "passage_id(text, metadata)" in handle.read())
+
+
 def test_vacuum_rebuilds_rather_than_corrupting() -> None:
     print("\nmaintenance after bulk deletion")
     with tempfile.TemporaryDirectory() as d:
@@ -783,6 +822,7 @@ def main() -> int:
         test_filters_narrow_the_archive,
         test_deleting_a_source_reaches_the_keyword_index,
         test_overwriting_a_document_reaches_the_keyword_index,
+        test_two_passages_of_one_meeting_that_open_alike_are_both_kept,
         test_vacuum_rebuilds_rather_than_corrupting,
         test_stats_tell_an_operator_where_the_archive_is,
         test_a_backup_is_a_working_archive,

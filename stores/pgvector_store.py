@@ -41,7 +41,6 @@ lets a health check surface it before a resident ever asks.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -51,6 +50,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from knowledge.schemas import normalize_payload
+from stores.ids import passage_id
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
@@ -105,6 +105,7 @@ COLUMNS: Tuple[Tuple[str, str], ...] = (
     ("vote_taken", "vote_taken"),
     ("vote_outcome", "vote_outcome"),
     ("vote_tally", "vote_tally"),
+    ("status_evidence", "status_evidence"),
     ("docket_number", "docket_number"),
     ("project_name", "project_name"),
     ("address", "address"),
@@ -777,8 +778,7 @@ class PgVectorStore:
         re-ingested through this store have to agree on ids, or a re-ingestion
         after a migration silently doubles the archive.
         """
-        unique_string = metadata.get('url', '') + text[:100]
-        return hashlib.md5(unique_string.encode()).hexdigest()
+        return passage_id(text, metadata)
 
     # --- schema -----------------------------------------------------------
 

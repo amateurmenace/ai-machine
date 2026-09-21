@@ -357,8 +357,13 @@ def test_row_level_security_is_scaffolded_and_left_off() -> None:
     check("it is commented out rather than enabled",
           "--   ALTER TABLE chunks ENABLE ROW LEVEL SECURITY;" in sql,
           "RLS would be on by default")
+    # An ALTER TABLE that adds a column is how a later release reaches an older
+    # deployment. The one this guards against is the one that turns RLS on.
     check("no uncommented ALTER TABLE enables it",
-          not any(line.strip().startswith("ALTER TABLE") for line in sql.splitlines()))
+          not any("ROW LEVEL SECURITY" in line.upper() for line in sql.splitlines()
+                  if not line.strip().startswith("--")))
+    check("a column added after the first release reaches a table that already exists",
+          "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS status_evidence" in sql)
     check("the comment says when to turn it on",
           "more than one community shares a database" in sql)
     check("and warns that the owner bypasses it",

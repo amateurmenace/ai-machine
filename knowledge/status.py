@@ -120,9 +120,18 @@ _WORD_TALLY_RE = re.compile(
     re.I,
 )
 
+# Somebody saying the vote was unanimous.
 _UNANIMOUS_RE = re.compile(
-    r"\b(?:unanimous(?:ly)?|all (?:those )?in favor|without objection|"
-    r"nem(?:ine)?\.? con)\b", re.I
+    r"\b(?:unanimous(?:ly)?|without objection|nem(?:ine)?\.? con)\b", re.I
+)
+
+# The chair calling the vote, which is not the same thing. "All in favor please
+# say aye" is how nearly every Select Board vote in the archive is taken, and
+# it is how a 3-2 vote is taken too. It used to be read as "unanimous", so the
+# model was told a tally nobody had announced.
+_VOTE_CALLED_RE = re.compile(
+    r"\b(?:all (?:those )?in favor|those in favor|please say aye|say aye|"
+    r"call(?:ing)? the roll|roll call(?: vote)?)\b", re.I
 )
 
 # Two things a chair says that an earlier version of this pattern missed, both
@@ -140,14 +149,31 @@ _UNANIMOUS_RE = re.compile(
 # refusing to swallow a negation. Without the last part, "the motion to approve
 # the contract was not passed" reads as passed, which is the worst mistake this
 # file could make.
-_GAP = r"(?:(?!\b(?:not|never|fail(?:s|ed)?|defeat|reject|deny|withdraw)\b)[^.;?!]){0,60}?"
+#
+# It refuses the conditional and the future as well. Those were not in the
+# minutes-style sentences this was first written against, and they are most of
+# how a board talks about a vote: "if the article passes", "the article would
+# be passed", "when the motion carries we will". Every one of those is
+# discussion, and every one of them read as a vote.
+_NOT_AN_OUTCOME = (r"not|never|fail(?:s|ed)?|defeat|reject|deny|withdraw|"
+                   r"would|will|should|could|may|might|if|whether|when|once|until|unless|which")
+_GAP = r"(?:(?!\b(?:" + _NOT_AN_OUTCOME + r")\b)[^.;?!]){0,60}?"
+
+# An article is talked about far more than it is voted on, and usually from a
+# distance: "warrant article 23 of 1946 of the laws passed by town meeting" is
+# history. So an article only carries when its verb is within a few words.
+_NEAR = r"(?:\s+(?!(?:" + _NOT_AN_OUTCOME + r")\b)[\w'-]+){0,3}?\s+"
 
 _CARRIED_RE = re.compile(
-    r"\b(?:(?:motion|article|amendment|measure)\b" + _GAP +
-    r"\b(?:carrie[sd]|passe[sd]|prevail(?:s|ed)|adopted|approved)|"
+    r"\b(?:motion\b" + _GAP + r"\b(?:carrie[sd]|passe[sd]|prevail(?:s|ed)|adopted|approved)|"
+    r"(?:article|amendment|measure)" + _NEAR +
+    r"(?:is |was )?(?:carrie[sd]|passe[sd]|prevail(?:s|ed)|adopted|approved)|"
     r"so (?:voted|ordered)|it (?:is |was )?(?:so )?voted|"
-    r"vote[sd]?(?:\s+\w+ly)? (?:to )?(?:approve|adopt|accept|authorize)|"
-    r"(?:approve[sd]?|adopte[sd]?) (?:the |this )?(?:motion|article|plan|budget|bylaw))\b",
+    # Past tense only. "We ask that the board vote to accept the grant" and "a
+    # motion to approve the budget" are requests, and were being read as results.
+    # with room for the count: "voted 4 to 1 to approve"
+    r"voted(?:\s+\w+ly)?(?:\s+[\w]+\s*(?:-|to)\s*[\w]+)? to (?:approve|adopt|accept|authorize)|"
+    r"(?:approved|adopted) (?:the |this )?(?:motion|article|plan|budget|bylaw))\b",
     re.I,
 )
 
@@ -166,10 +192,16 @@ _TABLED_RE = re.compile(
     r"withdraw(?:n|s|ing)?)\b", re.I
 )
 
+# "A second" needs someone asking for it or announcing it. On its own it is
+# also "a second reading", "a second time" and "just a second", and the first
+# of those is on every School Committee agenda.
 _MOTION_RE = re.compile(
-    r"\b(?:i move (?:that|to)|moved (?:and seconded|by)|"
-    r"(?:is there |do i hear )?a second|seconded by|"
-    r"entertain a motion|make a motion|the motion (?:before us|on the floor))\b",
+    r"\b(?:i move (?:that|to)|so moved|moved (?:and seconded|by)|"
+    r"(?:is there|do i hear|we have|i have|there is|there's|need) a second"
+    r"(?!\s+(?:reading|time|look|night|meeting|session|round|one|thing|question|point|"
+    r"opinion|thought|year|term|part|chance|vote|item|issue|piece|phase|\w+ing)\b)|"
+    r"seconded by|entertain a motion|make a motion|"
+    r"the motion (?:before us|on the floor))\b",
     re.I,
 )
 
@@ -205,6 +237,37 @@ _DISCUSSION_RE = re.compile(
 # Document types whose text IS the adopted thing, not a report about one.
 _ADOPTED_DOCUMENT_TYPES = {"bylaw", "ordinance", "regulation", "charter", "code"}
 _PROPOSED_DOCUMENT_TYPES = {"warrant", "warrant_article", "draft", "proposal", "petition"}
+
+
+# A tally is two small numbers, and so is a contract number, a date range and
+# the hours on a liquor licence. "Somewhere in the same passage as a motion"
+# was the test, and in a 220 word passage that let "contract number PW 13-16"
+# become a 13-16 vote of a five member board, and "12 to 9 Friday and Saturday"
+# a 12-9 one. A tally is said beside the result, so that is where it has to be:
+# "carries 4-1", "failed, two to three", "a 3-2 vote".
+#
+# A result may be a few words from its tally ("carries, as amended, four to
+# one"). The word "vote" may not: "on the vote Sunday would be 11 to 9" is a
+# board settling a restaurant's hours, and it was read as an 11-9 vote. So
+# "vote" only introduces a tally it is directly attached to.
+_BEFORE_A_TALLY = re.compile(
+    r"\b(?:(?:carrie[sd]|passe[sd]|fail(?:s|ed)|prevail(?:s|ed)|adopted|approved|defeated)\b"
+    r"(?:(?!\b(?:would|will|should|could|if)\b)[^.;?!\d]){0,25}"
+    r"|(?:vote[sd]?|voting|tally|count)\b(?:\s+(?:of|was|is|were|at|stands at))?[\s,:]{0,3})$",
+    re.I)
+_AFTER_A_TALLY = re.compile(
+    r"^[^.;?!\d]{0,12}\b(?:vote|in favor|decision|margin|majority)\b", re.I)
+
+
+def _tally_beside_a_vote(text: str):
+    """The first tally that sits next to vote language. ``(match, was_spoken)``."""
+    for pattern, spoken in ((_TALLY_RE, False), (_WORD_TALLY_RE, True)):
+        for match in pattern.finditer(text):
+            before = text[max(0, match.start() - 40):match.start()]
+            after = text[match.end():match.end() + 24]
+            if _BEFORE_A_TALLY.search(before) or _AFTER_A_TALLY.search(after):
+                return match, spoken
+    return None, False
 
 
 def _first(pattern: re.Pattern, text: str) -> str:
@@ -252,15 +315,12 @@ def detect_vote(text: str) -> VoteEvidence:
     failed = _first(_FAILED_RE, text)
     tabled = _first(_TABLED_RE, text)
     unanimous = _first(_UNANIMOUS_RE, text)
+    called = _first(_VOTE_CALLED_RE, text)
 
     # Digits first, then the spoken form. A bare "4-1" or "four to one" is only
     # a tally when something nearby says it is a vote: dates, scores, dollar
     # ranges and ordinary sentences look identical.
-    tally_match = _TALLY_RE.search(text)
-    spoken = False
-    if tally_match is None:
-        tally_match = _WORD_TALLY_RE.search(text)
-        spoken = tally_match is not None
+    tally_match, spoken = _tally_beside_a_vote(text)
 
     if tally_match and (carried or failed or unanimous or motion):
         def value(name: str):
@@ -299,11 +359,15 @@ def detect_vote(text: str) -> VoteEvidence:
         evidence.vote_taken = False
         evidence.outcome = "tabled"
         evidence.phrases.append(tabled)
-    elif unanimous and evidence.motion_made:
+    elif (unanimous or called) and evidence.motion_made:
+        # A motion, and then the vote on it. Nothing here says it failed, and
+        # a failed motion says so. But the tally is only what somebody said it
+        # was: a vote that was called is not thereby unanimous.
         evidence.vote_taken = True
         evidence.outcome = "passed"
-        evidence.tally = evidence.tally or "unanimous"
-        evidence.phrases.append(unanimous)
+        if unanimous:
+            evidence.tally = evidence.tally or "unanimous"
+        evidence.phrases.append(unanimous or called)
 
     return evidence
 
