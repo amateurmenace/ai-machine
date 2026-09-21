@@ -44,6 +44,17 @@ YOUTUBE_API_KEY_ENV = "YOUTUBE_API_KEY"
 # passes a higher limit deliberately.
 DEFAULT_SCAN_LIMIT = 500
 
+# The skip reason that means a gap in the record rather than a video left alone.
+NO_TRANSCRIPT = "no transcript"
+# And the one that is a judgment about a title, which is only as good as the
+# board list it was made with.
+NOT_A_MEETING = "not classified as a meeting"
+
+# YouTube captions a long recording hours after it ends, and sometimes days. A
+# meeting from last night with no captions has not been captioned yet, which is
+# a different thing from a meeting that never will be.
+CAPTION_GRACE_DAYS = 14
+
 
 @dataclass
 class VideoRecord:
@@ -88,6 +99,9 @@ class SyncState:
     seen_video_ids: List[str] = field(default_factory=list)
     ingested_video_ids: List[str] = field(default_factory=list)
     skipped_video_ids: List[str] = field(default_factory=list)
+    # Why each one was skipped. "Not a meeting" and "a meeting with no captions"
+    # are both skips, and only one of them is a hole in the public record.
+    skip_reasons: Dict[str, str] = field(default_factory=dict)
     total_scanned: int = 0
     errors: List[Dict[str, str]] = field(default_factory=list)
 
@@ -108,6 +122,14 @@ class SyncState:
         self.mark_seen(video_id)
         if video_id not in self.skipped_video_ids:
             self.skipped_video_ids.append(video_id)
+        if reason:
+            self.skip_reasons[video_id] = reason
+
+    @property
+    def without_transcripts(self) -> List[str]:
+        """Every meeting recorded as having no captions, across every run."""
+        return [video_id for video_id in self.skipped_video_ids
+                if self.skip_reasons.get(video_id, "").startswith(NO_TRANSCRIPT)]
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -222,30 +244,47 @@ def list_via_ytdlp(channel_url: str, limit: int = DEFAULT_SCAN_LIMIT) -> List[Vi
     """List a channel or playlist with yt-dlp. No key, no quota."""
     from yt_dlp import YoutubeDL
 
-    url = channel_url
-    # A bare channel or handle URL resolves to the About tab; /videos is the list.
-    if re.search(r"youtube\.com/(@[\w.-]+|channel/UC[\w-]{22}|c/[\w-]+|user/[\w-]+)/?$", url):
-        url = url.rstrip("/") + "/videos"
+    urls = [channel_url]
+    # A bare channel or handle URL resolves to the About tab, so the lists have
+    # to be asked for by name, and there are two. A meeting that was broadcast
+    # live is filed under /streams and never appears under /videos. A
+    # public-access station broadcasts its boards live: on Brookline's channel
+    # every regular Select Board and School Committee meeting is a stream, and
+    # scanning /videos alone finds the work sessions and misses the meetings.
+    if re.search(r"youtube\.com/(@[\w.-]+|channel/UC[\w-]{22}|c/[\w-]+|user/[\w-]+)/?$",
+                 channel_url):
+        base = channel_url.rstrip("/")
+        urls = [base + "/videos", base + "/streams"]
 
     options = {
         "extract_flat": "in_playlist",
         "skip_download": True,
         "quiet": True,
         "no_warnings": True,
-        "playlistend": limit,
+        "playlistend": limit,     # per tab, so a channel scan can return 2x limit
         "ignoreerrors": True,
     }
 
-    with YoutubeDL(options) as ydl:
-        info = ydl.extract_info(url, download=False)
+    entries: List[Dict[str, Any]] = []
+    for url in urls:
+        with YoutubeDL(options) as ydl:
+            # A channel without one of the tabs is an error to yt-dlp and None
+            # here. That is no reason to lose the tab it does have.
+            info = ydl.extract_info(url, download=False)
+        entries.extend(e for e in ((info or {}).get("entries") or []) if e)
 
     videos: List[VideoRecord] = []
-    for entry in (info or {}).get("entries", []) or []:
-        if not entry:
-            continue
+    listed: set = set()
+    for entry in entries:
         video_id = entry.get("id")
-        if not video_id:
+        if not video_id or video_id in listed:
             continue
+        # A stream that is scheduled or still running has no captions yet. Left
+        # in, it would be recorded as a meeting without a transcript and never
+        # looked at again. Left out, the next scan finds it finished.
+        if entry.get("live_status") in ("is_upcoming", "is_live"):
+            continue
+        listed.add(video_id)
         duration = entry.get("duration")
         videos.append(VideoRecord(
             video_id=video_id,
@@ -284,6 +323,53 @@ def list_channel_videos(
     return videos
 
 
+# --- a listing, kept ---------------------------------------------------------
+#
+# Listing a five thousand video channel without a key is about a hundred and
+# seventy requests. A backfill is interrupted and resumed many times, and a
+# board list is dry-run many more, and none of those needs to know what was
+# uploaded in the last hour. Asking anyway spends, on nothing, the same
+# patience YouTube extends to the transcript requests that matter.
+
+
+def listing_path(project_id: str, source_id: str, data_root: str = "./data") -> Path:
+    return Path(data_root) / project_id / "sync" / f"{source_id}.listing.json"
+
+
+def save_listing(path: Path, channel_url: str, limit: int,
+                 videos: Sequence[VideoRecord]) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "channel_url": channel_url,
+            "limit": limit,
+            "listed_at": datetime.now().isoformat(timespec="seconds"),
+            "videos": [{"video_id": v.video_id, "title": v.title, "url": v.url,
+                        "published_at": v.published_at,
+                        "duration_seconds": v.duration_seconds} for v in videos],
+        }), encoding="utf-8")
+    except OSError:
+        pass        # a cache: losing it costs a scan
+
+
+def load_listing(path: Path, channel_url: str, limit: int,
+                 max_age_hours: float) -> Optional[List[VideoRecord]]:
+    """The kept listing, if it is this channel's, deep enough and recent enough."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        age = datetime.now() - datetime.fromisoformat(data["listed_at"])
+        if (data.get("channel_url") != channel_url or int(data.get("limit", 0)) < limit
+                or age.total_seconds() > max_age_hours * 3600):
+            return None
+        return [VideoRecord(video_id=v["video_id"], title=v.get("title", ""),
+                            url=v.get("url") or f"https://www.youtube.com/watch?v={v['video_id']}",
+                            published_at=v.get("published_at", ""),
+                            duration_seconds=v.get("duration_seconds"))
+                for v in data["videos"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 # --- planning -------------------------------------------------------------
 
 
@@ -297,6 +383,7 @@ class SyncPlan:
     skipped_not_meetings: List[VideoRecord] = field(default_factory=list)
     skipped_low_confidence: List[VideoRecord] = field(default_factory=list)
     error: Optional[str] = None
+    listing_was_cached: bool = False
 
     def summary(self) -> Dict[str, Any]:
         return {
@@ -325,6 +412,9 @@ def plan_sync(
     meetings_only: bool = True,
     bodies: Optional[Dict[str, Sequence[str]]] = None,
     body_override: str = "",
+    listing_cache: Optional[Path] = None,
+    listing_max_age_hours: float = 24.0,
+    rescan: bool = False,
 ) -> SyncPlan:
     """Decide what to ingest without ingesting anything.
 
@@ -336,15 +426,36 @@ def plan_sync(
     plan = SyncPlan()
 
     cursor = state.last_published_at if (incremental and state.last_published_at) else None
-    try:
-        videos = list_channel_videos(channel_url, api_key=api_key, limit=limit,
-                                     published_after=cursor, bodies=bodies)
-    except Exception as exc:
-        plan.error = f"{type(exc).__name__}: {exc}"
-        return plan
+
+    # Only a backfill passes a cache. An incremental sync exists to find what is
+    # new, and a kept listing is by definition not that.
+    videos = None
+    if listing_cache and not rescan and not incremental:
+        videos = load_listing(listing_cache, channel_url, limit, listing_max_age_hours)
+        if videos is not None:
+            plan.listing_was_cached = True
+            # Parsed again every time: the listing keeps, the board list changes.
+            for video in videos:
+                video.apply(parse_meeting_title(video.title, video.published_at, bodies))
+
+    if videos is None:
+        try:
+            videos = list_channel_videos(channel_url, api_key=api_key, limit=limit,
+                                         published_after=cursor, bodies=bodies)
+        except Exception as exc:
+            plan.error = f"{type(exc).__name__}: {exc}"
+            return plan
+        if listing_cache and not incremental and videos:
+            save_listing(listing_cache, channel_url, limit, videos)
 
     plan.scanned = len(videos)
-    seen = state.seen
+    # A video left out because no board was recognized is judged again on every
+    # scan. It costs nothing, and the alternative is that adding the Override
+    # Study Committee to the board list never finds its meetings, because they
+    # were all marked as seen the first time the list did not know them.
+    unclassified = {video_id for video_id, why in state.skip_reasons.items()
+                    if why == NOT_A_MEETING}
+    seen = state.seen - unclassified
 
     for video in videos:
         if body_override:
@@ -368,6 +479,21 @@ def plan_sync(
     # rather than a scatter of recent meetings.
     plan.new_videos.sort(key=lambda v: v.meeting_date or v.published_at or "")
     return plan
+
+
+def captions_may_be_pending(video: VideoRecord, today: Optional[datetime] = None) -> bool:
+    """Whether a missing transcript more likely means "not yet" than "never".
+
+    Marking last night's meeting as a permanent gap because the scheduler got
+    to it before YouTube's captioner did would lose every meeting that loses
+    that race, and the scheduler runs every few hours.
+    """
+    when = video.meeting_date or video.published_at
+    try:
+        age = (today or datetime.now()) - datetime.strptime(when, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return False        # undated: nothing says it is recent
+    return age.days <= CAPTION_GRACE_DAYS
 
 
 def advance_cursor(state: SyncState, videos: Sequence[VideoRecord]) -> None:

@@ -33,7 +33,10 @@ except ImportError:  # pragma: no cover
     raise SystemExit("PyYAML is required: pip install pyyaml")
 
 
-VALID_SOURCE_TYPES = {"youtube_playlist", "youtube_video", "website", "pdf_url"}
+# youtube_channel is the one scripts/backfill_archive.py walks. It was missing
+# here, so the documented way to set up a backfill was refused by this script.
+VALID_SOURCE_TYPES = {"youtube_channel", "youtube_playlist", "youtube_video",
+                      "website", "pdf_url"}
 
 
 def load_config(path: Path) -> Dict[str, Any]:
@@ -154,10 +157,22 @@ def build_project(config: Dict[str, Any], sources: List[Dict[str, Any]],
         project = ProjectConfig(**settings)
 
     # Add sources that are not already configured, matched on URL.
-    known_urls = {s.url for s in project.data_sources}
+    known = {s.url: s for s in project.data_sources}
     for entry in sources:
         url = str(entry["url"])
-        if url in known_urls:
+        # Channel scan settings. Compared with None because meetings_only: false
+        # is a real choice and a falsy one.
+        scan_settings = {
+            key: entry[key]
+            for key in ("min_confidence", "meetings_only", "scan_limit", "bodies")
+            if entry.get(key) is not None
+        }
+        if url in known:
+            # How a channel is read is configuration, and a board list gets
+            # edited many times before a backfill: look at the dry run, add the
+            # subcommittee it missed, look again. So these follow the file.
+            # Nothing else about an existing source is touched.
+            known[url].metadata = {**(known[url].metadata or {}), **scan_settings}
             continue
         metadata = {
             key: entry[key]
@@ -165,6 +180,7 @@ def build_project(config: Dict[str, Any], sources: List[Dict[str, Any]],
                         "date", "meeting_date")
             if entry.get(key)
         }
+        metadata.update(scan_settings)
         project.data_sources.append(
             DataSource(
                 id=str(uuid.uuid4()),
@@ -175,7 +191,7 @@ def build_project(config: Dict[str, Any], sources: List[Dict[str, Any]],
                 metadata=metadata,
             )
         )
-        known_urls.add(url)
+        known[url] = project.data_sources[-1]
 
     return project
 

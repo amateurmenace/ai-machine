@@ -64,20 +64,50 @@ _DATE_PATTERNS: List[Tuple[re.Pattern, str]] = [
     (re.compile(r"\b(?P<y>20\d{2})[-./](?P<m>\d{1,2})[-./](?P<d>\d{1,2})\b"), "ymd"),
     (re.compile(r"\b(?P<m>\d{1,2})[-./](?P<d>\d{1,2})[-./](?P<y>20\d{2})\b"), "mdy"),
     (re.compile(r"\b(?P<m>\d{1,2})[-./](?P<d>\d{1,2})[-./](?P<y>\d{2})\b"), "mdy2"),
+    # The separators are loose because real titles are: "May, 14, 2019" and
+    # "March 26,2019" are both Brookline Select Board meetings.
     (re.compile(
-        r"\b(?P<mon>[A-Za-z]{3,9})\.?\s+(?P<d>\d{1,2})(?:st|nd|rd|th)?,?\s+(?P<y>20\d{2})\b"
+        r"\b(?P<mon>[A-Za-z]{3,9})\.?,?\s+(?P<d>\d{1,2})(?:st|nd|rd|th)?"
+        r"(?:\s*,\s*|\s+)(?P<y>20\d{2})\b"
     ), "mon_d_y"),
     (re.compile(
         r"\b(?P<d>\d{1,2})(?:st|nd|rd|th)?\s+(?P<mon>[A-Za-z]{3,9})\.?,?\s+(?P<y>20\d{2})\b"
     ), "d_mon_y"),
+    # "School Committee Meeting, Jan 7/21"
+    (re.compile(r"\b(?P<mon>[A-Za-z]{3,9})\.?\s+(?P<d>\d{1,2})/(?P<y>\d{2})\b"), "mon_d_yy"),
     # A month and day with no year, e.g. "Select Board 4-14". The year has to
     # come from the upload date; recorded separately so the caller knows.
     (re.compile(r"\b(?P<mon>[A-Za-z]{3,9})\.?\s+(?P<d>\d{1,2})(?:st|nd|rd|th)?\b(?!\s*,?\s*20\d{2})"),
      "mon_d"),
+    # Last resorts, for the years before a station settled on a convention.
+    # They come after everything else because digits with no punctuation can be
+    # many things, and each is only believed if it lands on a real, recent day.
+    # "Board of Selectmen 10 06 15", "Board of Selectmen 10:27:15"
+    (re.compile(r"(?<![\d/.:-])(?P<m>\d{1,2})(?P<sep>[ :])(?P<d>\d{1,2})(?P=sep)(?P<y>\d{2})"
+                r"(?![\d/.:-])"), "loose_mdy2"),
+    # "Select Board 092419", "Zoning Board of Appeals Regular Meeting 8202019"
+    (re.compile(r"(?<![\d/.:-])(?P<digits>\d{6,8})(?![\d/.:-])"), "compact"),
 ]
+
+# Earlier than this and it is not a recording on anybody's channel.
+_EARLIEST_YEAR = 2005
 
 _MEETING_WORDS = re.compile(
     r"\b(meeting|hearing|session|workshop|forum|deliberation|public comment)\b",
+    re.I,
+)
+
+# A title can name a board without being that board's proceedings. "2024 Select
+# Board Candidate Forum" is a campaign event, "Town Meeting in 3 Minutes" is a
+# highlight reel, and "TV on TV - Select Board Candidate Paul Warren" is an
+# interview. Filed under the board, a candidate's pitch becomes retrievable as
+# something the Select Board said, which is the attribution error this whole
+# system exists not to make. They are programmes about government, not records
+# of it, and they are left out.
+_NOT_PROCEEDINGS = re.compile(
+    r"\b(candidates?|election|debate|tv on tv|interviews?|presents?|testimonials?|"
+    r"recap|highlights|behind the scenes|elevator pitch(?:es)?|explainer|in 3|"
+    r"warrant (?:article )?review|conversations?)\b",
     re.I,
 )
 
@@ -109,55 +139,128 @@ def _valid(year: int, month: int, day: int) -> Optional[str]:
         return None
 
 
+def _plausible(iso: Optional[str]) -> Optional[str]:
+    """A last-resort date is believed only if it is a real and recent day."""
+    if not iso:
+        return None
+    return iso if _EARLIEST_YEAR <= int(iso[:4]) <= date.today().year + 1 else None
+
+
+def _compact(digits: str) -> Optional[str]:
+    """Read a run of six to eight digits as a date, or decline to.
+
+    "092419" is 09/24/19 and "442019" is 4/4/2019, and the only way to tell is
+    to try every reading. One valid reading is a date. Two is a guess, and a
+    guessed meeting date is worse than none: "1112019" could be January 11th or
+    November 1st, so it is neither.
+    """
+    readings = set()
+    if len(digits) == 8:
+        readings.add(_valid(int(digits[4:]), int(digits[:2]), int(digits[2:4])))    # MMDDYYYY
+        readings.add(_valid(int(digits[:4]), int(digits[4:6]), int(digits[6:])))    # YYYYMMDD
+    if len(digits) == 6:
+        readings.add(_valid(2000 + int(digits[4:]), int(digits[:2]), int(digits[2:4])))  # MMDDYY
+    if len(digits) in (6, 7):
+        # M D YYYY with the zero padding left off, split every way it can be.
+        head, year = digits[:-4], int(digits[-4:])
+        for cut in range(1, len(head)):
+            readings.add(_valid(year, int(head[:cut]), int(head[cut:])))
+    believed = {iso for iso in map(_plausible, readings) if iso}
+    return believed.pop() if len(believed) == 1 else None
+
+
 def extract_date(title: str, fallback_year: Optional[int] = None
                  ) -> Tuple[Optional[str], bool]:
     """Find a date in a title. Returns ``(iso_date, year_was_guessed)``."""
+    # "School Committee 4 /12/18": a stray space is not information.
+    title = re.sub(r"\s*/\s*", "/", re.sub(r"\s+", " ", title or ""))
+
     for pattern, kind in _DATE_PATTERNS:
-        match = pattern.search(title)
-        if not match:
-            continue
+        # Every match, not only the first: in "Town Meeting Night 1 - May 28"
+        # the first thing shaped like a month and a day is "Night 1".
+        for match in pattern.finditer(title):
+            found = None
+            if kind in ("ymd", "mdy"):
+                found = _valid(int(match.group("y")), int(match.group("m")),
+                               int(match.group("d")))
+            elif kind == "mdy2":
+                found = _valid(2000 + int(match.group("y")), int(match.group("m")),
+                               int(match.group("d")))
+            elif kind == "loose_mdy2":
+                found = _plausible(_valid(2000 + int(match.group("y")),
+                                          int(match.group("m")), int(match.group("d"))))
+            elif kind == "compact":
+                found = _compact(match.group("digits"))
+            else:
+                month = _MONTHS.get(match.group("mon").lower())
+                if month is None:
+                    continue
+                if kind == "mon_d":     # no year in the title
+                    if fallback_year is None:
+                        continue
+                    found = _valid(fallback_year, month, int(match.group("d")))
+                    if found:
+                        return found, True
+                    continue
+                year = int(match.group("y"))
+                found = _valid(2000 + year if kind == "mon_d_yy" else year,
+                               month, int(match.group("d")))
 
-        if kind == "ymd":
-            found = _valid(int(match.group("y")), int(match.group("m")), int(match.group("d")))
-        elif kind == "mdy":
-            found = _valid(int(match.group("y")), int(match.group("m")), int(match.group("d")))
-        elif kind == "mdy2":
-            found = _valid(2000 + int(match.group("y")), int(match.group("m")),
-                           int(match.group("d")))
-        elif kind in ("mon_d_y", "d_mon_y"):
-            month = _MONTHS.get(match.group("mon").lower().rstrip("."))
-            if month is None:
-                continue
-            found = _valid(int(match.group("y")), month, int(match.group("d")))
-        else:  # mon_d, no year
-            month = _MONTHS.get(match.group("mon").lower().rstrip("."))
-            if month is None or fallback_year is None:
-                continue
-            found = _valid(fallback_year, month, int(match.group("d")))
             if found:
-                return found, True
-
-        if found:
-            return found, False
+                return found, False
 
     return None, False
+
+
+def community_bodies(own: Optional[Dict[str, Sequence[str]]] = None
+                     ) -> Dict[str, Sequence[str]]:
+    """The default boards plus a community's own, which win on a clash.
+
+    A source carries its community's list in ``metadata["bodies"]``, as
+    ``{canonical name: [aliases]}``. This is where "School Finance
+    Subcommittee" and "Task Force to Reimagine Policing" come from; no default
+    list will ever know them.
+    """
+    merged: Dict[str, Sequence[str]] = dict(DEFAULT_BODIES)
+    for canonical, aliases in (own or {}).items():
+        if isinstance(aliases, str):
+            aliases = [aliases]
+        if not aliases:
+            # Named with no aliases: this community has no such body. Brookline
+            # has no City Council, and the default for one will otherwise claim
+            # a video about somebody else's.
+            merged.pop(str(canonical), None)
+            continue
+        merged[str(canonical)] = tuple(str(a) for a in aliases)
+    return merged
+
+
+def _plain(text: str) -> str:
+    """Lower case, punctuation read as spaces, and "&" read as "and".
+
+    "Town-School Partnership", "Town - School Partnership" and "Town School
+    Partnership" are one committee titled by three people.
+    """
+    return re.sub(r"[^a-z0-9]+", " ", text.lower().replace("&", " and ")).strip()
 
 
 def extract_body(title: str, bodies: Optional[Dict[str, Sequence[str]]] = None
                  ) -> Tuple[str, float]:
     """Match a board name. Returns ``(canonical_name, confidence)``."""
     bodies = bodies or DEFAULT_BODIES
-    lowered = title.lower()
+    # "Brookline School  Committee Meeting": ten of them, every one real, and a
+    # stray second space was enough to file them under no board at all.
+    lowered = _plain(title)
 
     # Longest alias first, so a subcommittee is not swallowed by its parent.
     candidates: List[Tuple[str, str]] = []
     for canonical, aliases in bodies.items():
         for alias in aliases:
-            candidates.append((alias.lower(), canonical))
+            candidates.append((_plain(alias), canonical))
     candidates.sort(key=lambda pair: len(pair[0]), reverse=True)
 
     for alias, canonical in candidates:
-        if re.search(rf"\b{re.escape(alias)}\b", lowered):
+        if alias and re.search(rf"\b{re.escape(alias)}\b", lowered):
             # A short acronym is a weaker signal than a spelled-out name.
             return canonical, 0.7 if len(alias) <= 4 else 0.95
 
@@ -219,6 +322,14 @@ def parse_meeting_title(
 
     has_meeting_word = bool(_MEETING_WORDS.search(title))
     result.is_meeting = bool(body) or has_meeting_word
+
+    about = _NOT_PROCEEDINGS.search(re.sub(r"\s+", " ", title))
+    if about and result.is_meeting:
+        result.is_meeting = False
+        result.notes.append(
+            f"names a board or a meeting, but \"{about.group(0).lower()}\" marks it as a "
+            f"programme about one rather than the proceedings of one"
+        )
 
     confidence = 0.0
     if body:
