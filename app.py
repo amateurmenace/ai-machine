@@ -19,12 +19,16 @@ from models import (
 )
 from agent import CivicAgent
 from stores import build_store
-from collectors.youtube_collector import YouTubeCollector
+from collectors.youtube_collector import (
+    TranscriptFetchFailed, TranscriptUnavailable, YouTubeCollector,
+)
 from collectors.website_collector import WebsiteCollector
 from collectors.pdf_collector import PDFCollector
 from collectors.source_discovery import SourceDiscovery
+from collectors.meeting_titles import community_bodies
 from collectors.youtube_channel import (
-    DEFAULT_SCAN_LIMIT, advance_cursor, load_state, plan_sync, save_state,
+    DEFAULT_SCAN_LIMIT, NO_TRANSCRIPT, NOT_A_MEETING, advance_cursor,
+    captions_may_be_pending, load_state, plan_sync, save_state,
 )
 
 from api.auth import ALL_SCOPES, DEFAULT_SCOPES, new_client_record
@@ -502,6 +506,7 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                 incremental=bool(meta.get("incremental", True)),
                 min_confidence=float(meta.get("min_confidence") or 0.0),
                 meetings_only=bool(meta.get("meetings_only", True)),
+                bodies=community_bodies(meta.get("bodies")),
                 body_override=meta.get("body", ""),
             )
 
@@ -519,25 +524,33 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                 job.progress = (index / max(len(plan.new_videos), 1)) * 50
 
                 try:
-                    result = collector.collect_video(video.url)
-                except Exception as exc:
-                    state.errors.append({"video_id": video.video_id,
-                                         "error": f"{type(exc).__name__}: {exc}"})
-                    state.mark_skipped(video.video_id, "transcript error")
-                    continue
-
-                if not result or not result.get("transcript"):
+                    result = collector.collect_video(video.url, strict=True)
+                    if not result or not result.get("transcript"):
+                        raise TranscriptFetchFailed("the collector returned nothing")
+                except TranscriptUnavailable as exc:
+                    if captions_may_be_pending(video):
+                        # Last night's meeting, which YouTube has not captioned
+                        # yet. This sync runs every few hours and would win that
+                        # race most weeks; left unmarked, the next one looks again.
+                        continue
                     # A meeting with captions disabled is a real gap in the
                     # archive. Recording it means the data card can say so
                     # rather than the absence looking like the meeting never
                     # happened.
                     state.errors.append({"video_id": video.video_id,
-                                         "error": "no transcript available"})
-                    state.mark_skipped(video.video_id, "no transcript")
+                                         "error": f"no transcript available ({exc})"})
+                    state.mark_skipped(video.video_id, NO_TRANSCRIPT)
+                    continue
+                except Exception as exc:
+                    # Not marked as seen. A refused request or a timeout is not
+                    # a fact about the meeting, and the next sync should ask again.
+                    state.errors.append({"video_id": video.video_id,
+                                         "error": f"{type(exc).__name__}: {exc}"})
                     continue
 
+                transcript = result["transcript"]
                 for chunk in meeting_chunks(
-                    result["transcript"]["segments"],
+                    transcript.get("captions") or transcript["segments"],
                     community=project.municipality_name,
                     body=video.body or _source_body(source),
                     meeting_date=video.meeting_date or video.published_at,
@@ -554,9 +567,11 @@ async def ingest_source_background(job: DataIngestionJob, project: ProjectConfig
                 state.mark_ingested(video.video_id)
 
             for video in plan.skipped_not_meetings + plan.skipped_low_confidence:
-                state.mark_skipped(video.video_id, "not classified as a meeting")
+                state.mark_skipped(video.video_id, NOT_A_MEETING)
 
-            advance_cursor(state, plan.new_videos)
+            # A video that fails every few hours should not grow this forever.
+            state.errors = state.errors[-500:]
+            advance_cursor(state, [v for v in plan.new_videos if v.video_id in state.seen])
             save_state(project.project_id, state)
 
             source.metadata = {**meta, "last_sync": state.last_synced_at,
@@ -947,6 +962,7 @@ async def preview_channel_scan(project_id: str, source_id: str,
         incremental=incremental,
         min_confidence=float(meta.get("min_confidence") or 0.0),
         meetings_only=bool(meta.get("meetings_only", True)),
+        bodies=community_bodies(meta.get("bodies")),
         body_override=meta.get("body", ""),
     )
 

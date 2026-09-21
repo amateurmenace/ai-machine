@@ -9,6 +9,72 @@ document is how the record gets made.
 
 ---
 
+## What the first real run found
+
+Everything below this section was written before anything had been pulled from
+YouTube. On 20 September 2026 it was tried for real, on the machine that will
+hold the archive, and several things in this document turned out to be wrong.
+They are corrected in place where a command would have done harm, and listed
+here so nobody has to find them the same way.
+
+**It is about 1,450 meetings, not 500.** The channel is
+`youtube.com/@BrooklineInteractiveGroup` and holds 5,133 videos. The Select
+Board and School Committee alone are about 940 meetings and 2,700 hours; with
+Town Meeting, the ZBA and the subcommittees it is about 4,300 hours. Budget
+roughly 165,000 passages and 800MB, not 50,000 and 300MB.
+
+**The regular meetings are live streams, and live streams are on a different
+tab.** YouTube files a broadcast under `/streams` and it never appears under
+`/videos`. The keyless listing read `/videos` only, so it found the work
+sessions and missed nearly every regular Select Board and School Committee
+meeting, while printing a list that looked perfectly plausible. It reads both
+now. `--limit` is per tab and counts videos scanned, newest first: `--limit
+600` would have covered the newest eighth of one tab.
+
+**YouTube will not give one machine a thousand transcripts in an evening.**
+The first run was refused after about 25 meetings, three seconds apart:
+`IpBlocked` from one caption reader, `HTTP 429` from the other. Eight full
+channel listings on the same day, about 170 requests each, will not have
+helped. So a backfill is fed a night at a time (`--max-meetings`, `--delay`),
+the channel listing is kept for a day so that resuming and dry-running cost
+YouTube nothing, and the run stops at the first refusal, because every request
+made during a block lengthens it.
+
+**A refusal used to be recorded as a hole in the record.** Every failure in the
+transcript path was caught and returned as "no transcript", which the backfill
+counted as a meeting without captions and marked as seen, so it was never
+tried again. A block at meeting 300 would have produced several hundred
+permanent, false gaps. Now "no captions" and "could not find out" are different
+answers; only the first is ever recorded; and it is recorded only when two
+readers agree *and* the fetches either side of it worked, because a machine
+being turned away is served pages with the caption tracks simply left out.
+
+**No API key is needed for transcripts, and none would help.** The Data API
+only releases captions to the channel's owner over OAuth, at about 250 quota
+units a video. A key improves the *listing*: without one there are no publish
+dates at all, so a title with no date in it ("Transportation Board Meeting June
+2024") stays undated.
+
+**A citation opens where its passage starts, not at the second.** Passages are
+about 220 words, which is about ninety seconds of talk. The link is good to
+that.
+
+**The captions are kept.** `data/<project>/captions/<video id>.json.gz` holds
+what YouTube sent, as it sent it, about forty kilobytes a meeting. A passage is
+a decision about where to cut, and changing that decision should not mean
+asking YouTube for four thousand hours again. It has already paid for itself:
+the vote classifier was corrected against the first night's meetings and the
+archive re-labelled from these files in twenty-five seconds, offline.
+
+**Read the dry run. It is long now on purpose.** It lists the boards it found
+with how many meetings each, what it left out and why, the titles that read
+like civic meetings but matched no board, and the days with two videos for one
+board. The first one showed 165 School Committee subcommittee meetings filed
+under no board, and candidate forums filed under the Select Board. A
+community's own boards go in the source's `bodies` list in `community.yaml`.
+
+---
+
 ## What you have and what you get
 
 Brookline Interactive Group holds the recording of every Select Board and
@@ -89,8 +155,14 @@ python3 -m scripts.bootstrap_community community.yaml
 ### 1. Look before you leap
 
 ```bash
-python3 -m scripts.backfill_archive --project brookline-ma --dry-run
+python3 -m scripts.backfill_archive --project brookline-ma --dry-run --limit 6000
+python3 -m scripts.backfill_archive --project brookline-ma --dry-run --limit 6000 --full
 ```
+
+`--limit` has to cover the channel, and it is counted per tab. The first of
+these lists the channel, which is the expensive part; the listing is then kept
+for a day, so the second, and every dry run while you correct the board list,
+asks YouTube for nothing. `--full` names every meeting and everything left out.
 
 Nothing is written. What you get is the list of what would be ingested, and
 this is the moment to actually read it:
@@ -118,8 +190,23 @@ missing a naming convention the station changed in 2019.
 ### 2. Run it
 
 ```bash
-python3 -m scripts.backfill_archive --project brookline-ma --limit 600 --snapshot-every 50
+python3 -m scripts.backfill_archive --project brookline-ma --limit 6000 \
+    --board "Select Board" --board "School Committee" --since 2000-01-01 \
+    --hold-same-day --max-meetings 60 --delay 30 --snapshot-every 200
 ```
+
+That is one night's worth, and the same command the next night takes the next
+sixty. An earlier version of this line said `--limit 600 --snapshot-every 50`
+and promised an evening; see the top of this document for what that would have
+done. The flags, because each is there for a reason:
+
+| | |
+| --- | --- |
+| `--board` | One pass per board, or a few. The rest are left unmarked for a later pass. Start with the boards residents ask about. |
+| `--since 2000-01-01` | Leaves out, unmarked, the few meetings whose titles carry no date. |
+| `--hold-same-day` | Leaves out, unmarked, any day with two videos for one board, until somebody has said which are duplicates and which are a meeting in two parts. |
+| `--max-meetings 60 --delay 30` | What YouTube has so far tolerated is not known; this is a guess on the careful side. The run stops itself at the first refusal either way. |
+| `--snapshot-every 200` | A snapshot is a full copy of the archive. Every 50 over a thousand meetings is twenty copies. |
 
 It walks oldest to newest, writing each meeting to the archive as soon as it
 has it:
@@ -190,10 +277,10 @@ Time, which is harder to measure without actually pulling from YouTube:
 | Step | For 500 meetings |
 | --- | --- |
 | Scanning the channel | minutes |
-| Pulling transcripts | **the long pole.** One request per video, rate limited, with retries. Budget 1-3 hours. |
+| Pulling transcripts | **the long pole, and not for the reason guessed here.** A transcript takes a second to fetch. YouTube's patience is the constraint: about sixty meetings a night, so weeks of nights, unattended. |
 | Chunking and classifying | minutes; it is regex and string work |
 | Embedding | 20-60 minutes on CPU, a few minutes on the GPU already in the machine |
-| Total | **an evening.** Start it after dinner, read the report in the morning. |
+| Total | **a few weeks of nights**, each of which needs nobody watching it. Not an evening. |
 
 The embedding step is the one people expect to dominate and does not. Pulling
 50,000 captions politely from YouTube takes longer than turning them into

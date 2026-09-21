@@ -7,12 +7,47 @@ Uses multiple fallback methods: youtube-transcript-api, yt-dlp
 import re
 import subprocess
 import json
-import tempfile
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 from datetime import datetime
+
+
+class TranscriptUnavailable(Exception):
+    """The video has no captions. A gap in the public record, and a lasting one."""
+
+
+class TranscriptFetchFailed(Exception):
+    """The captions could not be fetched this time.
+
+    This says nothing about whether they exist. YouTube refusing the request,
+    a timeout and a dropped connection all end up here, and none of them is a
+    fact about the meeting. The difference from TranscriptUnavailable is the
+    whole point of having two: a caller that records this one as "the meeting
+    has no transcript" turns a bad night on the network into a hole in the
+    archive that nothing will ever go back and fill.
+    """
+
+
+class TranscriptBlocked(TranscriptFetchFailed):
+    """YouTube is refusing this machine: IpBlocked, RequestBlocked, HTTP 429.
+
+    A failure like any other as far as the record goes, and unlike any other in
+    what to do next. A timeout is worth retrying in a minute. A block gets
+    longer with every request made during it, so the only useful response is to
+    stop asking and come back in hours.
+    """
+
+
+# What a refusal looks like from yt-dlp, which reports it as prose.
+_BLOCK_SIGNS = ("429", "too many requests", "not a bot", "sign in to confirm",
+                "ipblocked", "requestblocked", "rate limit", "rate-limit")
+
+
+def _is_a_block(error: BaseException) -> bool:
+    text = f"{type(error).__name__} {error}".lower()
+    return any(sign in text for sign in _BLOCK_SIGNS)
 
 
 class YouTubeCollector:
@@ -27,6 +62,11 @@ class YouTubeCollector:
         self.youtube = None
         self.total_bytes = 0
         self.total_words = 0
+        # Set when either reader was refused during the last fetch, even if the
+        # other one got through. On Brookline's first backfill the first
+        # refusal came two videos before the second reader was refused too; it
+        # was a warning, and nothing was listening for it.
+        self.last_block = ""
         if api_key:
             self.youtube = build('youtube', 'v3', developerKey=api_key)
 
@@ -150,163 +190,139 @@ class YouTubeCollector:
         playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
         return self.get_playlist_videos_ytdlp(playlist_url, max_results)
     
-    def get_transcript_via_ytdlp(self, video_id: str) -> Optional[Dict]:
-        """Fallback method using yt-dlp to get subtitles"""
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+    @staticmethod
+    def _items_from_json3(data: Dict) -> List[Dict]:
+        """YouTube's json3 captions as text/start/duration items."""
+        items = []
+        for event in data.get('events', []):
+            if 'segs' not in event:
+                continue
+            text = ''.join(seg.get('utf8', '') for seg in event['segs']).strip()
+            if text:
+                items.append({
+                    'text': text,
+                    'start': event.get('tStartMs', 0) / 1000,
+                    'duration': event.get('dDurationMs', 0) / 1000,
+                })
+        return items
+
+    def _captions_via_api(self, video_id: str) -> Tuple[List[Dict], str]:
+        """Captions through youtube-transcript-api: one light request."""
+        from youtube_transcript_api import _errors as errors
 
         try:
-            # Create temp directory for subtitle files
-            with tempfile.TemporaryDirectory() as tmpdir:
-                output_template = os.path.join(tmpdir, "%(id)s")
-
-                # Try to get subtitles using yt-dlp
-                cmd = [
-                    "yt-dlp",
-                    "--skip-download",
-                    "--write-subs",
-                    "--write-auto-subs",
-                    "--sub-langs", "en.*,en",
-                    "--sub-format", "json3",
-                    "--output", output_template,
-                    video_url
-                ]
-
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-
-                # Look for subtitle files
-                subtitle_files = [f for f in os.listdir(tmpdir) if f.endswith('.json3')]
-
-                if not subtitle_files:
-                    # Try vtt format as fallback
-                    cmd[7] = "vtt"  # Change sub-format
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                    subtitle_files = [f for f in os.listdir(tmpdir) if f.endswith('.vtt')]
-
-                if not subtitle_files:
-                    print(f"yt-dlp found no subtitles for {video_id}")
-                    return None
-
-                # Read the first available subtitle file
-                subtitle_path = os.path.join(tmpdir, subtitle_files[0])
-
-                if subtitle_path.endswith('.json3'):
-                    with open(subtitle_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        # Parse JSON3 format
-                        segments = []
-                        for event in data.get('events', []):
-                            if 'segs' in event:
-                                text = ''.join(seg.get('utf8', '') for seg in event['segs'])
-                                if text.strip():
-                                    segments.append({
-                                        'text': text.strip(),
-                                        'start': event.get('tStartMs', 0) / 1000,
-                                        'duration': event.get('dDurationMs', 0) / 1000
-                                    })
-                        return segments if segments else None
-                else:
-                    # Parse VTT format
-                    with open(subtitle_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                        # Simple VTT parsing
-                        segments = []
-                        lines = content.split('\n')
-                        current_text = []
-                        current_start = 0
-
-                        for line in lines:
-                            if '-->' in line:
-                                # Timestamp line
-                                parts = line.split('-->')
-                                time_str = parts[0].strip()
-                                # Parse time (simplified)
-                                try:
-                                    time_parts = time_str.replace(',', '.').split(':')
-                                    if len(time_parts) == 3:
-                                        h, m, s = time_parts
-                                        current_start = int(h) * 3600 + int(m) * 60 + float(s)
-                                    elif len(time_parts) == 2:
-                                        m, s = time_parts
-                                        current_start = int(m) * 60 + float(s)
-                                except:
-                                    pass
-                            elif line.strip() and not line.startswith('WEBVTT') and not line.strip().isdigit():
-                                # Subtitle text
-                                current_text.append(line.strip())
-                            elif not line.strip() and current_text:
-                                # End of segment
-                                segments.append({
-                                    'text': ' '.join(current_text),
-                                    'start': current_start,
-                                    'duration': 3  # Default duration
-                                })
-                                current_text = []
-
-                        return segments if segments else None
-
-        except subprocess.TimeoutExpired:
-            print(f"yt-dlp timeout for {video_id}")
-            return None
-        except Exception as e:
-            print(f"yt-dlp error for {video_id}: {e}")
-            return None
-
-    def get_transcript(self, video_id: str) -> Optional[Dict]:
-        """Get transcript for a single video using multiple methods"""
-        transcript_list = None
-        method_used = None
-
-        # Method 1: Try to get English transcript directly
-        try:
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
-            method_used = 'youtube_transcript_api-english'
-        except Exception as e1:
-            print(f"Method 1 (English) failed for {video_id}: {e1}")
-
-            # Method 2: Try auto-generated English
+            api = YouTubeTranscriptApi()
             try:
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en-US', 'en-GB'])
-                method_used = 'youtube_transcript_api-english-variant'
-            except Exception as e2:
-                print(f"Method 2 (English variants) failed for {video_id}: {e2}")
+                fetched = api.fetch(video_id, languages=['en', 'en-US', 'en-GB'])
+            except errors.NoTranscriptFound:
+                # No English track. Take what there is rather than nothing.
+                tracks = list(api.list(video_id))
+                if not tracks:
+                    raise
+                fetched = tracks[0].fetch()
+            items = fetched.to_raw_data()
+        except (errors.TranscriptsDisabled, errors.NoTranscriptFound) as exc:
+            raise TranscriptUnavailable(type(exc).__name__) from exc
+        except (errors.RequestBlocked, errors.IpBlocked) as exc:
+            raise TranscriptBlocked(type(exc).__name__) from exc
+        except Exception as exc:
+            # IpBlocked, RequestBlocked, PoTokenRequired, a timeout, and an API
+            # that changed underneath us (which is how this path once failed on
+            # every video without anyone noticing) are all the same thing here:
+            # not a fact about the video.
+            raise TranscriptFetchFailed(f"{type(exc).__name__}: {str(exc)[:160]}") from exc
 
-                # Method 3: List all available transcripts and pick the best one
-                try:
-                    transcript_list_obj = YouTubeTranscriptApi.list_transcripts(video_id)
+        if not items:
+            raise TranscriptUnavailable("the caption track is empty")
+        kind = 'auto' if fetched.is_generated else 'manual'
+        return items, f'youtube_transcript_api-{fetched.language_code}-{kind}'
 
-                    # Try to get any generated or manual transcript
-                    for transcript in transcript_list_obj:
-                        try:
-                            transcript_list = transcript.fetch()
-                            method_used = f'youtube_transcript_api-{transcript.language_code}-{"manual" if not transcript.is_generated else "auto"}'
+    def _captions_via_ytdlp(self, video_id: str) -> Tuple[List[Dict], str]:
+        """Captions through yt-dlp, which keeps up with YouTube when the API lags."""
+        from yt_dlp import YoutubeDL
+
+        options = {'skip_download': True, 'quiet': True, 'no_warnings': True}
+        try:
+            with YoutubeDL(options) as ydl:
+                info = ydl.extract_info(f'https://www.youtube.com/watch?v={video_id}',
+                                        download=False) or {}
+                # A person's captions beat the machine's, and the language that
+                # was spoken beats a translation of it.
+                manual, auto = info.get('subtitles') or {}, info.get('automatic_captions') or {}
+                formats, method = None, ''
+                for tracks, kind in ((manual, 'manual'), (auto, 'auto')):
+                    for language in ('en-orig', 'en', 'en-US', 'en-GB'):
+                        if tracks.get(language):
+                            formats, method = tracks[language], f'yt-dlp-{language}-{kind}'
                             break
-                        except Exception:
-                            continue
+                    if formats:
+                        break
+                if not formats:
+                    raise TranscriptUnavailable('no English caption track')
+                json3 = next((f for f in formats if f.get('ext') == 'json3'), None)
+                if not json3:
+                    raise TranscriptFetchFailed('captions exist, but not in a format this reads')
+                data = json.loads(ydl.urlopen(json3['url']).read().decode('utf-8'))
+        except (TranscriptUnavailable, TranscriptFetchFailed):
+            raise
+        except Exception as exc:
+            kind = TranscriptBlocked if _is_a_block(exc) else TranscriptFetchFailed
+            raise kind(f"{type(exc).__name__}: {str(exc)[:160]}") from exc
 
-                    # If still no transcript, try translation to English
-                    if not transcript_list:
-                        for transcript in transcript_list_obj:
-                            try:
-                                translated = transcript.translate('en')
-                                transcript_list = translated.fetch()
-                                method_used = f'youtube_transcript_api-{transcript.language_code}-translated'
-                                break
-                            except Exception:
-                                continue
-                except Exception as e3:
-                    print(f"Method 3 (list/translate) failed for {video_id}: {e3}")
+        items = self._items_from_json3(data)
+        if not items:
+            raise TranscriptUnavailable('the caption track is empty')
+        return items, method
 
-        # Method 4: Use yt-dlp as final fallback
-        if not transcript_list:
-            print(f"Trying yt-dlp fallback for {video_id}...")
-            ytdlp_result = self.get_transcript_via_ytdlp(video_id)
-            if ytdlp_result:
-                transcript_list = ytdlp_result
-                method_used = 'yt-dlp'
-                print(f"yt-dlp succeeded for {video_id}")
+    def fetch_captions(self, video_id: str) -> Tuple[List[Dict], str]:
+        """One video's captions, as the few-second items YouTube stores.
 
-        if not transcript_list:
-            print(f"No transcript available for {video_id} after trying all methods (including yt-dlp)")
+        Returns ``(items, method)``. Raises TranscriptUnavailable only when two
+        independent readers both reached the video and both found no captions.
+        Anything short of that is TranscriptFetchFailed, because "this meeting
+        has no transcript" is a claim about the public record and one reader
+        having a bad day is not evidence for it. yt-dlp in particular will
+        report no caption tracks for a video that has them when YouTube decides
+        to withhold them from it.
+        """
+        api_found_none = False
+        self.last_block = ""
+        try:
+            return self._captions_via_api(video_id)
+        except TranscriptUnavailable:
+            api_found_none = True
+        except TranscriptFetchFailed as exc:
+            if isinstance(exc, TranscriptBlocked):
+                self.last_block = f"youtube-transcript-api: {exc}"
+            print(f"youtube-transcript-api could not read {video_id} "
+                  f"({str(exc).splitlines()[0][:80]}); trying yt-dlp")
+
+        try:
+            return self._captions_via_ytdlp(video_id)
+        except TranscriptBlocked as exc:
+            self.last_block = f"yt-dlp: {exc}"
+            raise
+        except TranscriptUnavailable as exc:
+            if api_found_none:
+                raise
+            raise TranscriptFetchFailed(
+                f"yt-dlp saw no captions ({exc}), but the first reader never reached the "
+                f"video, and one opinion is not enough to call it a gap") from exc
+
+    def get_transcript(self, video_id: str, strict: bool = False) -> Optional[Dict]:
+        """Get transcript for a single video.
+
+        Returns None when there is nothing to return, which is what the
+        playlist and single-video paths have always expected. ``strict`` raises
+        TranscriptUnavailable or TranscriptFetchFailed instead, for callers that
+        keep a record of what is missing and must not confuse the two.
+        """
+        try:
+            transcript_list, method_used = self.fetch_captions(video_id)
+        except (TranscriptUnavailable, TranscriptFetchFailed) as exc:
+            if strict:
+                raise
+            print(f"No transcript for {video_id}: {type(exc).__name__}: {exc}")
             return None
 
         print(f"Got transcript for {video_id} using method: {method_used}")
@@ -345,6 +361,11 @@ class YouTubeCollector:
                 'video_id': video_id,
                 'full_transcript': full_text,
                 'segments': segments,
+                # The captions as YouTube stores them, a few seconds each. The
+                # two minute segments above are fine for reading and too coarse
+                # for citing: a link that opens "where it was said" should not
+                # open two minutes before it.
+                'captions': transcript_list,
                 'duration': transcript_list[-1]['start'] if transcript_list else 0,
                 'method': method_used
             }
@@ -403,13 +424,13 @@ class YouTubeCollector:
 
         return results
     
-    def collect_video(self, video_url: str) -> Optional[Dict]:
-        """Collect transcript from a single video"""
+    def collect_video(self, video_url: str, strict: bool = False) -> Optional[Dict]:
+        """Collect transcript from a single video. See get_transcript for ``strict``."""
         video_id = self.extract_video_id(video_url)
         if not video_id:
             raise ValueError("Invalid video URL")
-        
-        transcript = self.get_transcript(video_id)
+
+        transcript = self.get_transcript(video_id, strict=strict)
         if transcript:
             return {
                 'video_id': video_id,

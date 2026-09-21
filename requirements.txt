@@ -20,7 +20,11 @@ numpy>=1.24
 # sqlite-vec>=0.1.0
 
 # Data Collection
-youtube-transcript-api>=0.6.2
+# 1.0 replaced the static get_transcript() with an instance fetch(), and 1.2
+# removed the old one. The collector speaks the new API. While this said
+# >=0.6.2 and the code spoke the old one, every call failed, was caught, and
+# fell through to yt-dlp, so nothing looked wrong.
+youtube-transcript-api>=1.0.0
 google-api-python-client>=2.116.0
 beautifulsoup4>=4.12.3
 requests>=2.31.0
