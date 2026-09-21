@@ -47,6 +47,14 @@ def _stub_ml() -> None:
         sys.modules["sentence_transformers"] = st
 
 
+def _closed_local_port() -> int:
+    """A loopback port with nothing listening on it."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
 CORPUS = [
     {
         "text": "Article 8.4 of the zoning bylaw permits accessory dwelling units by "
@@ -90,6 +98,9 @@ def main() -> int:
         project_name="Brookline AI",
         ai_provider=AIProvider.LMSTUDIO,
         model_name="gemma-4-26b-a4b",
+        # Not the default port. On the machine that actually serves the town,
+        # LM Studio is up on 1234, and the health check below would reach it.
+        lmstudio_base_url=f"http://127.0.0.1:{_closed_local_port()}/v1",
     )
     store = FakeVectorStore(CORPUS, collection_name="e2e-town")
     agent = CivicAgent(project, vector_store=store)
