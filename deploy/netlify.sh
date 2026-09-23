@@ -75,6 +75,14 @@ done
 say() { printf '%s\n' "$*"; }
 die() { printf '\n%s\n' "$*" >&2; exit 1; }
 
+# Run from a terminal, the CLI decorates what it prints: colors, a spinner's
+# cursor-control bytes, carriage returns. Run from a cloud session it does
+# not, which is where this script was written. Everything it parses goes
+# through here first.
+plain() {
+  tr -d '\r' | perl -pe 's/\e\[[0-9;?]*[ -\/]*[@-~]//g; s/[\x00-\x08\x0b\x0c\x0e-\x1f]//g'
+}
+
 # --- the tools ------------------------------------------------------------
 
 command -v node >/dev/null 2>&1 || die \
@@ -101,11 +109,11 @@ fi
 cd "$FRONTEND"
 
 say "Checking who you are signed in as."
-STATUS="$(netlify status 2>/dev/null || true)"
-ACCOUNT="$(printf '%s\n' "$STATUS" | sed -n 's/.*Email: *//p' | head -1)"
+STATUS="$(netlify status 2>/dev/null | plain || true)"
+ACCOUNT="$(printf '%s\n' "$STATUS" | sed -n 's/.*Email: *//p' | sed 's/[[:space:]]*$//' | head -1)"
 # "Current site" in older CLIs, "Current project" since Netlify renamed them.
-SITE="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*Current (site|project): *//p' | head -1)"
-SITE_ID="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*(Site|Project) Id: *//p' | head -1)"
+SITE="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*Current (site|project): *//p' | sed 's/[[:space:]]*$//' | head -1)"
+SITE_ID="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*(Site|Project) Id: *//p' | sed 's/[[:space:]]*$//' | head -1)"
 
 [[ -n "$ACCOUNT" ]] || die \
 "Not signed in to Netlify, or the CLI could not say who you are.
@@ -115,14 +123,22 @@ SITE_ID="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*(Site|Project) Id: *//p' | h
 "frontend/ is not linked to a Netlify site.
   cd frontend && netlify link"
 
-TEAM="$(netlify api getSite --data "{\"site_id\":\"$SITE_ID\"}" 2>/dev/null | node -e '
+# With a terminal on stdin the CLI writes its spinner to stdout before the
+# JSON, so the JSON is taken from its first brace rather than from byte one.
+SITE_JSON="$(netlify api getSite --data "{\"site_id\":\"$SITE_ID\"}" 2>/dev/null | plain || true)"
+TEAM="$(printf '%s' "$SITE_JSON" | node -e '
   let s = "";
   process.stdin.on("data", d => s += d).on("end", () => {
-    try { const j = JSON.parse(s); if (j.account_name || j.account_slug) console.log(`${j.account_name} (${j.account_slug})`); }
+    const start = s.indexOf("{");
+    if (start < 0) return;
+    try { const j = JSON.parse(s.slice(start)); if (j.account_name || j.account_slug) console.log(`${j.account_name} (${j.account_slug})`); }
     catch (e) {}
   });' || true)"
 
-[[ -n "$TEAM" ]] || die "Could not read which team owns $SITE. Nothing was published."
+[[ -n "$TEAM" ]] || die \
+"Could not read which team owns $SITE (id: ${SITE_ID:-unknown}). Nothing was published.
+The CLI answered:
+$(printf '%s\n' "$SITE_JSON" | head -5)"
 
 if printf '%s' "$TEAM" | grep -qi "hope"; then
   die \
@@ -181,7 +197,7 @@ fi
 
 # A build Netlify runs itself, from a push to the production branch, uses the
 # site's own setting rather than this script's. Say so if the two disagree.
-DASHBOARD_API="$(netlify env:get REACT_APP_API_URL --context production 2>/dev/null | tail -1 || true)"
+DASHBOARD_API="$(netlify env:get REACT_APP_API_URL --context production 2>/dev/null | plain | tail -1 || true)"
 if [[ "$DASHBOARD_API" != "$BUILD_API" ]]; then
   say
   say "NOTE: the site's own REACT_APP_API_URL is '${DASHBOARD_API:-unset}', and this build uses"
