@@ -19,7 +19,7 @@ frontend/src/components/consoleDemoScript.js  what the simulation shows (content
 
 | # | Anchor | Section | Audience | Source of the copy |
 | --- | --- | --- | --- | --- |
-| 1 | `#top` | **Hero.** "AI as civic infrastructure." Public access TV made government watchable; this makes it askable. Two CTAs (the demo, the basics) and a three-part reading guide. | everyone | Civic AI Engine brief, p. 1 |
+| 1 | `#top` | **Hero.** "AI as civic infrastructure." Public access TV made government watchable; this makes it askable. Headline, one subhead, one paragraph and two actions on the left; a cited answer drawn in the console's style on the right. A one-line reading-order strip follows. | everyone | Civic AI Engine brief, p. 1 |
 | 2 | `#what` | **What makes it different.** Two things at once: a real alternative to Big AI and a deeply local one. Four accent cards: a fraction of a data center, residents write the rules, it never leaves the community, anyone can build on it. | everyone | brief, p. 1 |
 | 3 | | **How it gets used.** Four illustrative uses: speaking at a hearing, a question answered in Spanish, apps on the API, a vibe-coded app. | everyone | brief, p. 1 |
 | 4 | `#demo` | **Watch a community AI get built.** The console simulation (below). Three notes under it: an afternoon on a real node, nothing calls a server, the data is sample data. | everyone | |

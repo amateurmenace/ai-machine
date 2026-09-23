@@ -4,7 +4,6 @@ import api, { apiAvailable } from '../api';
 import {
   CpuChipIcon,
   ArrowRightIcon,
-  ArrowDownIcon,
   PlayCircleIcon,
   BoltIcon,
   ScaleIcon,
@@ -68,6 +67,69 @@ function NodeBox({ tone, icon: Icon, title, text, chips, muted }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// The hero's visual: one question and one cited answer, the artifact the
+// whole system exists to produce, drawn the way the console draws it.
+function HeroAnswer() {
+  return (
+    <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+      <div className="bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-950/60 border-b border-gray-800">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+          <span className="font-mono text-[11px] text-gray-500 ml-2">civic-ai-engine &mdash; chat</span>
+          <span className="ml-auto font-mono text-[10px] text-green-400 inline-flex items-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse" />
+            answered on the node
+          </span>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="flex justify-end">
+            <p className="max-w-[88%] rounded-lg px-3.5 py-2.5 bg-green-500/15 border border-green-500/30 text-green-100 text-sm leading-relaxed">
+              How do I speak at the next hearing on the Elm Street redesign?
+            </p>
+          </div>
+          <div className="rounded-lg px-3.5 py-3 bg-gray-800 border border-gray-700">
+            <p className="text-sm text-gray-200 leading-relaxed">
+              The next hearing is Tuesday, October 6 at 7:00 pm in the Town Hall auditorium{' '}
+              <span className="text-cyan-400">[1]</span>. Sign up with the clerk before it starts;
+              each speaker gets three minutes <span className="text-cyan-400">[2]</span>. At the
+              last hearing the board asked for a revised plan and did not vote, so the design is
+              still open <span className="text-cyan-400">[3]</span>.
+            </p>
+            <div className="mt-3 pt-3 border-t border-gray-700 font-mono text-[11px] space-y-1.5">
+              <p className="text-cyan-400 flex items-start">
+                <DocumentTextIcon className="h-3.5 w-3.5 mr-1.5 mt-px flex-shrink-0" />
+                <span>[1] Select Board &bull; agenda, October 6, 2026 &bull; p. 1</span>
+              </p>
+              <p className="text-cyan-400 flex items-start">
+                <DocumentTextIcon className="h-3.5 w-3.5 mr-1.5 mt-px flex-shrink-0" />
+                <span>[2] Select Board rules of procedure &bull; p. 4</span>
+              </p>
+              <p className="text-cyan-400 flex items-start">
+                <VideoCameraIcon className="h-3.5 w-3.5 mr-1.5 mt-px flex-shrink-0" />
+                <span>[3] Select Board &bull; September 8, 2026 &bull; 1:42:15</span>
+              </p>
+              <p className="text-green-400 ml-5 flex items-center">
+                <PlayCircleIcon className="h-3.5 w-3.5 mr-1" />
+                plays the recording at 1:42:15
+              </p>
+            </div>
+          </div>
+          <p className="font-mono text-[10px] text-gray-500 flex flex-wrap justify-between gap-x-3 gap-y-1 px-0.5">
+            <span>gemma-4-26b-a4b &middot; local</span>
+            <span>constitution v1.0</span>
+            <span>3 sources &middot; 138 ms</span>
+          </p>
+        </div>
+      </div>
+      <p className="font-mono text-xs text-gray-500 mt-3 text-center lg:text-right">
+        Not a chatbot with your logo on it.
+      </p>
     </div>
   );
 }
@@ -181,17 +243,17 @@ function LandingPage() {
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Animated background: blueprint grid and civic sketches */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-400/30 to-purple-400/30 rounded-full blur-3xl animate-blob"></div>
-        <div className="absolute top-40 right-20 w-80 h-80 bg-gradient-to-br from-orange-400/35 to-pink-400/30 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-400/30 to-teal-400/25 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
-        <div className="absolute bottom-40 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-400/30 to-orange-400/25 rounded-full blur-3xl animate-blob animation-delay-6000"></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-br from-rose-400/25 to-purple-400/25 rounded-full blur-3xl animate-blob animation-delay-3000"></div>
+        <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-blob"></div>
+        <div className="absolute top-40 right-20 w-80 h-80 bg-gradient-to-br from-orange-400/25 to-pink-400/20 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-400/20 to-teal-400/15 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
+        <div className="absolute bottom-40 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-400/20 to-orange-400/15 rounded-full blur-3xl animate-blob animation-delay-6000"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-gradient-to-br from-rose-400/15 to-purple-400/15 rounded-full blur-3xl animate-blob animation-delay-3000"></div>
 
-        <div className="absolute inset-0 opacity-[0.08]">
+        <div className="absolute inset-0 opacity-[0.06]">
           <div className="blueprint-grid"></div>
         </div>
 
-        <svg className="absolute inset-0 w-full h-full opacity-[0.12]" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute inset-0 w-full h-full opacity-[0.08]" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <pattern id="civic-pattern" x="0" y="0" width="400" height="400" patternUnits="userSpaceOnUse">
               <line x1="0" y1="100" x2="400" y2="100" stroke="#1e40af" strokeWidth="1.5" strokeDasharray="8 4" />
@@ -262,107 +324,109 @@ function LandingPage() {
       </nav>
 
       {/* ================= HERO ================= */}
-      <section id="top" className="relative z-10 pt-16 md:pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto text-center">
-          <div className="inline-flex items-center px-4 py-1.5 mb-8 rounded-full bg-gray-900 text-green-400 font-mono text-xs">
-            <ServerIcon className="h-3.5 w-3.5 mr-2" />
-            open source &middot; runs on hardware your community owns
-          </div>
-
-          <h1 className="text-5xl md:text-7xl font-black mb-8 text-gray-900 tracking-tight leading-[1.02]">
-            AI as{' '}
-            <span className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
-              civic infrastructure.
-            </span>
-          </h1>
-
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 max-w-3xl mx-auto leading-snug">
-            Public access television made local government watchable.
-          </p>
-          <p className="text-2xl md:text-3xl font-bold text-rose-600 mb-7 max-w-3xl mx-auto leading-snug">
-            The Civic AI Engine makes it askable.
-          </p>
-
-          <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-            One small computer at a community media center holds your town's meetings,
-            documents and decisions. Ask it a question in plain language, in any language,
-            and it answers from the record, citing the exact moment in the recording. It
-            follows rules residents wrote, and nothing anyone asks ever leaves town.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-            <a
-              href="#demo"
-              className="px-8 py-4 bg-gray-900 text-green-400 rounded-xl font-mono font-semibold hover:bg-gray-800 transition-all inline-flex items-center justify-center group"
-            >
-              <PlayCircleIcon className="h-5 w-5 mr-2" />
-              watch one get built
-              <ArrowDownIcon className="h-4 w-4 ml-2 group-hover:translate-y-0.5 transition-transform" />
-            </a>
-            <a
-              href="#what"
-              className="px-8 py-4 bg-white border-2 border-gray-900 text-gray-900 rounded-xl font-mono font-semibold hover:bg-gray-50 transition-all inline-flex items-center justify-center"
-            >
-              start with the basics
-            </a>
-          </div>
-          <p className="font-mono text-sm text-gray-500 mb-14">Not a chatbot with your logo on it.</p>
-
-          {/* reading guide */}
-          <div className="max-w-4xl mx-auto">
-            <p className="font-mono text-xs text-gray-500 mb-3">this page reads top to bottom, plain words first</p>
-            <div className="grid sm:grid-cols-3 gap-3 text-left">
-              {[
-                ['#what', '1', 'What it is', 'for everyone · three minutes', 'border-orange-300 hover:border-orange-500', 'text-orange-600'],
-                ['#vision', '2', 'Why a public utility', 'for stations, towns and funders', 'border-rose-300 hover:border-rose-500', 'text-rose-600'],
-                ['#build', '3', 'How it is built', 'for the technical reader', 'border-cyan-300 hover:border-cyan-500', 'text-cyan-700'],
-              ].map(([href, n, t, d, border, color]) => (
-                <a key={href} href={href} className={`p-4 bg-white/80 backdrop-blur rounded-xl border-2 transition-colors ${border}`}>
-                  <p className={`font-mono text-xs mb-1 ${color}`}>{n} &rarr;</p>
-                  <p className="font-semibold text-gray-900">{t}</p>
-                  <p className="font-mono text-xs text-gray-500">{d}</p>
-                </a>
-              ))}
+      <section id="top" className="relative z-10 pt-14 md:pt-20 pb-14 md:pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-[7fr_5fr] gap-12 lg:gap-16 items-center">
+          <div className="max-w-2xl">
+            <p className="font-mono text-xs text-gray-500 mb-6 flex items-center">
+              <span className="h-2 w-2 rounded-full bg-green-500 mr-2.5 animate-pulse" />
+              open source &middot; community-owned &middot; one machine in the station
+            </p>
+            <h1 className="text-5xl md:text-6xl xl:text-7xl font-black text-gray-900 tracking-tight leading-[1.02] mb-6">
+              AI as{' '}
+              <span className="bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
+                civic infrastructure.
+              </span>
+            </h1>
+            <p className="text-xl md:text-2xl font-semibold text-gray-800 leading-snug mb-5">
+              Public access television made local government watchable.{' '}
+              <span className="text-rose-600">The Civic AI Engine makes it askable.</span>
+            </p>
+            <p className="text-base md:text-lg text-gray-600 leading-relaxed mb-8">
+              One small computer at a community media center holds your town's meetings,
+              documents and decisions. Ask it anything, in any language, and it answers from
+              the record, citing the exact moment in the recording, under rules residents wrote.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+              <a
+                href="#demo"
+                className="px-6 py-3.5 bg-gray-900 text-green-400 rounded-xl font-mono font-semibold hover:bg-gray-800 transition-colors inline-flex items-center justify-center"
+              >
+                <PlayCircleIcon className="h-5 w-5 mr-2" />
+                watch one get built
+              </a>
+              <a href="#what" className="font-mono text-sm text-gray-700 hover:text-gray-900 inline-flex items-center justify-center group">
+                start with the basics
+                <ArrowRightIcon className="h-4 w-4 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
+              </a>
             </div>
           </div>
+
+          <HeroAnswer />
         </div>
       </section>
 
+      {/* ================= READING ORDER ================= */}
+      <div className="relative z-10 border-y border-gray-200 bg-white/70 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center gap-x-8 gap-y-2 font-mono text-xs">
+          <span className="text-gray-500">top to bottom, plain words first</span>
+          {[
+            ['#what', '01', 'What it is', 'for everyone'],
+            ['#vision', '02', 'Why a public utility', 'stations & towns'],
+            ['#build', '03', 'How it is built', 'engineers'],
+          ].map(([href, n, t, d]) => (
+            <a key={href} href={href} className="inline-flex items-baseline gap-2 text-gray-800 hover:text-gray-900 group">
+              <span className="text-orange-600">{n}</span>
+              <span className="font-semibold group-hover:underline underline-offset-4">{t}</span>
+              <span className="text-gray-400 hidden xl:inline">{d}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* ================= WHAT IT IS ================= */}
-      <section id="what" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-white/70 backdrop-blur-sm border-y border-gray-100">
-        <div className="max-w-6xl mx-auto">
-          <Label>What makes it different</Label>
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 max-w-4xl leading-tight">
-            Two things at once: a real alternative to Big AI, and a deeply local one.
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
-            <p className="text-lg text-gray-600 leading-relaxed">
+      <section id="what" className="relative z-10 py-20 px-4 sm:px-6 lg:px-8 bg-white/70 backdrop-blur-sm border-b border-gray-100">
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-[5fr_7fr] gap-10 lg:gap-14 items-start">
+          <div>
+            <Label>What makes it different</Label>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-5 leading-tight">
+              Two things at once: a real alternative to Big AI, and a deeply local one.
+            </h2>
+            <p className="text-gray-600 leading-relaxed mb-4">
               It is built on the latest open models, so it can help with ordinary tasks the
               way any assistant can: writing, translating, explaining a form. And it holds the
               meetings, documents and decisions of one town that no big model is indexing.
               Ask what the Select Board decided and it answers, citing the exact moment in
               the recording.
             </p>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              It is a working system, not a proposal. It runs today at a public access
-              station in Brookline, Massachusetts, on one energy-efficient machine powered
-              mostly by low-carbon sources, including rooftop solar. Residents write its
-              guardrails at public conventions, a resident council holds the off switch, and
-              local organizations can build their own apps on its free API.
+            <p className="text-gray-600 leading-relaxed mb-6">
+              Residents write its guardrails at public conventions, a resident council holds
+              the off switch, and local organizations build their own apps on its free API.
             </p>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-start gap-3">
+              <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+              <p className="text-sm text-gray-600 leading-relaxed">
+                <span className="font-semibold text-gray-900">Running today.</span> A working
+                system, not a proposal: one energy-efficient machine at a public access station
+                in Brookline, Massachusetts, powered mostly by low-carbon sources, including
+                rooftop solar.
+              </p>
+            </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
             {[
-              { icon: BoltIcon, bg: 'bg-orange-500', t: 'A fraction of a data center.', d: 'One desktop drawing 100 to 300 watts, on solar where the building has it. About what a bright light bulb uses.' },
-              { icon: ScaleIcon, bg: 'bg-rose-500', t: 'Residents write the rules.', d: 'A community constitution, debated in public and enforced inside the model itself, on every single answer.' },
-              { icon: LockClosedIcon, bg: 'bg-emerald-600', t: 'It never leaves the community.', d: 'Open models on one desktop at the station. No cloud. Nothing residents ask, and nothing in the archive, is sent anywhere.' },
-              { icon: CodeBracketIcon, bg: 'bg-cyan-500', t: 'Anyone can build on it.', d: 'A free API for community apps, whether a developer wrote them or a resident described them to an AI coding assistant.' },
+              { icon: BoltIcon, bar: 'bg-orange-500', chip: 'bg-orange-50 text-orange-600', t: 'A fraction of a data center.', d: 'One desktop drawing 100 to 300 watts, on solar where the building has it. About what a bright light bulb uses.' },
+              { icon: ScaleIcon, bar: 'bg-rose-500', chip: 'bg-rose-50 text-rose-600', t: 'Residents write the rules.', d: 'A community constitution, debated in public and enforced inside the model itself, on every single answer.' },
+              { icon: LockClosedIcon, bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-600', t: 'It never leaves the community.', d: 'Open models on one desktop at the station. No cloud. Nothing residents ask, and nothing in the archive, is sent anywhere.' },
+              { icon: CodeBracketIcon, bar: 'bg-cyan-500', chip: 'bg-cyan-50 text-cyan-700', t: 'Anyone can build on it.', d: 'A free API for community apps, whether a developer wrote them or a resident described them to an AI coding assistant.' },
             ].map((c) => (
-              <div key={c.t} className={`${c.bg} rounded-2xl p-6 text-white shadow-lg`}>
-                <c.icon className="h-7 w-7 mb-4" />
-                <h3 className="text-lg font-bold mb-2 leading-snug">{c.t}</h3>
-                <p className="text-sm text-white/85 leading-relaxed">{c.d}</p>
+              <div key={c.t} className="rounded-2xl border border-gray-200 bg-white p-6 hover:border-gray-300 transition-colors">
+                <div className={`h-1 w-10 rounded mb-4 ${c.bar}`} />
+                <div className={`inline-flex h-10 w-10 items-center justify-center rounded-lg mb-4 ${c.chip}`}>
+                  <c.icon className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug">{c.t}</h3>
+                <p className="text-sm text-gray-600 leading-relaxed">{c.d}</p>
               </div>
             ))}
           </div>
