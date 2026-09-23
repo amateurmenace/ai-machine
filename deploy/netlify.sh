@@ -278,7 +278,7 @@ say
 if [[ -n "$NO_API" ]]; then
   say "Published. Worth checking now:"
   say "  1. The landing page loads, and /console says the assistant is not open to the public."
-  LOCAL_PORT="$(sed -n 's/^PORT=//p' "$ROOT/.env" 2>/dev/null | tail -1)"
+  LOCAL_PORT="$(sed -n 's/^PORT=//p' "$ROOT/.env" 2>/dev/null | tail -1 || true)"
   say "  2. On the machine that runs the API, the same build is the console:"
   say "     http://127.0.0.1:${LOCAL_PORT:-8000} once the API is running."
 else
