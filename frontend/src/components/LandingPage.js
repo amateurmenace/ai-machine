@@ -1,27 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../api';
+import { useNavigate } from 'react-router-dom';
+import api, { apiAvailable } from '../api';
 import {
   SparklesIcon,
-  GlobeAltIcon,
   CodeBracketIcon,
-  HeartIcon,
   BoltIcon,
   CpuChipIcon,
-  UserGroupIcon,
-  CloudIcon,
   ArrowRightIcon,
   CheckCircleIcon,
   ServerIcon,
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
   XMarkIcon,
-  ExclamationCircleIcon,
   VideoCameraIcon,
   DocumentTextIcon,
-  ChatBubbleLeftIcon,
-  GlobeAmericasIcon,
-  WrenchScrewdriverIcon,
   LockClosedIcon,
   CubeIcon,
   ShieldCheckIcon
@@ -41,13 +33,18 @@ function LandingPage() {
   // Load projects and check their health
   useEffect(() => {
     const loadProjects = async () => {
+      // The public site has no API to ask (src/api.js), so it does not ask.
+      if (!apiAvailable) return;
       try {
         const response = await api.get('/api/projects');
-        setProjects(response.data);
+        // The API answers {projects: [...]}. Reading the object as the list
+        // meant the showcase never showed a project, and the loop below threw.
+        const list = response.data.projects || [];
+        setProjects(list);
 
         // Check health for each project
         const healthStatuses = {};
-        for (const project of response.data) {
+        for (const project of list) {
           try {
             const healthRes = await api.get(`/api/projects/${project.project_id}/health`);
             healthStatuses[project.project_id] = healthRes.data;
@@ -123,27 +120,6 @@ function LandingPage() {
       sendChatMessage();
     }
   };
-
-  const codeSnippet = `// Your community's AI assistant
-const brooklineAI = {
-  location: "Brookline, MA",
-  model: "llama3.1:8b",  // 8GB, runs locally
-  energy: "2W",          // Like a phone charger
-  cost: "$0/month",      // Free forever
-  privacy: "100%",       // Your server, your data
-  
-  sources: [
-    "town-meetings.youtube",
-    "brookline.news",
-    "community-forums"
-  ]
-};
-
-// Ask questions about your town
-brooklineAI.ask("What are the rules for block parties?");
-// → Cites actual town ordinances
-// → Uses 0.002 kWh of energy
-// → Costs $0`;
 
   const handleNavigateToConsole = () => {
     navigate('/console');

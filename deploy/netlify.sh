@@ -2,19 +2,30 @@
 #
 # Publish the console to Netlify.
 #
-# This is the deployment the project actually has: a React frontend on Netlify
-# talking to an API on the machine that holds the archive and runs the model,
-# reached over a Cloudflare tunnel. deploy/cloudrun.sh moves the API into the
-# cloud instead, which is a different decision and not currently the
-# recommended one — ROADMAP.md section 2.2 says why.
+# This is the deployment the project actually has: a React frontend on Netlify,
+# and an API on the machine that holds the archive and runs the model.
+# deploy/cloudrun.sh moves the API into the cloud instead, which is a different
+# decision and not currently the recommended one — ROADMAP.md section 2.2 says
+# why.
 #
-# WHICH SITE AND WHICH ACCOUNT
+# TWO KINDS OF BUILD
 #
-# Same reasoning as the Cloud Run script: one CLI, one active login, and it is
-# easy to be signed into a work identity and a personal one. Publishing a
-# community's console over the wrong site is not a mistake to discover from a
-# resident. So this prints the account and the site and stops if either looks
-# wrong. Set EXPECTED_SITE to make the check strict.
+# --no-api is the public site as it stands: the API is not on the internet, so
+# the console is built knowing there is none (REACT_APP_API_URL=none). The
+# landing page, the guide and the rules work; the console says the assistant is
+# not open to the public. The same build, served by the API on its own machine,
+# is the operator's console.
+#
+# --api-url is for the day an API is reachable from the web. Its administrative
+# routes then answer the web only with the admin token (api/admin_guard.py).
+#
+# WHICH SITE, WHICH ACCOUNT, WHICH TEAM
+#
+# One CLI, one active login, and it is easy to be signed into a work identity
+# and a personal one. A Netlify site belongs to a team rather than a login, and
+# deployments go to the personal account, never the Hope Group. So this prints
+# the account, the site and the team that owns it, and refuses a Hope Group
+# site outright. Set EXPECTED_SITE to make the site check strict.
 #
 # WHAT IT REFUSES TO DO
 #
@@ -22,15 +33,19 @@
 # is the classic way to ship last week's console and spend an afternoon
 # wondering why a fix did not take.
 #
-# It will not publish a build with no API URL. A console built without
-# REACT_APP_API_URL points at nothing, loads perfectly, and fails on the first
-# question, which looks like a backend outage and is not one.
+# It will not publish a build whose API is unstated. A console built without
+# REACT_APP_API_URL, served from Netlify, asks Netlify for the API and gets the
+# landing page back, which looks like a backend outage and is not one.
+#
+# It will not let the Netlify CLI rebuild what it has just checked. The CLI
+# builds before deploying unless told not to, using the dashboard's settings
+# rather than these, and would publish its own build over this one.
 #
 # It publishes a draft by default. Production takes --prod, typed on purpose.
 #
-#   ./deploy/netlify.sh                          # draft, at a preview URL
-#   ./deploy/netlify.sh --prod                   # the real one
-#   EXPECTED_SITE=neighborhood-ai ./deploy/netlify.sh --prod
+#   ./deploy/netlify.sh --no-api                       # the public site, a draft
+#   ./deploy/netlify.sh --no-api --prod                # the real one
+#   ./deploy/netlify.sh --api-url https://api.example.org --prod
 
 set -euo pipefail
 
@@ -42,15 +57,17 @@ API_URL="${REACT_APP_API_URL:-}"
 ASSUME_YES="${ASSUME_YES:-}"
 PROD=""
 SKIP_BUILD=""
+NO_API=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --prod)        PROD="1"; shift ;;
+    --no-api)      NO_API="1"; shift ;;
     --site)        EXPECTED_SITE="${2:-}"; shift 2 ;;
     --api-url)     API_URL="${2:-}"; shift 2 ;;
     --skip-build)  SKIP_BUILD="1"; shift ;;
     --yes|-y)      ASSUME_YES="1"; shift ;;
-    -h|--help)     sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)     awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
     *)             echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -79,17 +96,44 @@ fi
 
 # --- who, and where -------------------------------------------------------
 
+# The link is kept in frontend/.netlify, so that is where the CLI can say which
+# site this is.
+cd "$FRONTEND"
+
 say "Checking who you are signed in as."
-ACCOUNT="$(netlify status 2>/dev/null | sed -n 's/.*Email: *//p' | head -1)"
-SITE="$(netlify status 2>/dev/null | sed -n 's/.*Current site: *//p' | head -1)"
+STATUS="$(netlify status 2>/dev/null || true)"
+ACCOUNT="$(printf '%s\n' "$STATUS" | sed -n 's/.*Email: *//p' | head -1)"
+# "Current site" in older CLIs, "Current project" since Netlify renamed them.
+SITE="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*Current (site|project): *//p' | head -1)"
+SITE_ID="$(printf '%s\n' "$STATUS" | sed -n -E 's/.*(Site|Project) Id: *//p' | head -1)"
 
 [[ -n "$ACCOUNT" ]] || die \
 "Not signed in to Netlify, or the CLI could not say who you are.
   netlify login"
 
-[[ -n "$SITE" ]] || die \
-"This directory is not linked to a Netlify site.
+[[ -n "$SITE" && -n "$SITE_ID" ]] || die \
+"frontend/ is not linked to a Netlify site.
   cd frontend && netlify link"
+
+TEAM="$(netlify api getSite --data "{\"site_id\":\"$SITE_ID\"}" 2>/dev/null | node -e '
+  let s = "";
+  process.stdin.on("data", d => s += d).on("end", () => {
+    try { const j = JSON.parse(s); if (j.account_name || j.account_slug) console.log(`${j.account_name} (${j.account_slug})`); }
+    catch (e) {}
+  });' || true)"
+
+[[ -n "$TEAM" ]] || die "Could not read which team owns $SITE. Nothing was published."
+
+if printf '%s' "$TEAM" | grep -qi "hope"; then
+  die \
+"Refusing to deploy.
+
+  site:  $SITE
+  team:  $TEAM
+
+Deployments go to the personal account, never the Hope Group. Link a site that
+belongs to the personal team:  cd frontend && netlify link"
+fi
 
 if [[ -n "$EXPECTED_SITE" && "$SITE" != *"$EXPECTED_SITE"* ]]; then
   die \
@@ -101,55 +145,72 @@ if [[ -n "$EXPECTED_SITE" && "$SITE" != *"$EXPECTED_SITE"* ]]; then
 Link the right site, or change EXPECTED_SITE if this one is correct."
 fi
 
-# --- the API url ----------------------------------------------------------
+# --- the API --------------------------------------------------------------
 
-if [[ -z "$API_URL" ]]; then
-  die \
-"No API URL. The console would build, load, and fail on the first question.
+if [[ -n "$NO_API" ]]; then
+  [[ -z "$API_URL" ]] || die \
+"--no-api, and an API URL ($API_URL). Those contradict each other; pick one."
+  BUILD_API="none"
+else
+  if [[ -z "$API_URL" ]]; then
+    die \
+"No API stated. A console built without one asks Netlify for the API and gets
+the landing page back, which looks like an outage.
 
-Pass the tunnel that fronts your API:
-  ./deploy/netlify.sh --api-url https://api.neighborhoodai.org --prod
+The API is not on the internet:        ./deploy/netlify.sh --no-api
+It is, behind a tunnel you control:    ./deploy/netlify.sh --api-url https://api.example.org"
+  fi
 
-or set it in the Netlify dashboard as REACT_APP_API_URL and export it here so
-this script can check that the two agree."
+  case "$API_URL" in
+    https://*) ;;
+    http://localhost*|http://127.0.0.1*)
+      die "REACT_APP_API_URL is $API_URL. A published console cannot reach your
+laptop, and a public page should not try. Use --no-api, or the tunnel hostname." ;;
+    *) die "REACT_APP_API_URL must be https. Got: $API_URL" ;;
+  esac
+  BUILD_API="$API_URL"
+
+  # The API's CORS whitelist is in app.py and is not wildcarded, which is
+  # correct. A console served from an origin the API does not know is a
+  # browser error nobody can read, so it is worth saying now rather than then.
+  say
+  say "The API must allow this console's origin in its CORS list (app.py)."
+  say "Current allowed origins:"
+  sed -n '/allow_origins=\[/,/\]/p' "$ROOT/app.py" | sed -n 's/^ *"\(http[^"]*\)".*/    \1/p'
 fi
 
-case "$API_URL" in
-  https://*) ;;
-  http://localhost*|http://127.0.0.1*)
-    die "REACT_APP_API_URL is $API_URL. A published console cannot reach your
-laptop. Use the tunnel hostname." ;;
-  *) die "REACT_APP_API_URL must be https. Got: $API_URL" ;;
-esac
-
-# The API's CORS whitelist is in app.py and is not wildcarded, which is
-# correct. A console served from an origin the API does not know is a browser
-# error nobody can read, so it is worth saying now rather than then.
-say
-say "The API must allow this console's origin in its CORS list (app.py)."
-say "Current allowed origins:"
-sed -n '/allow_origins=\[/,/\]/p' "$ROOT/app.py" | sed -n 's/^ *"\(http[^"]*\)".*/    \1/p'
+# A build Netlify runs itself, from a push to the production branch, uses the
+# site's own setting rather than this script's. Say so if the two disagree.
+DASHBOARD_API="$(netlify env:get REACT_APP_API_URL --context production 2>/dev/null | tail -1 || true)"
+if [[ "$DASHBOARD_API" != "$BUILD_API" ]]; then
+  say
+  say "NOTE: the site's own REACT_APP_API_URL is '${DASHBOARD_API:-unset}', and this build uses"
+  say "'$BUILD_API'. A build Netlify runs from git uses the site's. To make them agree:"
+  say "  cd frontend && netlify env:set REACT_APP_API_URL $BUILD_API"
+fi
 
 # --- build ----------------------------------------------------------------
 
 if [[ -z "$SKIP_BUILD" ]]; then
   say
-  say "Building the console against $API_URL"
-  cd "$FRONTEND"
+  if [[ -n "$NO_API" ]]; then
+    say "Building the public console, with no API behind it."
+  else
+    say "Building the console against $API_URL"
+  fi
   if [[ -f package-lock.json ]]; then npm ci --silent; else npm install --silent; fi
   rm -rf build
-  REACT_APP_API_URL="$API_URL" npm run build
-  cd "$ROOT"
+  REACT_APP_API_URL="$BUILD_API" npm run build
 else
   say "Skipping the build, as asked. Publishing whatever is in frontend/build."
 fi
 
-[[ -d "$FRONTEND/build" && -f "$FRONTEND/build/index.html" ]] || die \
+[[ -d build && -f build/index.html ]] || die \
 "There is no build to publish at frontend/build."
 
 # Catch the case the --skip-build flag exists for: a build made against a
 # different API than the one named here.
-if ! grep -rqF "$API_URL" "$FRONTEND/build" 2>/dev/null; then
+if [[ -z "$NO_API" ]] && ! grep -rqF "$API_URL" build 2>/dev/null; then
   say
   say "WARNING: the built files do not mention $API_URL."
   say "That usually means this build was made against a different API URL."
@@ -164,8 +225,13 @@ TARGET="a draft URL"
 say
 say "About to publish:"
 say "  account:  $ACCOUNT"
+say "  team:     $TEAM"
 say "  site:     $SITE"
-say "  api:      $API_URL"
+if [[ -n "$NO_API" ]]; then
+  say "  api:      none (the public site; the API is not on the internet)"
+else
+  say "  api:      $API_URL"
+fi
 say "  target:   $TARGET"
 say
 
@@ -184,15 +250,24 @@ fi
 
 # --- publish --------------------------------------------------------------
 
-cd "$FRONTEND"
+# --no-build, or the CLI builds again with the dashboard's settings and
+# publishes that instead of what was just checked.
 if [[ -n "$PROD" ]]; then
-  netlify deploy --dir=build --prod
+  netlify deploy --no-build --dir=build --prod
 else
-  netlify deploy --dir=build
+  netlify deploy --no-build --dir=build
 fi
 
 say
-say "Published. Two things worth checking now, in this order:"
-say "  1. Open the console and ask one question. A blank answer with a CORS"
-say "     error in the browser console means app.py does not allow this origin."
-say "  2. Check the tunnel is up: curl -sS $API_URL/api | head -5"
+if [[ -n "$NO_API" ]]; then
+  say "Published. Worth checking now:"
+  say "  1. The landing page loads, and /console says the assistant is not open to the public."
+  LOCAL_PORT="$(sed -n 's/^PORT=//p' "$ROOT/.env" 2>/dev/null | tail -1)"
+  say "  2. On the machine that runs the API, the same build is the console:"
+  say "     http://127.0.0.1:${LOCAL_PORT:-8000} once the API is running."
+else
+  say "Published. Two things worth checking now, in this order:"
+  say "  1. Open the console and ask one question. A blank answer with a CORS"
+  say "     error in the browser console means app.py does not allow this origin."
+  say "  2. Check the tunnel is up: curl -sS $API_URL/api | head -5"
+fi

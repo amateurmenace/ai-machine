@@ -127,12 +127,18 @@ subcommittees. That channel is the corpus.
 
 HOW IT IS DEPLOYED
 
-  residents → Netlify (static React console)
-            → Cloudflare tunnel
-            → this machine: FastAPI + archive.sqlite3 + LM Studio on the GPU
+  residents → civicaiengine.org, create.neighborhoodai.org,
+              neighborhood-ai.netlify.app (Netlify: the public site, built
+              with REACT_APP_API_URL=none, so it knows there is no API)
 
-Everything but the console runs here. The tunnel has to be up for the app to
-answer anything.
+  this machine → FastAPI on 127.0.0.1:8400 (.env) + archive.sqlite3
+                 + LM Studio on the GPU. No tunnel.
+
+The public site is the landing page, the guide and the rules; its console
+says the assistant is not open to the public. The same build, served by the
+API here, is the working console: http://127.0.0.1:8400. A tunnel would put
+residents' questions in front of the model; it is a decision for later, and
+the handoff section below says what it needs.
 
 DECISIONS ALREADY MADE — don't relitigate these unless something is actually
 wrong, in which case say so plainly:
@@ -158,7 +164,8 @@ wrong, in which case say so plainly:
 
 WHAT TO DO, in the order ROADMAP.md argues for
 
-1. Build the real archive — roughly 500 Brookline meetings. ARCHIVE_BUILD.md is
+1. Build the real archive — roughly 1,450 Brookline meetings, which YouTube
+   releases about sixty a night; the top of ARCHIVE_BUILD.md says why. It is
    the guide, scripts/backfill_archive.py is the tool. ALWAYS --dry-run first
    and show me the output: if a subcommittee's titles don't parse, that is much
    cheaper to fix before a six-hour run than after. Set YOUTUBE_API_KEY if I
@@ -173,22 +180,32 @@ WHAT TO DO, in the order ROADMAP.md argues for
    it. Until this exists every claim about local models being good enough here
    is a guess. This is the highest-value work left and it is mostly not coding.
 
-3. Republish the console: ./deploy/netlify.sh --api-url <tunnel-url>
-   Needs `npm install -g netlify-cli` and `netlify login` first — tell me if
-   they're missing rather than working around it. It publishes a draft unless
-   --prod is typed deliberately.
+3. Republish the console: ./deploy/netlify.sh --no-api (the public site, as
+   deployed on 2026-09-22), or --api-url <tunnel-url> the day there is a
+   tunnel. The CLI is installed and signed in here, and frontend/ is linked to
+   the neighborhood-ai site. It publishes a draft unless --prod is typed
+   deliberately. civicaiengine.org is on that site as an alias, waiting on DNS
+   at Squarespace: A @ 75.2.60.5, CNAME www neighborhood-ai.netlify.app.
 
 4. Nightly backup plus one restore drill:
      python3 -m stores.backup create --project <id> --keep 14
    Then actually restore a snapshot somewhere harmless and ask it a question.
 
-ONE LOOSE END I know about
+THE API IS NOT ON THE INTERNET, AND STAYS OFF IT UNTIL I SAY SO
 
-app.py's CORS whitelist allows localhost:3000, neighborhood-ai.netlify.app and
-neighborhood.weirdmachine.org — but NOT create.neighborhoodai.org or
-neighborhoodai.org. If the console is served from either of those, questions
-fail with a browser CORS error that looks exactly like a backend outage. Ask me
-which hostname actually serves the console before publishing, then add it.
+It binds to loopback (HOST in .env) and there is no tunnel. Two things were
+fixed before it could ever be exposed. app.py's CORS list now includes
+create.neighborhoodai.org, which serves the console alongside
+neighborhood-ai.netlify.app. And everything under /api that changes anything
+is refused from any other machine unless the request carries
+COMMUNITY_ADMIN_TOKEN (api/admin_guard.py); before that, one anonymous DELETE
+removed the archive. "Any other machine" includes another website open in
+this machine's browser, and a DNS-rebinding page: both are checked (Origin and
+Host). Residents' questions never need the token. The console enters it on its
+admin page and keeps it in that browser. Do not run a tunnel to this API
+without asking me. Before one exists, /api/chat and /api/.../second-opinion
+need the rate limits the gateway already has: the second spends the project's
+frontier-model credit on whoever asks.
 
 HOUSE RULES
 

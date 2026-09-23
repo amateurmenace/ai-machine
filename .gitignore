@@ -11,6 +11,7 @@ frontend/build/
 # Environment
 .env
 .env.local
+.env.*.local
 
 # IDE
 .vscode/
@@ -48,3 +49,6 @@ knowledge/sources.yaml
 
 # Evaluation run output
 evals/results/
+
+# Local Netlify folder
+.netlify

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import api from '../api';
+import api, { getAdminToken, setAdminToken } from '../api';
 import {
   ArrowLeftIcon,
   ServerIcon,
@@ -37,6 +37,11 @@ function AdminConsole() {
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  // The admin token: what the API asks of any browser that is not on the
+  // machine it runs on. Kept in this browser only.
+  const [adminToken, setAdminTokenState] = useState(getAdminToken());
+  const [tokenDraft, setTokenDraft] = useState('');
+  const [showToken, setShowToken] = useState(false);
 
   const loadData = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -383,6 +388,75 @@ function AdminConsole() {
             )}
             <span>{generatingKey ? 'generating...' : 'generate api key'}</span>
           </button>
+        )}
+      </div>
+
+      {/* Admin token */}
+      <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-6">
+        <div className="flex items-center space-x-2 mb-4">
+          <KeyIcon className="h-5 w-5 text-orange-400" />
+          <h2 className="text-lg font-bold text-white font-mono"># admin_token</h2>
+        </div>
+
+        <p className="text-sm text-gray-400 mb-4">
+          The API answers administrative requests from its own machine without asking.
+          From anywhere else, including this console when it is served from the web, it
+          refuses them unless they carry the admin token set on the server
+          as <code className="text-gray-300">COMMUNITY_ADMIN_TOKEN</code>. Residents'
+          questions never need it. The token is kept in this browser only.
+        </p>
+
+        {adminToken ? (
+          <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div>
+              <span className="text-gray-400 text-sm font-mono">token</span>
+              <code className="block text-sm font-mono text-green-400 mt-1 break-all">
+                {showToken ? adminToken : '•'.repeat(24)}
+              </code>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowToken(!showToken)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                {showToken ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => { setAdminToken(''); setAdminTokenState(''); setShowToken(false); }}
+                className="text-red-400 hover:text-red-300 text-sm font-mono"
+              >
+                forget token
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form
+            className="flex items-center space-x-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = tokenDraft.trim();
+              if (!value) return;
+              setAdminToken(value);
+              setAdminTokenState(value);
+              setTokenDraft('');
+            }}
+          >
+            <input
+              type="password"
+              value={tokenDraft}
+              onChange={(e) => setTokenDraft(e.target.value)}
+              placeholder="paste the admin token"
+              autoComplete="off"
+              className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-orange-500"
+            />
+            <button
+              type="submit"
+              disabled={!tokenDraft.trim()}
+              className="px-4 py-2 bg-orange-500/20 text-orange-400 rounded border border-orange-500/30 hover:bg-orange-500/30 font-mono text-sm transition-colors disabled:opacity-50"
+            >
+              use token
+            </button>
+          </form>
         )}
       </div>
 

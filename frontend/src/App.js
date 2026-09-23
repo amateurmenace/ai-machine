@@ -14,6 +14,7 @@ import HelpPage from './components/HelpPage';
 import Guide from './components/Guide';
 import AboutUs from './components/AboutUs';
 import Footer from './components/Footer';
+import { apiAvailable, NO_PUBLIC_API_MESSAGE } from './api';
 
 function ConsoleHeader() {
   return (
@@ -64,6 +65,30 @@ function ConsoleLayout({ children }) {
   );
 }
 
+// The console manages an assistant, and the public site has no API behind it
+// (src/api.js). Every console page says so plainly instead of failing request
+// by request.
+function NotOpenYet() {
+  return (
+    <div className="max-w-2xl mx-auto bg-gray-900 rounded-lg border border-gray-700 p-8 font-mono">
+      <p className="text-green-400 text-sm mb-4">$ connect --api</p>
+      <h2 className="text-xl font-bold text-white mb-4">not open to the public yet</h2>
+      <p className="text-gray-300 text-sm leading-relaxed mb-4">{NO_PUBLIC_API_MESSAGE}</p>
+      <p className="text-gray-400 text-sm leading-relaxed mb-6">
+        The console manages an assistant that runs on hardware its community controls, and it
+        is used on that machine.
+      </p>
+      <Link to="/guide" className="text-purple-400 hover:text-purple-300 text-sm">
+        read the guide &rarr;
+      </Link>
+    </div>
+  );
+}
+
+function Console({ children }) {
+  return <ConsoleLayout>{apiAvailable ? children : <NotOpenYet />}</ConsoleLayout>;
+}
+
 function App() {
   return (
     <Router>
@@ -78,15 +103,15 @@ function App() {
         <Route path="/about" element={<AboutUs />} />
 
         {/* Console routes */}
-        <Route path="/console" element={<ConsoleLayout><ProjectList /></ConsoleLayout>} />
-        <Route path="/console/new" element={<ConsoleLayout><SetupWizard /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId" element={<ConsoleLayout><Dashboard /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/data" element={<ConsoleLayout><DataManager /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/ledger" element={<ConsoleLayout><ConstitutionLedger /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/chat" element={<ConsoleLayout><ChatInterface /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/settings" element={<ConsoleLayout><Settings /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/admin" element={<ConsoleLayout><AdminConsole /></ConsoleLayout>} />
-        <Route path="/console/projects/:projectId/help" element={<ConsoleLayout><HelpPage /></ConsoleLayout>} />
+        <Route path="/console" element={<Console><ProjectList /></Console>} />
+        <Route path="/console/new" element={<Console><SetupWizard /></Console>} />
+        <Route path="/console/projects/:projectId" element={<Console><Dashboard /></Console>} />
+        <Route path="/console/projects/:projectId/data" element={<Console><DataManager /></Console>} />
+        <Route path="/console/projects/:projectId/ledger" element={<Console><ConstitutionLedger /></Console>} />
+        <Route path="/console/projects/:projectId/chat" element={<Console><ChatInterface /></Console>} />
+        <Route path="/console/projects/:projectId/settings" element={<Console><Settings /></Console>} />
+        <Route path="/console/projects/:projectId/admin" element={<Console><AdminConsole /></Console>} />
+        <Route path="/console/projects/:projectId/help" element={<Console><HelpPage /></Console>} />
       </Routes>
     </Router>
   );
