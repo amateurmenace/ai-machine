@@ -8,9 +8,14 @@
 set -u
 cd "$(dirname "$0")"
 
+# app.py reads .env when it is imported. The suites promise no keys and no
+# network, so they never see this machine's.
+export COMMUNITY_SKIP_DOTENV=1
+
 SUITES=(
   tests.test_rag           # retrieval, citations, pipeline assembly
   tests.test_gateway       # auth, scopes, rate limits, HTTP behavior
+  tests.test_admin_guard   # administration is local unless it carries the token
   tests.test_app_wiring    # routes, imports, OpenAPI schema
   tests.test_end_to_end    # the real agent path, model and database stubbed
   tests.test_tools         # URL guard, tool loop, failure paths

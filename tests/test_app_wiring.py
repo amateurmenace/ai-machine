@@ -97,6 +97,9 @@ def main() -> int:
     _install_stubs()
 
     print("\nimport")
+    # Not this machine's .env: a suite that needs no keys must not load any.
+    import os
+    os.environ.setdefault("COMMUNITY_SKIP_DOTENV", "1")
     try:
         import app  # noqa: F401
         check("app.py imports", True)
@@ -163,6 +166,18 @@ def main() -> int:
         check("listing returns a list", isinstance(context.list_project_ids(), list))
     except Exception as exc:
         check("gateway configured", False, str(exc))
+
+    print("\nadministration is local unless it carries the token (api/admin_guard.py)")
+    names = [m.cls.__name__ for m in app.app.user_middleware]
+    check("the admin guard is installed", "AdminGuard" in names, str(names))
+    check("inside the CORS middleware, so a refusal is a 401 and not a CORS error",
+          "AdminGuard" in names and "CORSMiddleware" in names
+          and names.index("CORSMiddleware") < names.index("AdminGuard"), str(names))
+    cors = next((m for m in app.app.user_middleware if m.cls.__name__ == "CORSMiddleware"), None)
+    origins = list((cors.kwargs if cors else {}).get("allow_origins", []))
+    for origin in ("https://neighborhood-ai.netlify.app", "https://create.neighborhoodai.org",
+                   "https://civicaiengine.org", "https://www.civicaiengine.org"):
+        check(f"the console at {origin} may call the API", origin in origins, str(origins))
 
     print("\nOpenAPI schema builds")
     try:

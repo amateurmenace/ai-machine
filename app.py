@@ -3,7 +3,7 @@ Main FastAPI Application
 Serves the Civic AI Engine backend API
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -12,6 +12,20 @@ import json
 import os
 import uuid
 from datetime import datetime
+
+# .env beside app.py, for the machine this runs on: keys, the port, the admin
+# token, whether the scheduler runs. Until now nothing read it, so every guide
+# that said to create one described a file the API ignored. Nothing in it
+# overrides a variable the environment already sets, so a container configured
+# by its platform is unaffected. Read before providers and the scheduler read
+# the environment. The test suites set COMMUNITY_SKIP_DOTENV, because they
+# promise to need no keys and must not quietly pick up an operator's.
+if not os.getenv("COMMUNITY_SKIP_DOTENV"):
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+    except ImportError:
+        pass
 
 from models import (
     ProjectConfig, DataSource, ChatRequest, ChatMessage,
@@ -31,6 +45,7 @@ from collectors.youtube_channel import (
     captions_may_be_pending, load_state, plan_sync, save_state,
 )
 
+from api.admin_guard import AdminGuard, is_remote, redact_secrets, strip_redaction
 from api.auth import ALL_SCOPES, DEFAULT_SCOPES, new_client_record
 from api.gateway import GatewayContext, configure_gateway, router as community_router
 from cloud import cloud_status
@@ -67,6 +82,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Administration is local unless it carries the token. Added before the CORS
+# middleware so that it runs inside it: a refusal then reaches a browser as a
+# 401 it can show, not as a CORS error nobody can read. See api/admin_guard.py.
+app.add_middleware(AdminGuard)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -74,6 +94,9 @@ app.add_middleware(
         "http://localhost:3000",  # Local development
         "https://neighborhood-ai.netlify.app",  # Production Netlify
         "https://neighborhood.weirdmachine.org",  # Custom domain
+        "https://create.neighborhoodai.org",  # Custom domain; the same console
+        "https://civicaiengine.org",  # The project's own domain
+        "https://www.civicaiengine.org",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -153,6 +176,22 @@ def get_or_create_agent(project_id: str) -> CivicAgent:
     agent = CivicAgent(project, vector_store=vector_stores[project_id])
     agents[project_id] = agent
     return agent
+
+
+@app.on_event("startup")
+async def say_how_administration_works():
+    from api.admin_guard import ADMIN_TOKEN_ENV, configured_token
+
+    token = configured_token()
+    if not token:
+        print(f"Admin token: not set ({ADMIN_TOKEN_ENV}). Administrative routes answer only "
+              f"this machine; a console anywhere else can ask questions and nothing more.")
+    elif len(token) < 20:
+        print(f"Admin token: set, and short. Use at least twenty characters: "
+              f"python3 -c 'import secrets; print(secrets.token_urlsafe(32))'")
+    else:
+        print("Admin token: set. Administrative routes answer this machine, and anywhere "
+              "that presents the token.")
 
 
 @app.on_event("startup")
@@ -302,13 +341,17 @@ async def list_projects():
 
 
 @app.get("/api/projects/{project_id}")
-async def get_project(project_id: str):
+async def get_project(project_id: str, request: Request):
     """Get project details"""
     project = load_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    return project.model_dump()
+    data = project.model_dump()
+    # The operator's own browser sees the whole thing. One on another machine
+    # sees the project without its secrets, token or no token: the raw config
+    # route exists for that, and it is administrative.
+    return redact_secrets(data) if is_remote(request) else data
 
 
 @app.put("/api/projects/{project_id}")
@@ -318,8 +361,8 @@ async def update_project(project_id: str, updates: Dict):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Update fields
-    for key, value in updates.items():
+    # Update fields. A secret that came back masked is left as it was.
+    for key, value in strip_redaction(updates).items():
         if hasattr(project, key):
             setattr(project, key, value)
 
@@ -1931,4 +1974,11 @@ if __name__ == "__main__":
 
     # Cloud Run sets PORT. Everywhere else keeps the historical default.
     port = int(os.getenv("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Loopback unless told otherwise. On 0.0.0.0 the API, and every
+    # administrative route on it, is open to whatever network the machine is
+    # on. The console at localhost:3000 and a tunnel both reach loopback.
+    host = os.getenv("HOST", "127.0.0.1")
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        print(f"HOST={host}: the API is reachable from other machines on this network. "
+              f"Administrative routes need the admin token from there.")
+    uvicorn.run(app, host=host, port=port)

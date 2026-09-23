@@ -676,6 +676,7 @@ def test_status_endpoint_is_registered() -> None:
 
     _install_stubs()
     try:
+        os.environ.setdefault("COMMUNITY_SKIP_DOTENV", "1")
         import app
     except Exception as exc:
         check("app.py imports with the cloud package wired in", False,
