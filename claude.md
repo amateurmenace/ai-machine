@@ -2,7 +2,9 @@
 
 > **The deployment as it is, 2026-09-22. Read this before anything below.**
 > The API is deliberately not on the internet. It listens on 127.0.0.1:8400
-> (`.env`), there is no tunnel, and its administrative routes refuse other
+> (`.env`) as a LaunchAgent (`./deploy/launchd.sh status | restart | logs`;
+> restart it, never start a second copy), there is no tunnel, and its
+> administrative routes refuse other
 > machines without `COMMUNITY_ADMIN_TOKEN` (`api/admin_guard.py`). The public
 > site is https://civicaiengine.org on Netlify, built with
 > `REACT_APP_API_URL=none` (`./deploy/netlify.sh --no-api`). Do not start a

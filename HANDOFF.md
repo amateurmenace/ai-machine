@@ -128,12 +128,15 @@ subcommittees. That channel is the corpus.
 HOW IT IS DEPLOYED
 
   residents → civicaiengine.org, the primary (www redirects to it), and
-              create.neighborhoodai.org and neighborhood-ai.netlify.app
-              (Netlify: the public site, built with REACT_APP_API_URL=none,
-              so it knows there is no API)
+              create.neighborhoodai.org, neighborhood.weirdmachine.org and
+              neighborhood-ai.netlify.app (Netlify: the public site, built
+              with REACT_APP_API_URL=none, so it knows there is no API)
 
   this machine → FastAPI on 127.0.0.1:8400 (.env) + archive.sqlite3
-                 + LM Studio on the GPU. No tunnel.
+                 + LM Studio on the GPU. No tunnel. The API runs as a
+                 LaunchAgent, org.civicaiengine.api: it starts at login and
+                 again if it crashes. ./deploy/launchd.sh status | restart |
+                 logs. Do not start a second copy by hand; restart this one.
 
 The public site is the landing page, the guide and the rules; its console
 says the assistant is not open to the public. The same build, served by the
