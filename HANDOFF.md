@@ -127,9 +127,10 @@ subcommittees. That channel is the corpus.
 
 HOW IT IS DEPLOYED
 
-  residents → civicaiengine.org, create.neighborhoodai.org,
-              neighborhood-ai.netlify.app (Netlify: the public site, built
-              with REACT_APP_API_URL=none, so it knows there is no API)
+  residents → civicaiengine.org, the primary (www redirects to it), and
+              create.neighborhoodai.org and neighborhood-ai.netlify.app
+              (Netlify: the public site, built with REACT_APP_API_URL=none,
+              so it knows there is no API)
 
   this machine → FastAPI on 127.0.0.1:8400 (.env) + archive.sqlite3
                  + LM Studio on the GPU. No tunnel.
@@ -157,6 +158,7 @@ wrong, in which case say so plainly:
 - Any cloud deployment goes to my personal account (swalter4669), never the
   Hope Group organization. Both deploy scripts enforce this and will refuse.
 - These hostnames are real, in use, and must not be renamed or "cleaned up":
+  civicaiengine.org (the site's primary domain since 2026-09-22),
   neighborhood-ai.netlify.app, neighborhood.weirdmachine.org,
   neighborhoodai.org, create.neighborhoodai.org.
 - constitution/signers.json ships empty on purpose. Nothing gets adopted into
@@ -184,8 +186,9 @@ WHAT TO DO, in the order ROADMAP.md argues for
    deployed on 2026-09-22), or --api-url <tunnel-url> the day there is a
    tunnel. The CLI is installed and signed in here, and frontend/ is linked to
    the neighborhood-ai site. It publishes a draft unless --prod is typed
-   deliberately. civicaiengine.org is on that site as an alias, waiting on DNS
-   at Squarespace: A @ 75.2.60.5, CNAME www neighborhood-ai.netlify.app.
+   deliberately. civicaiengine.org is that site's primary domain; its DNS is
+   at Squarespace (A @ 75.2.60.5, CNAME www neighborhood-ai.netlify.app), and
+   create.neighborhoodai.org stays on the site as an alias.
 
 4. Nightly backup plus one restore drill:
      python3 -m stores.backup create --project <id> --keep 14

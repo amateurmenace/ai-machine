@@ -1,5 +1,16 @@
 # Civic AI Engine - Project Documentation
 
+> **The deployment as it is, 2026-09-22. Read this before anything below.**
+> The API is deliberately not on the internet. It listens on 127.0.0.1:8400
+> (`.env`), there is no tunnel, and its administrative routes refuse other
+> machines without `COMMUNITY_ADMIN_TOKEN` (`api/admin_guard.py`). The public
+> site is https://civicaiengine.org on Netlify, built with
+> `REACT_APP_API_URL=none` (`./deploy/netlify.sh --no-api`). Do not start a
+> tunnel or expose the API without asking Stephen first. HANDOFF.md,
+> SYSTEM_GUIDE.md, ROADMAP.md and ARCHIVE_BUILD.md describe the system as it
+> is. Much of this file dates from January 2026 (Ollama, Qdrant, port 8000,
+> quick tunnels) and is out of date, including its tunnel instructions.
+
 ## Project Overview
 
 **Civic AI Engine** is an open-source platform for building privacy-respecting, energy-efficient, locally-run AI assistants for communities. It enables civic organizations, community media centers, local governments, and neighborhood groups to create AI chatbots that answer questions about their town using local data sources.
