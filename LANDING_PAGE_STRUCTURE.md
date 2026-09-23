@@ -70,5 +70,5 @@ How it works:
   at build time). Put the full class string in the data.
 - `CI=true npm run build` must pass with no warnings; Netlify treats warnings as
   errors.
-- The constitution link points at the repository (`CONSTITUTION_URL` in
-  LandingPage.js); update `REPO_BRANCH` there when the work lands on main.
+- The constitution link points at the repository's `main` branch
+  (`CONSTITUTION_URL` in LandingPage.js).

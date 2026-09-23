@@ -41,9 +41,8 @@ import Footer from './Footer';
 import ConsoleDemo from './ConsoleDemo';
 
 const REPO_URL = 'https://github.com/amateurmenace/ai-machine';
-// The constitution lives in the repository. Update the branch here when this
-// work lands on main.
-const REPO_BRANCH = 'claude/neighborhood-ai-update-6s4s38';
+// The constitution lives in the repository, on the default branch.
+const REPO_BRANCH = 'main';
 const CONSTITUTION_URL = `${REPO_URL}/blob/${REPO_BRANCH}/constitution/constitution-v1.0.md`;
 
 // A small uppercase label above a section, the way a printed brief does it.
