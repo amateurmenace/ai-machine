@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-public",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd frontend && BROWSER=none REACT_APP_API_URL=none npm start"],
+      "port": 3000
+    }
+  ]
+}

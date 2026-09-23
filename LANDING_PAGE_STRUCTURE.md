@@ -1,373 +1,74 @@
-# Landing Page Visual Structure
+# Landing Page Structure
 
-## Page Layout
+The public site (https://civicaiengine.org) is the landing page, the guide and
+the rules. It is built with `REACT_APP_API_URL=none`, so nothing on the landing
+page may depend on an API: the demo is a scripted simulation, and the "running
+right now" section only appears when the same build is served by the API on
+its own machine.
+
+The page reads top to bottom, plain words first, technical detail last. Each
+section has an anchor the sticky nav and the hero's reading guide link to.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         HERO SECTION                         │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │   [Live Badge: Open Source • Community Owned]           │ │
-│  │                                                          │ │
-│  │            Civic AI Engine                               │ │
-│  │   Build AI for Us, Not Them                             │ │
-│  │                                                          │ │
-│  │   [Open Console Button]  [View on GitHub]               │ │
-│  │                                                          │ │
-│  │   ┌──────────────────────────────────────┐              │ │
-│  │   │  // Code snippet demo                │              │ │
-│  │   │  const brooklineAI = new...          │              │ │
-│  │   │  Privacy: 100%, Cost: $0             │              │ │
-│  │   └──────────────────────────────────────┘              │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                    THE PROBLEM SECTION                       │
-│                                                              │
-│         The Problem with Big AI                              │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ ☁️ Energy │  │ 🔒 Privacy│  │ 🌍 Context│                  │
-│  │          │  │           │  │           │                  │
-│  │ Problem: │  │ Problem:  │  │ Problem:  │                  │
-│  │ 50 GWh   │  │ Harvested │  │ Generic   │                  │
-│  │          │  │           │  │           │                  │
-│  │ Solution:│  │ Solution: │  │ Solution: │                  │
-│  │ Local AI │  │ Local AI  │  │ Local AI  │                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-│                                                              │
-│  [Cost comparison: GPT-4: $30 vs Civic AI Engine: $0]       │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                    HOW IT WORKS SECTION                      │
-│                                                              │
-│              How It Works                                    │
-│                                                              │
-│  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────┐                        │
-│  │ 01  │  │ 02  │  │ 03  │  │ 04  │                        │
-│  │     │  │     │  │     │  │     │                        │
-│  │Disco│  │Inge │  │ Run │  │Answ │                        │
-│  │ver  │  │st & │  │Local│  │er Q │                        │
-│  │Sour │  │Vect │  │ AI  │  │uest │                        │
-│  │ces  │  │orize│  │     │  │ions │                        │
-│  │     │  │     │  │     │  │     │                        │
-│  │[code│  │[code│  │[code│  │[code│                        │
-│  │snip]│  │snip]│  │snip]│  │snip]│                        │
-│  └─────┘  └─────┘  └─────┘  └─────┘                        │
-│                                                              │
-│              [Start Building Button]                         │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                     VALUES SECTION                           │
-│                                                              │
-│         Our Values are <Coded In>                            │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ ❤️ Comm. │  │ 🛡️ Trans.│  │ ⚡ Effic.│                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ 👥 Civic │  │ 💻 Open  │  │ 🖥️ Local │                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│              CIVIC TECH PHILOSOPHY SECTION                   │
-│                                                              │
-│  ┌──────────────────┐  ┌─────────────────────┐             │
-│  │ Code Meets       │  │  class NeighborhoodAI│             │
-│  │ Concrete         │  │  {                   │             │
-│  │                  │  │    privacy: true     │             │
-│  │ ✓ Encourages     │  │    surveillance: ❌  │             │
-│  │   Participation  │  │    openSource: true  │             │
-│  │ ✓ Cites Sources  │  │    cloudRequired: ❌ │             │
-│  │ ✓ Admits Limits  │  │    citations: true   │             │
-│  │ ✓ Community Own  │  │    ...               │             │
-│  │                  │  │  }                   │             │
-│  └──────────────────┘  └─────────────────────┘             │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                   WHO IT'S FOR SECTION                       │
-│                                                              │
-│           Built For Communities                              │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │    🏛️    │  │    📺    │  │    🏘️    │                  │
-│  │  Local   │  │Community │  │Neighbor- │                  │
-│  │  Govt    │  │  Media   │  │  hoods   │                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│               REAL WORLD EXAMPLE SECTION                     │
-│                                                              │
-│  Real Example: Brookline AI                                  │
-│                                                              │
-│  ┌────────────────────┐  ┌────────────────────┐            │
-│  │ Data Sources:      │  │ Example Questions: │            │
-│  │ ✓ 500+ hrs video   │  │ "Trash day?"       │            │
-│  │ ✓ Local news       │  │ "Select Board?"    │            │
-│  │ ✓ Town website     │  │ "Dog license?"     │            │
-│  │ ✓ r/brookline      │  │                    │            │
-│  └────────────────────┘  └────────────────────┘            │
-│                                                              │
-│  [Cost: $0.50 setup • $0/month • 100% privacy]              │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                      FINAL CTA SECTION                       │
-│          (Gradient background: green → blue)                 │
-│                                                              │
-│      Ready to Build AI for Your Community?                   │
-│      Open source. Free to run. Yours to control.             │
-│                                                              │
-│      [Launch Console]  [View Source]                         │
-│                                                              │
-│      MIT License • Community Owned • Privacy First           │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                         FOOTER                               │
-│                                                              │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │Neighbor- │  │Resources │  │Community │  │Family of │   │
-│  │hood AI   │  │          │  │          │  │Apps      │   │
-│  │          │  │• Docs    │  │• Forum   │  │• Comm AI │   │
-│  │Building  │  │• GitHub  │  │• Discord │  │  Project │   │
-│  │AI for    │  │• Examples│  │• Twitter │  │• Highltr │   │
-│  │commun... │  │          │  │          │  │          │   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-│                                                              │
-│      Made for communities by civic technologists 🏘️          │
-│      Built with ❤️ by Brookline Interactive Group            │
-└─────────────────────────────────────────────────────────────┘
+frontend/src/components/LandingPage.js        the page
+frontend/src/components/ConsoleDemo.js        the console simulation (renderer)
+frontend/src/components/consoleDemoScript.js  what the simulation shows (content)
 ```
 
-## Color Scheme
+## Sections, in order
 
-### Primary Colors
-- **Background**: Dark gray gradients (gray-900 → gray-800)
-- **Accents**: Green (#22C55E) and Blue (#3B82F6)
-- **Text**: White primary, gray-300/400 secondary
-- **Code**: Green-400 on black backgrounds
+| # | Anchor | Section | Audience | Source of the copy |
+| --- | --- | --- | --- | --- |
+| 1 | `#top` | **Hero.** "AI as civic infrastructure." Public access TV made government watchable; this makes it askable. Two CTAs (the demo, the basics) and a three-part reading guide. | everyone | Civic AI Engine brief, p. 1 |
+| 2 | `#what` | **What makes it different.** Two things at once: a real alternative to Big AI and a deeply local one. Four accent cards: a fraction of a data center, residents write the rules, it never leaves the community, anyone can build on it. | everyone | brief, p. 1 |
+| 3 | | **How it gets used.** Four illustrative uses: speaking at a hearing, a question answered in Spanish, apps on the API, a vibe-coded app. | everyone | brief, p. 1 |
+| 4 | `#demo` | **Watch a community AI get built.** The console simulation (below). Three notes under it: an afternoon on a real node, nothing calls a server, the data is sample data. | everyone | |
+| 5 | `#vision` | **The idea.** Cable companies pay for community media; AI companies should pay for community AI. Why a utility, the 1984 precedent, what stations already hold, the vision callout (legislation), what a station node looks like, a hub-and-nodes network. No partner stations are named. | stations, towns, funders | brief, p. 2 and p. 3 |
+| 6 | `#how` | **How it works.** Five steps: create, collect, learn, fine-tune, engage. | everyone | brief, p. 2 |
+| 7 | | **In plain terms.** Six-term glossary: open-weight AI, how we customize it, constitutional convention, civic data corpus, civic API, frontier models. | everyone | brief, p. 2 |
+| 8 | `#build` | **How it is built.** "One node. Four layers." The node diagram (power, node, private lane, archive, corpus, station network; web chat and apps out; the management-only network), four design details, the stack table. | technical | brief, p. 3; SYSTEM_GUIDE.md |
+| 9 | | **What the community owns** (rules, record, finding, proof, test), **what happens when someone asks** (the six-step retrieval pipeline), and **every answer shows its work** (a cited answer with its provenance panel). | technical | SYSTEM_GUIDE.md §1–2 |
+| 10 | `#ledger` | **The rules are a signed chain.** The constitution ledger, what it guarantees and what it does not claim. | technical | LEDGER.md |
+| 11 | `#api` | **Infrastructure, not a chatbot.** The OpenAI-compatible and civic endpoints, keys, the gateway dropping system prompts, question hashing. | technical | api/gateway.py |
+| 12 | | **Control and maintenance.** Remote care, isolated, you hold the keys. | stations | brief, p. 3 |
+| 13 | `#live` | **Running right now.** Live assistants with a chat modal. Only when `apiAvailable` (src/api.js). | | |
+| 14 | `#start` | **Three ways in.** Host a node (stations), run it yourself (technologists, with the bootstrap commands), shape the rules (residents, linking to the draft constitution). Final CTAs adapt to whether an API is available. | everyone | HANDOFF.md |
 
-### Semantic Colors
-- **Success/Positive**: Green-400/500
-- **Warning/Cost**: Yellow-500
-- **Danger/Problem**: Red-400/500
-- **Info**: Blue-400/500
+Followed by the shared `Footer`.
 
-### Gradients
-- Hero title: Blue → Green → Blue
-- CTA buttons: Green → Blue
-- Code windows: Black with green borders
-- Final CTA section: Green → Blue background
+## The console demo
 
-## Typography
+`ConsoleDemo` replays the real setup wizard's six steps (`./init`,
+`./discover`, `./constitution`, `./finetune`, `./config`, `./launch`) and a
+first question (`./chat`), with the same commands, step names, terminal lines
+and status badges the console uses.
 
-### Headers
-- H1: 6xl-7xl, bold, gradient text
-- H2: 4xl, bold
-- H3: 2xl-3xl, bold
-- H4: xl, semibold
+How it works:
 
-### Body
-- Primary: base/lg, gray-300
-- Secondary: sm/base, gray-400
-- Code: mono, sm, green-400
+- `consoleDemoScript.js` exports `buildScript(town)`: a list of timed events,
+  each a function from the demo's state to the next. The renderer keeps one
+  number, how many events have been applied, and derives the screen from it.
+  Play, pause, jump-to-step, restart and the 2x speed are all changes to that
+  number or to the timer.
+- The visitor can type any town. The name flows through project ids, source
+  names, the personality prompt and the answers. Everything else is sample
+  data and the console is labeled "simulation · sample data".
+- It starts on its own the first time it scrolls into view. With
+  `prefers-reduced-motion` the typing is instant and pauses are short, so the
+  sequence is the same, only quicker.
+- The chat step asks one question by script and offers three more as chips.
+  Each canned answer shows a property the real system has: a deep link to a
+  timestamp, an answer in the language of the question, a discussion kept
+  distinct from a vote, and an honest "the record does not include this".
+- To change what the demo says, edit `consoleDemoScript.js` only.
 
-### Special
-- Live badges: Small, mono, colored
-- Stats/numbers: Bold, white
-- CTAs: Semibold/bold, lg
+## Conventions
 
-## Interactive Elements
-
-### Buttons
-
-**Primary CTA:**
-```
-Background: Gradient green → blue
-Text: White, bold
-Icon: Arrow right
-Hover: Shadow glow, translate arrow
-```
-
-**Secondary CTA:**
-```
-Background: Transparent
-Border: White 2px
-Text: White
-Hover: Background white/10
-```
-
-**Console CTA:**
-```
-Background: White
-Text: Blue-600, bold
-Hover: Gray-100
-```
-
-### Cards
-
-**Problem Cards:**
-```
-Background: Gray-800/50
-Border: Gray-700
-Hover: Border red-500/50
-Icon: Red-400
-```
-
-**How It Works Cards:**
-```
-Background: Gradient gray-800 → gray-900
-Border: Gray-700
-Hover: Border green-500, shadow, scale 105%
-Code snippet: Black bg, green border
-```
-
-**Values Cards:**
-```
-Background: Gray-800/50
-Border: Gray-700
-Hover: Border gray-600
-Icon: Colored (varies)
-```
-
-### Code Windows
-
-**Terminal Style:**
-```
-Header: 
-  - Traffic lights (red, yellow, green dots)
-  - Filename in gray mono
-Background: Gray-950/Black
-Border: Green-500/30 with shadow
-Text: Green-400, mono font
-```
-
-## Animations
-
-### On Load
-- Hero section fades in
-- Code snippet types in (optional)
-- Grid background subtle animation
-
-### On Scroll
-- Sections fade in as they enter viewport
-- Cards subtle lift on hover
-- Numbers count up when visible
-
-### Interactions
-- Button hover: Shadow glow
-- Card hover: Border color + scale
-- Arrow icons: Translate right
-- Live badge: Pulse dot
-
-## Responsive Breakpoints
-
-### Mobile (< 768px)
-- Single column layout
-- Stack hero buttons vertically
-- Larger text for readability
-- Full-width cards
-
-### Tablet (768px - 1024px)
-- 2 column grids
-- Maintain card sizes
-- Side-by-side code/prose in civic section
-
-### Desktop (> 1024px)
-- 3 column grids for cards
-- Full width code snippets
-- Maximum container width: 7xl
-
-## Content Guidelines
-
-### Hero Section
-- 1 main headline
-- 1 subheadline
-- 1 description paragraph
-- 2 CTAs
-- 1 code demo
-
-### Problem Section
-- Section title
-- 3 problem cards
-- 1 cost comparison callout
-
-### How It Works
-- Section title
-- 4 step cards
-- 1 CTA button
-
-### Values
-- Section title
-- 6 value cards
-
-### Civic Philosophy
-- Section title
-- Split layout (prose + code)
-- 4 checkpoints
-- 1 code snippet
-
-### Who It's For
-- Section title
-- 3 audience cards
-
-### Real Example
-- Section title
-- 2 column content
-- Cost callout
-
-### Final CTA
-- Section title
-- Description
-- 2 CTAs
-- Small trust indicators
-
-### Footer
-- 4 column links
-- Copyright/attribution
-
-## Accessibility
-
-- All sections have semantic HTML
-- Code snippets wrapped in `<pre><code>`
-- Links have descriptive text
-- Images would have alt text
-- Color contrast WCAG AA compliant
-- Keyboard navigable
-- Screen reader friendly
-
-## Performance
-
-- Lazy load sections below fold
-- Optimize gradient rendering
-- Minimal animations (respect prefers-reduced-motion)
-- Code snippets as text (not images)
-- Single page, no external fonts
-
-## SEO
-
-- Semantic HTML5 tags
-- Meta tags for social sharing
-- Structured data for organization
-- Clear hierarchy (H1 → H2 → H3)
-- Descriptive link text
-- Fast load time
-
----
-
-This structure ensures:
-✅ Clear value proposition in hero
-✅ Problem → Solution framework
-✅ Technical transparency
-✅ Social proof (real example)
-✅ Multiple CTAs throughout
-✅ Strong visual hierarchy
-✅ Code-centered aesthetic
-✅ Civic tech values clear
+- Section labels are small uppercase monospace (`<Label>`), the way the printed
+  brief does it. Accent colors follow the brief: orange, rose, emerald, cyan.
+- Never build Tailwind class names dynamically (`text-${color}-600` is purged
+  at build time). Put the full class string in the data.
+- `CI=true npm run build` must pass with no warnings; Netlify treats warnings as
+  errors.
+- The constitution link points at the repository (`CONSTITUTION_URL` in
+  LandingPage.js); update `REPO_BRANCH` there when the work lands on main.

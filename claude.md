@@ -815,6 +815,32 @@ Build settings:
 
 ## Session History
 
+### September 23, 2026 - Session 9
+**Landing page rebuilt around the Civic AI Engine brief, plus a console simulation:**
+
+- `frontend/src/components/LandingPage.js` rewritten. It now reads top to bottom
+  from plain words to technical detail: hero ("AI as civic infrastructure"),
+  what makes it different, how it gets used, the demo, the public-utility
+  vision (no partner stations named), five steps, a plain-terms glossary, the
+  node diagram and stack, what the community owns and the retrieval pipeline,
+  the ledger, the API, control and maintenance, live assistants (API only),
+  three ways in. `LANDING_PAGE_STRUCTURE.md` has the section table.
+- New `frontend/src/components/ConsoleDemo.js` and
+  `consoleDemoScript.js`: a scripted replay of the six-step setup wizard and a
+  first question, with sample data and no API. The visitor types a town;
+  play, pause, jump, restart, 2x, reduced-motion aware. Content lives in the
+  script file only.
+- `frontend/public/index.html` title and description updated. `frontend/src/App.css`
+  gained scrollbar utilities for dark panels. `.claude/launch.json` starts the
+  public-site build (`REACT_APP_API_URL=none`) for previews.
+- Verified: `CI=true REACT_APP_API_URL=none npm run build` passes with no
+  warnings; checked at desktop and phone widths, and at a non-loopback origin
+  (where `apiAvailable` is false, as on civicaiengine.org).
+- Note: on `localhost`, `src/api.js` treats the API as available even with
+  `REACT_APP_API_URL=none`, so a local preview still tries the API. That is by
+  design (the operator's console).
+
+
 ### January 6, 2026 - Session 8 (Current)
 **Critical Fixes & Advanced Features:**
 
